@@ -63,16 +63,16 @@ Budget notes: S7, S8 and S9b are estimated at about 400 lines. If an implementat
 
 Satisfies: engine-runtime / Separate, unmodified, lazy-loaded worker; engine-runtime / Permissive-only app bundle; chess-board / Client-only rendering behind a wrapper interface (spike); game-import / Rate-limit compliance (fact verification); opening-explorer / Server-side requests that respect rate limits (fact verification). Open questions closed: Lichess API facts, board library verdict, Stockfish pinning, Dockerfile pnpm.
 
-- [ ] S0.1 [O] Add dependencies: `chess.js` and `react-chessboard` in `apps/web/package.json`, `stockfish` (asset source only, devDependency) in `apps/web/package.json`; `ts-fsrs` deferred to S5a, `chess.js` for `packages/chess` deferred to S1a. Update `pnpm-lock.yaml`.
-- [ ] S0.2 [O] Create `apps/web/scripts/copy-engine.ts`: copy the pinned lite single-thread `stockfish-*-lite-single.js` + `.wasm` and the GPL text (`Copying.txt`) unmodified from `node_modules/stockfish` into `apps/web/public/engine/`; wire into `apps/web/package.json` `predev` and `prebuild` scripts. File names pinned after S0.8.
-- [ ] S0.3 [O] Modify `apps/web/.gitignore` to ignore `public/engine/`.
-- [ ] S0.4 [O] Modify `apps/web/vite.config.ts`: workbox `globIgnores: ["engine/**"]` and a runtime `CacheFirst` route for /engine/.
-- [ ] S0.5 [O] [react] Create the throwaway spike screen `apps/web/src/routes/prototype/board-spike.tsx` (deleted in S12) rendering react-chessboard v5 at 375 px with tap-tap and drag moves, promotion and arrows.
+- [x] S0.1 [O] Add dependencies: `chess.js` and `react-chessboard` in `apps/web/package.json`, `stockfish` (asset source only, devDependency) in `apps/web/package.json`; `ts-fsrs` deferred to S5a, `chess.js` for `packages/chess` deferred to S1a. Update `pnpm-lock.yaml`.
+- [x] S0.2 [O] Create `apps/web/scripts/copy-engine.ts`: copy the pinned lite single-thread `stockfish-*-lite-single.js` + `.wasm` and the GPL text (`Copying.txt`) unmodified from `node_modules/stockfish` into `apps/web/public/engine/`; wire into `apps/web/package.json` `predev` and `prebuild` scripts. File names pinned after S0.8.
+- [x] S0.3 [O] Modify `apps/web/.gitignore` to ignore `public/engine/`.
+- [x] S0.4 [O] Modify `apps/web/vite.config.ts`: workbox `globIgnores: ["engine/**"]` and a runtime `CacheFirst` route for /engine/.
+- [x] S0.5 [O] [react] Create the throwaway spike screen `apps/web/src/routes/prototype/board-spike.tsx` (deleted in S12) rendering react-chessboard v5 at 375 px with tap-tap and drag moves, promotion and arrows.
 - [ ] S0.6 [O] Manual check: 375 px touch spike on a real phone or device emulation; record verdict (keep react-chessboard or switch `chess-board-impl.tsx` to cm-chessboard) in `openspec/changes/chess-lab-v1/notes/s0-verification.md`.
-- [ ] S0.7 [O] Verify and record in the same notes file the Lichess API facts against current docs (https://lichess.org/api): export parameters (`since`, `sort=dateAsc`, `clocks`, `opening`, `pgnInJson`, `moves`, `evals`, `finished`, `Accept: application/x-ndjson`), exact 429 policy (wait one minute), whether the opening explorer requires a token, and PKCE S256-only for /oauth. Update ADR-09 values in design if any differ.
-- [ ] S0.8 [O] Verify and record the Stockfish pin: exact npm version, lite single-thread file names, supported `UCI_Elo` min/max read from the `uci` handshake, upstream source URL; set the `ENGINE_ID` value to use in S9a.
-- [ ] S0.9 [O] Verify and record the `apps/server/Dockerfile` finding: Dockerfile installs `pnpm@11`, repo uses pnpm 12 (read-only comparison of `apps/server/Dockerfile` (read-only) and root `package.json` `packageManager` (read-only)); note the fix needed before first deploy (fix itself is part of the hosting decision, not this slice).
-- [ ] S0.10 [O] Record that the Stockfish GPL reading remains a launch gate in the notes file.
+- [x] S0.7 [O] Verify and record in the same notes file the Lichess API facts against current docs (https://lichess.org/api): export parameters (`since`, `sort=dateAsc`, `clocks`, `opening`, `pgnInJson`, `moves`, `evals`, `finished`, `Accept: application/x-ndjson`), exact 429 policy (wait one minute), whether the opening explorer requires a token, and PKCE S256-only for /oauth. Update ADR-09 values in design if any differ.
+- [x] S0.8 [O] Verify and record the Stockfish pin: exact npm version, lite single-thread file names, supported `UCI_Elo` min/max read from the `uci` handshake, upstream source URL; set the `ENGINE_ID` value to use in S9a.
+- [x] S0.9 [O] Verify and record the `apps/server/Dockerfile` finding: Dockerfile installs `pnpm@11`, repo uses pnpm 12 (read-only comparison of `apps/server/Dockerfile` (read-only) and root `package.json` `packageManager` (read-only)); note the fix needed before first deploy (fix itself is part of the hosting decision, not this slice).
+- [x] S0.10 [O] Record that the Stockfish GPL reading remains a launch gate in the notes file.
 
 Verify: `pnpm --filter web build`; `ls apps/web/public/engine`; confirm dist contains no `stockfish` in the main bundle; standard checks.
 

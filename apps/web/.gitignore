@@ -61,3 +61,6 @@ dev-dist
 
 !.env.schema
 /src/env.ts
+
+# Engine assets copied from the stockfish package by scripts/copy-engine.ts
+/public/engine/

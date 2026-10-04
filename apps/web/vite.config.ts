@@ -30,7 +30,22 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      workbox: { globPatterns: ["**/*.{js,css,html,png,svg,ico}"] },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+        // The engine (~7 MB WASM) is never precached; it is cached on first use instead.
+        globIgnores: ["engine/**"],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/engine/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "engine",
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: brand.name,
         short_name: brand.name,
