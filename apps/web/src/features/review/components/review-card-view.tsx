@@ -1,4 +1,4 @@
-import type { Grade } from "@b2c-template/study";
+import { CARD_STATE, type Grade } from "@b2c-template/study";
 import { Button } from "@b2c-template/ui/components/button";
 import { Card } from "@b2c-template/ui/components/card";
 import { cn } from "@b2c-template/ui/lib/utils";
@@ -20,10 +20,10 @@ export const GRADE_OPTIONS: readonly { grade: Grade; label: string; className: s
 ];
 
 const STATE_LABEL: Record<QueueItem["state"], string> = {
-  0: "New",
-  1: "Learning",
-  2: "Review",
-  3: "Relearning",
+  [CARD_STATE.New]: "New",
+  [CARD_STATE.Learning]: "Learning",
+  [CARD_STATE.Review]: "Review",
+  [CARD_STATE.Relearning]: "Relearning",
 };
 
 const SIDE_LABEL = { white: "White", black: "Black" } as const;

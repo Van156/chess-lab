@@ -1,6 +1,6 @@
 import type { Grade } from "@b2c-template/study";
 
-import { OUTBOX_BACKOFF_BASE_MS, OUTBOX_BACKOFF_MAX_MS } from "../config";
+import { OUTBOX_BACKOFF_BASE_MS, OUTBOX_BACKOFF_MAX_MS, OUTBOX_MAX_ATTEMPTS } from "../config";
 
 /** One grade waiting to reach the server; `reviewLogId` is the server idempotency key (ADR-15). */
 export type GradeEntry = {
@@ -58,6 +58,15 @@ export function isNonRetryableGradeError(error: unknown): boolean {
   return typeof error.code === "string" && NON_RETRYABLE_CODES.has(error.code);
 }
 
+/**
+ * Failures that say nothing about the grade itself: no server answer (network) or a signed-out
+ * session. They are retried forever and never count towards `OUTBOX_MAX_ATTEMPTS`.
+ */
+function isTransientGradeError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) return true;
+  return typeof error.code !== "string" || error.code === "UNAUTHORIZED";
+}
+
 function isGradeEntry(value: unknown): value is GradeEntry {
   if (typeof value !== "object" || value === null) return false;
   const entry = value as Record<string, unknown>;
@@ -88,18 +97,37 @@ export function createGradeOutbox({
   let failures = 0;
   let disposed = false;
   let cancelRetry: void | (() => void);
+  // In-memory safety nets for a storage that fails; none of them is ever persisted.
+  /** Grades `append` could not persist; `drain` still sends them while the tab lives. */
+  const unpersisted: GradeEntry[] = [];
+  /** Grades already sent whose removal could not be written; `readStored` hides them. */
+  const acknowledged = new Set<string>();
+  /** Consecutive server failures per grade. */
+  const attempts = new Map<string, number>();
+  /**
+   * Grades the server keeps failing: skipped for the rest of the session so they do not block
+   * later grades. They stay in storage (and in `pending`), so the next session tries them again.
+   */
+  const setAside = new Set<string>();
 
-  function read(): GradeEntry[] {
+  function readStored(): GradeEntry[] {
     const raw = storage.getItem(key);
     if (raw === null) return [];
     try {
       const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.filter(isGradeEntry);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(isGradeEntry).filter((entry) => !acknowledged.has(entry.reviewLogId));
+      }
       log("stored queue is not a list; treating it as empty");
     } catch (error) {
       log("stored queue is unreadable; treating it as empty", error);
     }
     return [];
+  }
+
+  /** Stored entries plus the ones that never reached storage, oldest first. */
+  function read(): GradeEntry[] {
+    return [...readStored(), ...unpersisted];
   }
 
   function write(entries: GradeEntry[]): boolean {
@@ -114,12 +142,24 @@ export function createGradeOutbox({
 
   /** Re-reads before writing, so a grade appended mid-flush (or by another tab) is kept. */
   function remove(reviewLogId: string) {
-    write(read().filter((entry) => entry.reviewLogId !== reviewLogId));
+    attempts.delete(reviewLogId);
+    setAside.delete(reviewLogId);
+    const index = unpersisted.findIndex((entry) => entry.reviewLogId === reviewLogId);
+    if (index >= 0) unpersisted.splice(index, 1);
+    if (!write(readStored().filter((entry) => entry.reviewLogId !== reviewLogId))) {
+      // Without this the next pass would resubmit the same head forever.
+      acknowledged.add(reviewLogId);
+    }
   }
 
   function append(input: GradeInput): GradeEntry {
     const entry: GradeEntry = { reviewLogId: newId(), ...input };
-    write([...read(), entry]);
+    if (!write([...readStored(), entry])) {
+      log("keeping the grade in memory only; it is lost if the tab closes before it is sent", {
+        reviewLogId: entry.reviewLogId,
+      });
+      unpersisted.push(entry);
+    }
     return entry;
   }
 
@@ -134,7 +174,8 @@ export function createGradeOutbox({
   }
 
   async function drain() {
-    for (let head = read()[0]; head; head = read()[0]) {
+    const next = () => read().find((entry) => !setAside.has(entry.reviewLogId));
+    for (let head = next(); head; head = next()) {
       if (disposed || !isActive()) return;
       try {
         await submit(head);
@@ -143,6 +184,18 @@ export function createGradeOutbox({
           log("dropping a grade the server rejected", { reviewLogId: head.reviewLogId, error });
           remove(head.reviewLogId);
           continue;
+        }
+        if (!isTransientGradeError(error)) {
+          const count = (attempts.get(head.reviewLogId) ?? 0) + 1;
+          attempts.set(head.reviewLogId, count);
+          if (count >= OUTBOX_MAX_ATTEMPTS) {
+            log("setting aside a grade the server keeps failing; it stays queued", {
+              reviewLogId: head.reviewLogId,
+              error,
+            });
+            setAside.add(head.reviewLogId);
+            continue;
+          }
         }
         scheduleRetry();
         return;

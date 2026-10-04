@@ -10,6 +10,7 @@ import {
   type GradeEntry,
   type OutboxStorage,
 } from "./grade-outbox";
+import { OUTBOX_MAX_ATTEMPTS } from "../config";
 
 function fakeStorage(initial: Record<string, string> = {}): OutboxStorage & {
   data: Map<string, string>;
@@ -296,5 +297,103 @@ describe("grade outbox ownership", () => {
     await outbox.flush();
     expect(sent).toEqual([]);
     expect(outbox.pending().map((e) => e.cardId)).toEqual(["c1"]);
+  });
+});
+
+function failingStorage(failWrites: () => boolean): OutboxStorage {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => {
+      if (failWrites()) throw new Error("quota");
+      data.set(key, value);
+    },
+  };
+}
+
+describe("grade outbox storage write failures", () => {
+  test("a failed remove does not resubmit the same grade", async () => {
+    let writesFail = false;
+    const storage = failingStorage(() => writesFail);
+    const { outbox, submitted } = setup({ storage });
+    outbox.append(input("c1"));
+    outbox.append(input("c2"));
+    writesFail = true;
+    await outbox.flush();
+    expect(submitted.map((e) => e.cardId)).toEqual(["c1", "c2"]);
+    expect(outbox.pending()).toEqual([]);
+  });
+
+  test("a grade that could not be persisted is still submitted and logged", async () => {
+    const storage = failingStorage(() => true);
+    const { outbox, submitted, logs } = setup({ storage });
+    const entry = outbox.append(input("c1"));
+    expect(outbox.pending()).toEqual([entry]);
+    await outbox.flush();
+    expect(submitted).toEqual([entry]);
+    expect(outbox.pending()).toEqual([]);
+    expect(logs.some((line) => line.includes("persist"))).toBe(true);
+  });
+
+  test("an unpersisted grade is kept and retried when the submit fails", async () => {
+    const storage = failingStorage(() => true);
+    let fail = true;
+    const { outbox, scheduled } = setup({
+      storage,
+      submit: async () => {
+        if (fail) throw new Error("offline");
+      },
+    });
+    outbox.append(input("c1"));
+    await outbox.flush();
+    expect(outbox.pending()).toHaveLength(1);
+    expect(scheduled).toHaveLength(1);
+    fail = false;
+    scheduled[0]?.run();
+    await outbox.flush();
+    expect(outbox.pending()).toEqual([]);
+  });
+});
+
+describe("grade outbox head-of-line blocking", () => {
+  const serverError = () => orpcError("INTERNAL_SERVER_ERROR");
+
+  test("a grade the server keeps failing is set aside, kept in storage and logged", async () => {
+    const seen: string[] = [];
+    const { outbox, logs } = setup({
+      submit: async (entry) => {
+        seen.push(entry.cardId);
+        if (entry.cardId === "bad") throw serverError();
+      },
+    });
+    outbox.append(input("bad"));
+    outbox.append(input("c2"));
+    for (let pass = 0; pass < OUTBOX_MAX_ATTEMPTS; pass += 1) {
+      await outbox.flush();
+    }
+    expect(seen).toContain("c2");
+    expect(outbox.pending().map((e) => e.cardId)).toEqual(["bad"]);
+    expect(logs.some((line) => line.includes("setting aside"))).toBe(true);
+    const callsBefore = seen.length;
+    await outbox.flush();
+    expect(seen).toHaveLength(callsBefore);
+  });
+
+  test("network failures and a signed-out session never count towards the cap", async () => {
+    const errors = [new Error("offline"), orpcError("UNAUTHORIZED")];
+    for (const error of errors) {
+      let calls = 0;
+      const { outbox } = setup({
+        submit: async () => {
+          calls += 1;
+          throw error;
+        },
+      });
+      outbox.append(input("c1"));
+      for (let pass = 0; pass < OUTBOX_MAX_ATTEMPTS + 2; pass += 1) {
+        await outbox.flush();
+      }
+      expect(calls).toBe(OUTBOX_MAX_ATTEMPTS + 2);
+    }
   });
 });

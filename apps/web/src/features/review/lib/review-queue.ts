@@ -1,19 +1,15 @@
 import {
+  CARD_STATE,
   LEARNING_CARD_STATES,
+  MAX_ELAPSED_MS,
+  QUEUE_MAX_PAGE_SIZE,
   grade as scheduleGrade,
   newCardState,
   type CardState,
   type Grade,
 } from "@b2c-template/study";
 
-import {
-  MAX_ELAPSED_MS,
-  QUEUE_MAX_PAGE_SIZE,
-  QUEUE_PAGE_SIZE,
-  QUEUE_PREFETCH_THRESHOLD,
-  RESHOW_GAP,
-  RESHOW_WINDOW_MS,
-} from "../config";
+import { QUEUE_PAGE_SIZE, QUEUE_PREFETCH_THRESHOLD, RESHOW_GAP, RESHOW_WINDOW_MS } from "../config";
 import type { QueueItem } from "./review-types";
 
 /** One grade given in this session (an Again card can appear more than once). */
@@ -72,7 +68,7 @@ export function elapsedSince(shownAt: number, now: number): number {
  */
 function cardStateOf(item: QueueItem, now: Date): CardState {
   const fresh = newCardState(now);
-  if (item.state === 0) return fresh;
+  if (item.state === CARD_STATE.New) return fresh;
   return {
     ...fresh,
     state: item.state,

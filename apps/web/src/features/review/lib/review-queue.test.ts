@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  QUEUE_MAX_PAGE_SIZE,
-  QUEUE_PAGE_SIZE,
-  QUEUE_PREFETCH_THRESHOLD,
-  RESHOW_GAP,
-} from "../config";
+import { QUEUE_MAX_PAGE_SIZE } from "@b2c-template/study";
+
+import { QUEUE_PAGE_SIZE, QUEUE_PREFETCH_THRESHOLD, RESHOW_GAP } from "../config";
 import {
   currentItem,
   elapsedSince,

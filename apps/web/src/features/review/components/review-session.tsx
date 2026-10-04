@@ -43,8 +43,9 @@ export default function ReviewSession({
       </header>
 
       {phase === "card" && card ? (
-        // Keyed by card so each card starts unrevealed; the board component stays mounted.
-        <ReviewCard key={`${card.cardId}-${progress.done}`} card={card} onGrade={onGrade} />
+        // Not keyed: the board stays mounted and only its props change between cards (ADR-14).
+        // `turnKey` makes the card reset its own unrevealed state.
+        <ReviewCard card={card} turnKey={`${card.cardId}-${progress.done}`} onGrade={onGrade} />
       ) : null}
 
       {phase === "waiting" ? (

@@ -1,3 +1,4 @@
+import { MAX_ELAPSED_MS, QUEUE_MAX_PAGE_SIZE } from "@b2c-template/study";
 import { z } from "zod";
 
 import { enabledCardPillars } from "../features";
@@ -6,12 +7,9 @@ import { createReviewService } from "../services/review-service";
 
 /** Page size bounds for `review.queue` (ADR-13, ADR-14). */
 const DEFAULT_QUEUE_LIMIT = 50;
-const MAX_QUEUE_LIMIT = 200;
-/** One hour; anything longer is a forgotten tab, not a review. */
-const MAX_ELAPSED_MS = 3_600_000;
 
 const queueInput = z.object({
-  limit: z.int().min(1).max(MAX_QUEUE_LIMIT).default(DEFAULT_QUEUE_LIMIT),
+  limit: z.int().min(1).max(QUEUE_MAX_PAGE_SIZE).default(DEFAULT_QUEUE_LIMIT),
 });
 
 const gradeInput = z.object({

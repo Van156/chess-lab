@@ -300,3 +300,14 @@ Outboxes lived for the whole tab and submitted with whatever session cookie the 
   - R2-review-config-duplicated-server-caps: share `QUEUE_MAX_PAGE_SIZE` and `MAX_ELAPSED_MS` with the server router limits.
   - R2-review-queue-magic-new-state: use `CARD_STATE` in `review-queue.ts` and `STATE_LABEL`.
   - R3-session-wiring-untested: no tests for `use-review-queue` glue and the 1..4 key handling (no DOM env).
+
+### Follow-ups done (post-S8 review, react-staff)
+
+- R3-outbox-remove-write-failure-resubmit-loop: `remove()` now records the id in an in-memory `acknowledged` set when the write fails; `readStored()` filters it out, so `drain` never resubmits it. RED: `grade-outbox.test.ts` hung (infinite microtask resubmit loop, killed). GREEN: 23 pass.
+- R4-outbox-append-write-failure-loses-grade: `append` keeps an entry that cannot be persisted in an in-memory `unpersisted` list that `read()` (and so `pending` and `drain`) includes; it is logged as memory-only. RED: new test failed (grade never submitted). GREEN: same file.
+- R4-outbox-head-of-line-blocking: server failures that carry an error code (except `UNAUTHORIZED`) count per grade; at `OUTBOX_MAX_ATTEMPTS` (5, config) the grade is set aside for the rest of the session (stays in storage and `pending`, retried next session) and logged, so later grades flow. Network errors and `UNAUTHORIZED` never count. RED: 2 fail (later grade never sent; counted 8 vs 7 calls, test-loop fix then GREEN). GREEN: 23 pass.
+- R2-reviewcard-key-comment-misleading: hoisted. `ReviewCard` is no longer keyed; it takes `turnKey` (card id plus answers given), resets attempt and reveal during render and re-runs the focus effect on it. `ChessBoard` stays mounted and only receives props (ADR-14; S6 `fen`-derived selection reset applies). `SanInput` is unmounted while the answer is shown, so it starts empty each card. Comment fixed; design note 5 above is superseded. S8.5 manual 200 ms check still applies.
+- R2-review-config-duplicated-server-caps: `QUEUE_MAX_PAGE_SIZE` and `MAX_ELAPSED_MS` now live in `packages/study/src/config.ts` (exported from the index); the `review` router and `review-queue.ts` import them; removed from the web config.
+- R2-review-queue-magic-new-state: `review-queue.ts` and `STATE_LABEL` use `CARD_STATE`.
+- Still pending: R3-session-wiring-untested (needs a DOM env, not approved).
+- Verification: `bun test apps/web/src/features/review packages/api/src/routers/review.test.ts packages/study` 132 pass, 0 fail; `pnpm check-types`, `pnpm --filter web check-types`, `pnpm --filter web build`, `pnpm check` exit 0; `bun test` 1421 pass, 0 fail (one earlier full run had 3 import-service timeouts under load, which passed in isolation 3 times and on the rerun; unrelated).
