@@ -190,12 +190,12 @@ Verify: `bun test packages/api`; standard checks.
 
 Satisfies: chess-board / all requirements (Client-only rendering behind a wrapper interface; Touch and pointer move input; Arrows and square highlights; Blindfold mode; Accessible move list; Typed SAN input; Keyboard operation); app-shell / 375 px layout and touch targets; ADR-16. Implementation routes to `react-staff`.
 
-- [ ] S6.1 [O] [react] Create `apps/web/src/shared/components/board/board-theme.ts` (CSS variables `--board-light`, `--board-dark`, `--board-highlight`, `--board-arrow` from `midnightBoard` in `apps/web/src/routes/prototype/-midnight-shell.tsx` (read-only)).
-- [ ] S6.2 [O] [react] Create `chess-board.tsx` (static placeholder with accessible `label` until mounted, `React.lazy` of the impl) and `chess-board-impl.tsx` (react-chessboard v5; legal-move-only `onMove`, tap-tap, promotion, arrows, highlights, `hidden` blindfold via empty piece renderers, last move). Apply the S0.6 verdict (swap to cm-chessboard if the spike failed).
-- [ ] S6.3 [T] [react] RED then GREEN: SSR tests `move-list.test.tsx` and component `move-list.tsx` (ordered list, `aria-current` on current ply, keyboard selectable).
-- [ ] S6.4 [T] [react] RED then GREEN: SSR tests `san-input.test.tsx` and component `san-input.tsx` (labelled field, accepts legal SAN/UCI via `parseMove`, rejects illegal, `aria-live` error).
-- [ ] S6.5 [T] [react] SSR test `chess-board.test.tsx`: placeholder renders with label and same-size squares; blindfold hides pieces; touch targets at least 44 px for controls.
-- [ ] S6.6 [O] [react] Create `index.tsx`; add `@b2c-template/chess` dep to `apps/web`. Add Storybook story for `ChessBoard` only if required by `tests/ui-story-coverage` (check; board lives in `apps/web`, likely not required).
+- [x] S6.1 [O] [react] Create `apps/web/src/shared/components/board/board-theme.ts` (CSS variables `--board-light`, `--board-dark`, `--board-highlight`, `--board-arrow` from `midnightBoard` in `apps/web/src/routes/prototype/-midnight-shell.tsx` (read-only)).
+- [x] S6.2 [O] [react] Create `chess-board.tsx` (static placeholder with accessible `label` until mounted, `React.lazy` of the impl) and `chess-board-impl.tsx` (react-chessboard v5; legal-move-only `onMove`, tap-tap, promotion, arrows, highlights, `hidden` blindfold via empty piece renderers, last move). Apply the S0.6 verdict (swap to cm-chessboard if the spike failed).
+- [x] S6.3 [T] [react] RED then GREEN: SSR tests `move-list.test.tsx` and component `move-list.tsx` (ordered list, `aria-current` on current ply, keyboard selectable).
+- [x] S6.4 [T] [react] RED then GREEN: SSR tests `san-input.test.tsx` and component `san-input.tsx` (labelled field, accepts legal SAN/UCI via `parseMove`, rejects illegal, `aria-live` error).
+- [x] S6.5 [T] [react] SSR test `chess-board.test.tsx`: placeholder renders with label and same-size squares; blindfold hides pieces; touch targets at least 44 px for controls.
+- [x] S6.6 [O] [react] Create `index.tsx`; add `@b2c-template/chess` dep to `apps/web`. Add Storybook story for `ChessBoard` only if required by `tests/ui-story-coverage` (check; board lives in `apps/web`, likely not required).
 
 Verify: `bun test apps/web/src/shared/components/board`; `pnpm --filter web check-types`; manual: board at 375 px.
 

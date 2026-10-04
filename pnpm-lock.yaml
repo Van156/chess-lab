@@ -324,6 +324,9 @@ importers:
       '@b2c-template/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@b2c-template/chess':
+        specifier: workspace:*
+        version: link:../../packages/chess
       '@b2c-template/ui':
         specifier: workspace:*
         version: link:../../packages/ui

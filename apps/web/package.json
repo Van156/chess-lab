@@ -15,6 +15,7 @@
   "dependencies": {
     "@b2c-template/api": "workspace:*",
     "@b2c-template/auth": "workspace:*",
+    "@b2c-template/chess": "workspace:*",
     "@b2c-template/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
