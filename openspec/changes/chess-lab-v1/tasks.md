@@ -165,13 +165,13 @@ Verify: `bun test packages/api apps/server`; standard checks.
 
 Satisfies: review-queue / FSRS scheduling; Daily queue from all pillars; Review session flow (optimistic grading); ADR-13.
 
-- [ ] S5a.1 [O] Create `packages/study/package.json` (`@b2c-template/study`, dep `ts-fsrs`), `tsconfig.json`, `src/index.ts`, `src/config.ts` (`DEFAULT_DAILY_NEW_CARDS` 20, `DEFAULT_STUDY_PARAMS`: retention 0.9, max interval 365, fuzz on).
-- [ ] S5a.2 [T] RED: `packages/study/src/fsrs.test.ts`: `newCardState`, each grade 1..4 transition (state, due moves forward, lapses on Again from Review), pure for fixed `now`, `reviewedAt` clamp helper behaviour.
-- [ ] S5a.3 [T] GREEN: `packages/study/src/fsrs.ts` (`newCardState`, `grade`, `ReviewLogEntry`).
-- [ ] S5a.4 [T] RED: `packages/study/src/day.test.ts`: `localDayBounds` across DST changes and half-hour zones.
-- [ ] S5a.5 [T] GREEN: `packages/study/src/day.ts`.
-- [ ] S5a.6 [T] RED: `packages/study/src/queue.test.ts`: learning cards first, then review due today, new cards capped by `dailyNewLimit - introducedToday`, even interleave of new cards, round-robin across pillars so none starves, `limit` honoured.
-- [ ] S5a.7 [T] GREEN: `packages/study/src/queue.ts` `selectQueue`; export from `index.ts`.
+- [x] S5a.1 [O] Create `packages/study/package.json` (`@b2c-template/study`, dep `ts-fsrs`), `tsconfig.json`, `src/index.ts`, `src/config.ts` (`DEFAULT_DAILY_NEW_CARDS` 20, `DEFAULT_STUDY_PARAMS`: retention 0.9, max interval 365, fuzz on).
+- [x] S5a.2 [T] RED: `packages/study/src/fsrs.test.ts`: `newCardState`, each grade 1..4 transition (state, due moves forward, lapses on Again from Review), pure for fixed `now`, `reviewedAt` clamp helper behaviour.
+- [x] S5a.3 [T] GREEN: `packages/study/src/fsrs.ts` (`newCardState`, `grade`, `ReviewLogEntry`).
+- [x] S5a.4 [T] RED: `packages/study/src/day.test.ts`: `localDayBounds` across DST changes and half-hour zones.
+- [x] S5a.5 [T] GREEN: `packages/study/src/day.ts`.
+- [x] S5a.6 [T] RED: `packages/study/src/queue.test.ts`: learning cards first, then review due today, new cards capped by `dailyNewLimit - introducedToday`, even interleave of new cards, round-robin across pillars so none starves, `limit` honoured.
+- [x] S5a.7 [T] GREEN: `packages/study/src/queue.ts` `selectQueue`; export from `index.ts`.
 
 Verify: `bun test packages/study`; standard checks.
 
