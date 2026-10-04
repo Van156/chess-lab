@@ -62,6 +62,17 @@ describe("parseMove", () => {
     expect(parseMove("4k3/8/8/8/8/8/R6R/4K3 w - - 0 1", "Rd2")).toBeNull();
   });
 
+  test("resolves O-O, 0-0 and the UCI king move to the same castling move", () => {
+    const fen = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+    const letters = parseMove(fen, "O-O");
+    expect(letters).toMatchObject({ san: "O-O", uci: "e1g1" });
+    expect(parseMove(fen, "0-0")).toEqual(letters!);
+    expect(parseMove(fen, "e1g1")).toEqual(letters!);
+    const long = parseMove(fen, "O-O-O");
+    expect(parseMove(fen, "0-0-0")).toEqual(long!);
+    expect(parseMove(fen, "e1c1")).toEqual(long!);
+  });
+
   test("handles promotion", () => {
     const fen = "4k3/P7/8/8/8/8/8/4K3 w - - 0 1";
     expect(parseMove(fen, "a8=Q+")).toMatchObject({ san: "a8=Q+", uci: "a7a8q" });

@@ -323,7 +323,7 @@ Classification rules (`packages/chess/src/classify.ts`, pure):
 - Scores are from the mover's perspective, mate scores mapped to `±MATE_CP` (1000) and evaluations clamped to `±EVAL_CLAMP_CP` (1000) before computing loss = `before - after`.
 - Thresholds (`DEFAULT_THRESHOLDS`): inaccuracy 50, mistake 100, blunder 200 cp (proposal defaults; PRD open question).
 - Only the user's own moves are classified (`game.user_color`).
-- Phase: `opening` while ply < `OPENING_PLY_LIMIT` (20) and not yet endgame; `endgame` when non-pawn material of both sides is at most `ENDGAME_MATERIAL` (13 points, queen 9, rook 5, minor 3); otherwise `middlegame`.
+- Phase: `opening` while ply < `OPENING_PLY_LIMIT` (20) and not yet endgame; `endgame` when the non-pawn material of each side is at most `ENDGAME_MATERIAL` (13 points, queen 9, rook 5, minor 3); otherwise `middlegame`.
 - Time pressure (FR-15, Phase 4 filter, stored now): `clock_left_ms < 0.1 * clock_initial_ms`, clocks from PGN `%clk` comments.
 
 ### ADR-13: FSRS and queue in `packages/study`; server is authoritative

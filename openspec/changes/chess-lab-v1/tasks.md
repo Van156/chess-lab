@@ -93,11 +93,11 @@ Verify: `bun test packages/chess`; `pnpm check-types`; standard checks.
 
 Satisfies: mistake-analysis / Classification by evaluation loss; Mistake record contents; Cards for carded severities only (`CARD_SEVERITIES`); mistake-filters / Filter by game phase and Filter by time pressure (data side); ADR-12 classification rules, ADR-18 constants.
 
-- [ ] S1b.1 [O] Create `packages/chess/src/config.ts` with `DEFAULT_THRESHOLDS` (50/100/200), `CARD_SEVERITIES`, `MATE_CP`, `EVAL_CLAMP_CP`, `OPENING_PLY_LIMIT`, `ENDGAME_MATERIAL`, `TIME_PRESSURE_RATIO`.
-- [ ] S1b.2 [T] RED: write `packages/chess/src/classify.test.ts`: mate mapped to `±1000`, clamp to `±1000`, loss from mover perspective, threshold boundaries (49/50, 99/100, 199/200), only the user's colour classified, phase rules (opening below ply 20, endgame at non-pawn material <= 13, else middlegame), time pressure (`clock_left < 0.1 * initial`), null evals skipped.
-- [ ] S1b.3 [T] GREEN: implement `packages/chess/src/classify.ts` `screenCandidates` and `classifyGame` returning `ClassifiedMistake[]` (including `positionKey`, best move SAN/UCI, `clockLeftMs`).
-- [ ] S1b.4 [T] Add a test for idempotent output: classifying the same input twice yields identical results (supports `(game_id, ply)` upsert).
-- [ ] S1b.5 [O] Export the new API from `packages/chess/src/index.ts`.
+- [x] S1b.1 [O] Create `packages/chess/src/config.ts` with `DEFAULT_THRESHOLDS` (50/100/200), `CARD_SEVERITIES`, `MATE_CP`, `EVAL_CLAMP_CP`, `OPENING_PLY_LIMIT`, `ENDGAME_MATERIAL`, `TIME_PRESSURE_RATIO`.
+- [x] S1b.2 [T] RED: write `packages/chess/src/classify.test.ts`: mate mapped to `±1000`, clamp to `±1000`, loss from mover perspective, threshold boundaries (49/50, 99/100, 199/200), only the user's colour classified, phase rules (opening below ply 20, endgame at non-pawn material <= 13, else middlegame), time pressure (`clock_left < 0.1 * initial`), null evals skipped.
+- [x] S1b.3 [T] GREEN: implement `packages/chess/src/classify.ts` `screenCandidates` and `classifyGame` returning `ClassifiedMistake[]` (including `positionKey`, best move SAN/UCI, `clockLeftMs`).
+- [x] S1b.4 [T] Add a test for idempotent output: classifying the same input twice yields identical results (supports `(game_id, ply)` upsert).
+- [x] S1b.5 [O] Export the new API from `packages/chess/src/index.ts`.
 
 Verify: `bun test packages/chess`; standard checks.
 
