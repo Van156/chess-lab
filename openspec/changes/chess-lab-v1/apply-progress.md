@@ -339,3 +339,11 @@ Decision gaps (confirm or change): handshake timeout 30 s; "Licences" footer tex
 Verification: `bun test apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 77 pass, 0 fail; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm --filter web build` exit 0; `pnpm check` exit 0 (oxlint then oxfmt, nothing left to commit); `bun test` 1467 pass, 0 fail.
 
 Work Unit Evidence: focused `bun test apps/web/src/features/engine` (parser, builders, queue with fake transport, client handshake/failure paths, SSR of the licence page); runtime harness = production build plus bundle and precache inspection above (browser check is S9a.6); rollback boundary = `apps/web/src/features/engine/`, `apps/web/src/routes/licenses.tsx`, the footer link in `apps/web/src/app/authenticated-shell.tsx`, the registry line in `tests/lib/app-story-registry.ts`.
+
+## Review S8 follow-ups + S9a (base 90c7e9b to 0bace40)
+
+- Medium risk, 1 lens (reliability), 1685 lines: APPROVED and acknowledged. Next review boundary: 0bace40.
+- Non-blocking follow-ups (pending):
+  - R3-engine-queue-no-search-watchdog (WARNING): only the handshake has a timeout; a stalled worker or a lost `bestmove` blocks every later job and every cancel. Add a per-job watchdog (for example depth/movetime-derived) that terminates and restarts the worker and rejects the job with `EngineUnavailableError`; test with a silent fake transport.
+  - R3-reviewcard-turnkey-reset-untested (WARNING): no test pins the render-time reset on `turnKey` (next card, and the same card after Again). Extract the reset into a pure helper and test it.
+  - R3-outbox-attempts-not-consecutive: reset the per-grade attempt count on a transient failure, or fix the comment; add a test.
