@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { CARD_SEVERITIES, DEFAULT_THRESHOLDS } from "./config";
-import { classifyGame, gamePhase, isTimePressure, screenCandidates, toLossCp } from "./classify";
+import {
+  classifyGame,
+  gamePhase,
+  isTimePressure,
+  screenCandidates,
+  sideToMoveCp,
+} from "./classify";
 import type { PlyEval } from "./classify";
 import { parseGame } from "./pgn";
 import { positionKey } from "./position";
@@ -13,24 +19,24 @@ const PGN = `[Event "Test"]
 
 1. e4 { [%clk 0:10:00] } 1... e5 { [%clk 0:09:58] } 2. Nf3 { [%clk 0:00:59] } 2... Nc6 { [%clk 0:09:40] } *`;
 
-/** Build side-to-move evals (UCI convention) from white-perspective centipawn values. */
 const BEST = ["d2d4", "e7e5", "g1f3", "b8c6", "f1c4"]; // legal best move for each position of PGN
+/** Build side-to-move evals (UCI convention) from white-perspective centipawn values. */
 const sideToMove = (whiteCp: (number | null)[]): PlyEval[] =>
   whiteCp.map((cp, i) =>
     cp === null ? null : { cp: i % 2 === 0 ? cp : -cp, depth: 18, bestUci: BEST[i] },
   );
 
-describe("toLossCp", () => {
+describe("sideToMoveCp", () => {
   test("maps mate to plus or minus 1000", () => {
-    expect(toLossCp({ mate: 3, depth: 10 })).toBe(1000);
-    expect(toLossCp({ mate: -2, depth: 10 })).toBe(-1000);
-    expect(toLossCp({ mate: 0, depth: 10 })).toBe(-1000);
+    expect(sideToMoveCp({ mate: 3, depth: 10 })).toBe(1000);
+    expect(sideToMoveCp({ mate: -2, depth: 10 })).toBe(-1000);
+    expect(sideToMoveCp({ mate: 0, depth: 10 })).toBe(-1000);
   });
 
   test("clamps centipawns to plus or minus 1000", () => {
-    expect(toLossCp({ cp: 4200, depth: 10 })).toBe(1000);
-    expect(toLossCp({ cp: -4200, depth: 10 })).toBe(-1000);
-    expect(toLossCp({ cp: 120, depth: 10 })).toBe(120);
+    expect(sideToMoveCp({ cp: 4200, depth: 10 })).toBe(1000);
+    expect(sideToMoveCp({ cp: -4200, depth: 10 })).toBe(-1000);
+    expect(sideToMoveCp({ cp: 120, depth: 10 })).toBe(120);
   });
 });
 
@@ -131,6 +137,14 @@ describe("classifyGame severity", () => {
   test("carded severities default to mistake and blunder", () => {
     expect([...CARD_SEVERITIES]).toEqual(["mistake", "blunder"]);
     expect(DEFAULT_THRESHOLDS).toEqual({ inaccuracy: 50, mistake: 100, blunder: 200 });
+  });
+});
+
+describe("classifyGame illegal best move", () => {
+  test("skips a ply whose bestUci is not legal in fenBefore", () => {
+    const evals = sideToMove([0, -300]);
+    evals[0] = { cp: 0, depth: 18, bestUci: "e2e5" };
+    expect(classifyGame({ pgn: PGN, evals, userColor: "w" })).toEqual([]);
   });
 });
 

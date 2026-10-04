@@ -42,7 +42,7 @@ export type ClassifiedMistake = {
 const clamp = (cp: number) => Math.max(-EVAL_CLAMP_CP, Math.min(EVAL_CLAMP_CP, cp)) + 0;
 
 /** Centipawns from the evaluated side's perspective: mate mapped to plus or minus `MATE_CP`, then clamped. */
-export function toLossCp(e: NonNullable<PlyEval>): number {
+export function sideToMoveCp(e: NonNullable<PlyEval>): number {
   if (e.mate !== undefined) return clamp(e.mate > 0 ? MATE_CP : -MATE_CP);
   return clamp(e.cp ?? 0);
 }
@@ -55,9 +55,9 @@ function moverScores(ply: ParsedPly, evals: PlyEval[]) {
   const before = evals[ply.ply - 1];
   const after = evals[ply.ply];
   if (!hasScore(before) || !hasScore(after)) return null;
-  const evalBeforeCp = toLossCp(before);
+  const evalBeforeCp = sideToMoveCp(before);
   // The position after the move is evaluated for the opponent: flip to the mover's side.
-  const evalAfterCp = 0 - toLossCp(after);
+  const evalAfterCp = 0 - sideToMoveCp(after);
   return { before, evalBeforeCp, evalAfterCp, evalLossCp: evalBeforeCp - evalAfterCp };
 }
 

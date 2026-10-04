@@ -2,7 +2,13 @@ export { applyMove, legalMoves, parseMove, positionKey } from "./position";
 export type { ParsedMove, PositionKey } from "./position";
 export { parseGame } from "./pgn";
 export type { ParsedGame, ParsedPly } from "./pgn";
-export { classifyGame, gamePhase, isTimePressure, screenCandidates, toLossCp } from "./classify";
+export {
+  classifyGame,
+  gamePhase,
+  isTimePressure,
+  screenCandidates,
+  sideToMoveCp,
+} from "./classify";
 export type { ClassifiedMistake, Phase, PlyEval } from "./classify";
 export {
   CARD_SEVERITIES,
