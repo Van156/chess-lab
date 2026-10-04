@@ -1,4 +1,4 @@
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { navGroups } from "@/app/navigation";
@@ -12,7 +12,7 @@ import { filterNavGroups, getBreadcrumbs } from "@/shared/lib/navigation";
 
 /**
  * Wires the presentational `AppShell` to the app: nav config, the superadmin
- * visibility context, the sidebar user menu (it sends queued review grades before signing out), the breadcrumb
+ * visibility context, the sidebar footer (a public Licences link, then the user menu that sends queued review grades before signing out), the breadcrumb
  * derived from the nav config and the impersonation banner. No theme toggle: v1 is dark only (ADR-21).
  */
 export default function AuthenticatedShell({ children }: { children: ReactNode }) {
@@ -24,7 +24,17 @@ export default function AuthenticatedShell({ children }: { children: ReactNode }
     <AppShell
       navGroups={navGroups}
       navContext={navContext}
-      sidebarFooter={<UserMenu variant="sidebar" beforeSignOut={flushPendingGrades} />}
+      sidebarFooter={
+        <>
+          <Link
+            to="/licenses"
+            className="px-2 text-xs text-muted-foreground underline-offset-4 hover:underline group-data-[collapsible=icon]:hidden"
+          >
+            Licences
+          </Link>
+          <UserMenu variant="sidebar" beforeSignOut={flushPendingGrades} />
+        </>
+      }
       breadcrumb={<AppBreadcrumbs items={breadcrumbs} />}
       banner={<ImpersonationBanner />}
     >

@@ -52,4 +52,5 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/review/components/review-session.tsx",
   "features/review/components/review-card-view.tsx",
   "features/review/components/session-summary.tsx",
+  "features/engine/components/licenses-page.tsx",
 ];

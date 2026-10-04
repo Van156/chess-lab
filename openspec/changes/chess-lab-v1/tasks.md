@@ -230,11 +230,11 @@ Verify: `bun test apps/web/src/features/review`; `pnpm --filter web check-types`
 
 Satisfies: engine-runtime / Analysis runs in the browser; Separate, unmodified, lazy-loaded worker; Typed analysis API and job queue; Licence and source offered; Permissive-only app bundle; Engine strength control (UCI option plumbing); ADR-11.
 
-- [ ] S9a.1 [T] RED: `apps/web/src/features/engine/lib/uci.test.ts`: parse `info depth .. score cp|mate .. pv`, `bestmove`, `option name UCI_Elo ... min .. max`; build `go`, `setoption` commands.
-- [ ] S9a.2 [T] GREEN: `apps/web/src/features/engine/lib/uci.ts`.
-- [ ] S9a.3 [T] RED then GREEN: `lib/engine-queue.test.ts` and `engine-queue.ts`: one job at a time, `interactive` pre-empts `background` by `stop`, cancellable jobs, analysis jobs reset `UCI_LimitStrength false` and `Skill Level 20`.
-- [ ] S9a.4 [O] [react] `lib/engine-client.ts` (lazy `Worker`, handshake `uci/isready`, `Hash 16`, `Threads 1`, read `UCI_Elo` range, "engine unavailable" error path), `config.ts` (`SCREEN_DEPTH` 10, `CONFIRM_DEPTH` 18, `SUBMIT_EVERY_PLIES` 10, `ENGINE_ID` from S0.8, `ENGINE_STRENGTH_LEVELS`, `ENGINE_DRILL_MOVETIME_MS` constants may be added in Phase 3), `index.ts`.
-- [ ] S9a.5 [O] [react] `apps/web/src/routes/licenses.tsx` (public, outside `_auth`): GPL-3.0 text, upstream source URL for pinned version, direct links to served /engine/* files; link from shell footer.
+- [x] S9a.1 [T] RED: `apps/web/src/features/engine/lib/uci.test.ts`: parse `info depth .. score cp|mate .. pv`, `bestmove`, `option name UCI_Elo ... min .. max`; build `go`, `setoption` commands.
+- [x] S9a.2 [T] GREEN: `apps/web/src/features/engine/lib/uci.ts`.
+- [x] S9a.3 [T] RED then GREEN: `lib/engine-queue.test.ts` and `engine-queue.ts`: one job at a time, `interactive` pre-empts `background` by `stop`, cancellable jobs, analysis jobs reset `UCI_LimitStrength false` and `Skill Level 20`.
+- [x] S9a.4 [O] [react] `lib/engine-client.ts` (lazy `Worker`, handshake `uci/isready`, `Hash 16`, `Threads 1`, read `UCI_Elo` range, "engine unavailable" error path), `config.ts` (`SCREEN_DEPTH` 10, `CONFIRM_DEPTH` 18, `SUBMIT_EVERY_PLIES` 10, `ENGINE_ID` from S0.8, `ENGINE_STRENGTH_LEVELS`, `ENGINE_DRILL_MOVETIME_MS` constants may be added in Phase 3), `index.ts`.
+- [x] S9a.5 [O] [react] `apps/web/src/routes/licenses.tsx` (public, outside `_auth`): GPL-3.0 text, upstream source URL for pinned version, direct links to served /engine/* files; link from shell footer.
 - [ ] S9a.6 [O] Manual: confirm the engine is absent from the main bundle (`pnpm --filter web build`, inspect chunks), not precached by the service worker, and loads on first `analyse` call.
 
 Verify: `bun test apps/web/src/features/engine`; `pnpm --filter web check-types`; standard checks.
