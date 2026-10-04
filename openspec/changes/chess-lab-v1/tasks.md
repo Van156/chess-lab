@@ -138,13 +138,13 @@ Verify: `bun test packages/auth`; standard checks.
 
 Satisfies: game-import / Streamed import; Rate-limit compliance; Incremental sync (`since`); opening-explorer / Server-side requests that respect rate limits (gate only; explorer endpoint in Phase 2); lichess-account / Token encrypted at rest and never sent to the browser (server-only package); ADR-09. Uses S0.7 verified parameters.
 
-- [ ] S4a.1 [O] Create `packages/lichess/package.json` (`@b2c-template/lichess`), `tsconfig.json`, `src/index.ts`, `src/types.ts`, `src/config.ts` (`RATE_LIMIT_PAUSE_MS` 60000, `MAX_429_RETRIES` 3).
-- [ ] S4a.2 [T] RED: `packages/lichess/src/ndjson.test.ts`: lines split across chunk boundaries, trailing line without newline, blank keep-alive lines, malformed line error.
-- [ ] S4a.3 [T] GREEN: `packages/lichess/src/ndjson.ts` streaming parser.
-- [ ] S4a.4 [T] RED: `packages/lichess/src/serial-gate.test.ts`: no overlap per user key, parallel across users, pause honoured, doubling up to 5 minutes (fake clock and sleep).
-- [ ] S4a.5 [T] GREEN: `packages/lichess/src/serial-gate.ts`.
-- [ ] S4a.6 [T] RED: `packages/lichess/src/client.test.ts` with fake `fetch`: `account(token)`; `exportGames` request URL and headers (`since`, `sort=dateAsc`, `clocks`, `opening`, `pgnInJson`, `moves`, `evals=false`, `finished`, ndjson Accept); non-standard variants skipped; 429 pauses then retries up to `MAX_429_RETRIES` then throws `LichessRateLimited` with `retryAt`; abort via `AbortSignal`.
-- [ ] S4a.7 [T] GREEN: `packages/lichess/src/client.ts` `createLichessClient(deps)`; export from `index.ts`.
+- [x] S4a.1 [O] Create `packages/lichess/package.json` (`@b2c-template/lichess`), `tsconfig.json`, `src/index.ts`, `src/types.ts`, `src/config.ts` (`RATE_LIMIT_PAUSE_MS` 60000, `MAX_429_RETRIES` 3).
+- [x] S4a.2 [T] RED: `packages/lichess/src/ndjson.test.ts`: lines split across chunk boundaries, trailing line without newline, blank keep-alive lines, malformed line error.
+- [x] S4a.3 [T] GREEN: `packages/lichess/src/ndjson.ts` streaming parser.
+- [x] S4a.4 [T] RED: `packages/lichess/src/serial-gate.test.ts`: no overlap per user key, parallel across users, pause honoured, doubling up to 5 minutes (fake clock and sleep).
+- [x] S4a.5 [T] GREEN: `packages/lichess/src/serial-gate.ts`.
+- [x] S4a.6 [T] RED: `packages/lichess/src/client.test.ts` with fake `fetch`: `account(token)`; `exportGames` request URL and headers (`since`, `sort=dateAsc`, `clocks`, `opening`, `pgnInJson`, `moves`, `evals=false`, `finished`, ndjson Accept); non-standard variants skipped; 429 pauses then retries up to `MAX_429_RETRIES` then throws `LichessRateLimited` with `retryAt`; abort via `AbortSignal`.
+- [x] S4a.7 [T] GREEN: `packages/lichess/src/client.ts` `createLichessClient(deps)`; export from `index.ts`.
 
 Verify: `bun test packages/lichess`; standard checks.
 

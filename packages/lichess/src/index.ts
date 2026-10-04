@@ -1,3 +1,4 @@
+export { createLichessClient } from "./client";
 export { parseNdjson } from "./ndjson";
 export { createSerialGate } from "./serial-gate";
 export type { SerialGate, SerialGateOptions } from "./serial-gate";

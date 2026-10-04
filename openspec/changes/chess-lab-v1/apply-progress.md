@@ -73,3 +73,22 @@ S2 came in at about 684 authored lines, so it was split at the task boundary (au
 - Work Unit Evidence: focused `bun test packages/auth/src/lichess-account.integration.test.ts` 9 pass; runtime harness = real Postgres test DB (`db:test:prepare`) with stubbed Lichess token and account endpoints through the real better-auth handler; rollback boundary = `packages/auth/src/{synthetic-email,lichess-provider,lichess-account}.ts` and tests, `index.ts`, `email/factory.ts(+test)`, `social-providers.ts(+test)`, `apps/server/.env.schema`.
 - Size: about 730 authored lines (about 270 production, about 460 tests), over the 400 advisory budget; tests not trimmed. Recommend `size:exception`, or split at S3.7/S3.8 (about 100 lines) from S3.1-S3.6.
 - S3.10 [O] done: the sign-in page already renders `SocialSignInButtons` from the server providers list, so the Lichess button needed only `SocialProviderId` widened to `"google" | "lichess"`, a label, a `CrownIcon`, and neutral OAuth error copy (no longer Google-specific). `useSocialSignIn` calls `authClient.signIn.social({ provider })`, which covers `lichess` through the social route. Added a `parseEnabledProviders` test and a `WithLichess` story. Verification: `bun test apps/web/src/features/auth` 53 pass; `bun test` 1046 pass, 1 skip, 0 fail; both `check-types` clean; `pnpm check` clean.
+
+## S3 split record (auto-chain)
+
+S3 was split into S3a `73a0153` (S3.1 to S3.7, about 692 lines, needs `size:exception` for its PR) and S3b `140d94e` (S3.8 to S3.10). Review follow-ups from the S1b and S2 review landed in `fdc2c75`. better-auth 1.7.5 serves generic-oauth through the social routes (design corrected: `signIn.social({ provider: "lichess" })`, callback `/callback/lichess`).
+
+## S4a (`packages/lichess` client, branch feat/chess-lab-v1-s4a)
+
+- [x] S4a.1 package `@b2c-template/lichess` (package.json, tsconfig, `src/index.ts`, `types.ts`, `config.ts`); registered by the `packages/*` workspace glob, `pnpm install` updated `pnpm-lock.yaml` (+9 lines).
+- [x] S4a.2 RED observed: `Cannot find module './ndjson'` (0 pass, 1 error). S4a.3 GREEN: `ndjson.ts`, 8 pass.
+- [x] S4a.4 RED observed: `./serial-gate` module missing (0 pass, 1 error). S4a.5 GREEN: `serial-gate.ts` (`acquire`, `run`, `backoff`, `reset`, `waitClear`), 16 pass cumulative.
+- [x] S4a.6 RED observed: `./client` module missing (0 pass, 1 error). S4a.7 GREEN: `client.ts` `createLichessClient(deps)`, 36 pass cumulative.
+- Design notes: the gate key is a sha256 of the token; `exportGames` holds the gate slot for the whole stream (released in `finally`, also on early `break`). 429: 60 s, 120 s, 240 s sleeps across `MAX_429_RETRIES = 3` retries; the 4th 429 throws `LichessRateLimited` with `retryAt = now + 300 s` and the pause stays on the gate for the user's next request; a clean response resets the doubling. Added `RATE_LIMIT_MAX_PAUSE_MS` (5 min) to config. 401 maps to `LichessUnauthorized`, other non-2xx to `LichessHttpError`, bad record shape or malformed NDJSON to `LichessProtocolError`. `explorer()` is implemented (small, through the same gate, always sends the token) and has two tests; the Phase 2 cache stays out of this package.
+- Verification: `bun test packages/lichess` 36 pass; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` clean (oxlint then oxfmt, no files outside the slice changed); `bun test` 1082 pass, 1 skip, 0 fail.
+- Work Unit Evidence: focused `bun test packages/lichess` 36 pass; runtime harness = fake `fetch` with a chunked NDJSON ReadableStream plus fake clock and sleep (no real network, per design; no runtime boundary beyond the injected fetch); rollback boundary = `packages/lichess/**` and the `pnpm-lock.yaml` entry.
+- Size: about 905 authored lines (about 445 production incl. config/types/index, about 460 tests), over the 400 advisory budget (est. was 350); tests not trimmed. Recommend `size:exception` for PR 6/7 of the chain.
+
+## S4a split (auto-chain)
+
+S4a came in at about 905 authored lines, so it was split at the task boundary: S4a-1 (S4a.1 to S4a.5: package, types, config, NDJSON parser, serial gate) on `feat/chess-lab-v1-s4a`, and S4a-2 (S4a.6, S4a.7: client) on `feat/chess-lab-v1-s4a2`, base S4a-1.
