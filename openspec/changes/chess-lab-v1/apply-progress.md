@@ -121,3 +121,7 @@ S4a came in at about 905 authored lines, so it was split at the task boundary: S
 - Verification: `bun test packages/study` 42 pass; `bun test tests/lint-boundaries.test.ts` 22 pass; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` clean (oxlint then oxfmt); `bun test` 1156 pass, 1 skip, 0 fail.
 - Work Unit Evidence: focused `bun test packages/study` 42 pass; runtime harness = pure functions with fixed `now`/time zones (no I/O); rollback boundary = `packages/study/**` and the `pnpm-lock.yaml` entry.
 - Size: about 650 authored lines (about 270 production, about 330 tests, about 50 package manifest, tsconfig and lockfile), over the 400 advisory budget (est. was 300); tests not trimmed. `size:exception` recorded as user-approved.
+
+## Decision: failed import retry (2026-10-04)
+
+- User decision: an import in `failed` state (for example a rejected token) is retried only through the manual `lichess.sync` ("Sync now"). `lichess.status` does not auto-retry it; 429 backoff still resumes automatically through `import_retry_at`. Matches S4b as implemented in c5be388.
