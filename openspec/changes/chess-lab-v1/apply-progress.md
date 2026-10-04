@@ -287,3 +287,16 @@ Work Unit Evidence: focused `bun test apps/web/src/features/review` (outbox with
 ### Review correction R3-outbox-cross-user-submit-drops-grades
 
 Outboxes lived for the whole tab and submitted with whatever session cookie the browser held, so user A's flush or backoff retry could run under user B and be dropped as NOT_FOUND/CONFLICT. `createGradeOutbox` now takes `isActive` (drain stops, queue intact, when false) and exposes `dispose()` (cancels the pending retry, flushes become no-ops). The hook tracks the active user id, disposes and unregisters the outbox on user change or sign-out, and `flushPendingGrades` flushes only the active user's outbox then disposes it. RED: `bun test apps/web/src/features/review/lib/grade-outbox.test.ts` 16 pass, 2 fail (inactive outbox submitted; `dispose is not a function`). GREEN: same file 18 pass, `bun test apps/web/src/features/review` 68 pass; `pnpm --filter web check-types`, `pnpm check-types`, `pnpm check` exit 0; `bun test` 1416 pass, 0 fail.
+
+## Review S7 follow-ups + S8 (base 4ef2777 to 90c7e9b)
+
+- High risk (auth: user menu sign-out), 4 lenses, 2254 lines. One CRITICAL finding (R3-outbox-cross-user-submit-drops-grades) required a bounded correction: 90c7e9b (99 lines, plan 120, budget 200). Targeted validation passed; APPROVED and acknowledged (lineage review-55b495e3e3c1d09b, authority burned). Next review boundary: 90c7e9b.
+- R1-outbox-survives-account-switch and R4-outbox-cross-user-drop-after-signout describe the same pre-correction defect; 90c7e9b addresses them (inactive outboxes never submit, dispose on user change, sign-out flushes only the active user).
+- Non-blocking follow-ups (pending):
+  - R3-outbox-remove-write-failure-resubmit-loop (WARNING): `remove()` ignores a failed write, so `drain` resubmits the same head forever; stop draining (or keep an in-memory skip set) when the write fails.
+  - R4-outbox-append-write-failure-loses-grade (WARNING): when `append` cannot persist, the grade is never submitted; submit it directly (in-memory fallback) and surface a warning.
+  - R2-reviewcard-key-comment-misleading (WARNING): the comment in `review-session.tsx` says the board stays mounted; it remounts per card. Fix the comment, or hoist the board out of the keyed subtree (also helps the 200 ms budget).
+  - R4-outbox-head-of-line-blocking: one deterministic retryable failure blocks every later grade; cap attempts per entry or move it aside and surface it.
+  - R2-review-config-duplicated-server-caps: share `QUEUE_MAX_PAGE_SIZE` and `MAX_ELAPSED_MS` with the server router limits.
+  - R2-review-queue-magic-new-state: use `CARD_STATE` in `review-queue.ts` and `STATE_LABEL`.
+  - R3-session-wiring-untested: no tests for `use-review-queue` glue and the 1..4 key handling (no DOM env).
