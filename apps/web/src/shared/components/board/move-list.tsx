@@ -21,6 +21,12 @@ function toFullMoves(moves: readonly string[]): FullMove[] {
   return rows;
 }
 
+/** An out-of-range or non-numeric ply must not mislabel the live region or the highlight. */
+function clampPly(ply: number, total: number): number {
+  if (!Number.isFinite(ply)) return 0;
+  return Math.min(Math.max(Math.trunc(ply), 0), total);
+}
+
 function describeCurrent(moves: readonly string[], currentPly: number): string {
   const san = moves[currentPly - 1];
   if (san === undefined) return "Starting position";
@@ -63,7 +69,8 @@ function Ply({
 }
 
 /** Text move list of the game so far; every board shows one for assistive technology. */
-export default function MoveList({ moves, currentPly, onSelect }: MoveListProps) {
+export default function MoveList({ moves, currentPly: rawPly, onSelect }: MoveListProps) {
+  const currentPly = clampPly(rawPly, moves.length);
   const rows = toFullMoves(moves);
   return (
     <div data-slot="move-list" className="flex flex-col gap-1">

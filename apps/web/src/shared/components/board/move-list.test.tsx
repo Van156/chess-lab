@@ -52,3 +52,19 @@ describe("MoveList", () => {
     expect(html).not.toContain("<li");
   });
 });
+
+describe("MoveList out-of-range currentPly", () => {
+  test("clamps a ply past the end to the last move", () => {
+    const html = renderToStaticMarkup(<MoveList moves={["e4", "e5"]} currentPly={9} />);
+    expect(html).toContain("Current move: 1... e5");
+    expect(html.match(/aria-current="step"/g)).toHaveLength(1);
+  });
+
+  test("clamps a negative or non-numeric ply to the starting position", () => {
+    for (const ply of [-3, Number.NaN]) {
+      const html = renderToStaticMarkup(<MoveList moves={["e4", "e5"]} currentPly={ply} />);
+      expect(html).toContain("Starting position");
+      expect(html).not.toContain("aria-current");
+    }
+  });
+});

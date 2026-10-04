@@ -4,6 +4,7 @@ import { Chessboard, type ChessboardOptions } from "react-chessboard";
 import { useState, type CSSProperties } from "react";
 
 import { boardTheme } from "./board-theme";
+import { emptySelection, resolveMove, selectionFor, tap, type Selection } from "./board-selection";
 import type { BoardProps, PromotionPiece } from "./board-types";
 
 /**
@@ -30,8 +31,6 @@ const LAST_MOVE_STYLE: CSSProperties = { backgroundColor: "var(--board-last-move
 const TARGET_STYLE: CSSProperties = {
   background: "radial-gradient(circle, rgba(0,0,0,0.3) 22%, transparent 24%)",
 };
-
-type Pending = { from: string; to: string };
 
 export function PromotionPicker({
   onPick,
@@ -74,10 +73,11 @@ export default function ChessBoardImpl({
   lastMove,
   hidden = false,
 }: BoardProps) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [pending, setPending] = useState<Pending | null>(null);
+  const [state, setState] = useState<Selection>(() => emptySelection(fen));
+  const { selected, pending } = selectionFor(state, fen);
 
   const legal = legalMoves(fen);
+  const legalUcis = legal.map((move) => move.uci);
   const targets = selected
     ? legal.filter((move) => move.uci.startsWith(selected)).map((move) => move.uci.slice(2, 4))
     : [];
@@ -85,27 +85,26 @@ export default function ChessBoardImpl({
   /** Resolves a user move against the legal list; false means rejected, nothing is reported. */
   function attempt(from: string, to: string, promotion?: PromotionPiece): boolean {
     if (!onMove) return false;
-    const candidates = legal.filter((move) => move.uci.startsWith(`${from}${to}`));
-    if (candidates.length === 0) return false;
-    const needsPromotion = candidates.every((move) => move.uci.length === 5);
-    if (needsPromotion && !promotion) {
-      setSelected(null);
-      setPending({ from, to });
+    const resolution = resolveMove(legalUcis, from, to, promotion);
+    if (resolution.kind === "illegal") return false;
+    if (resolution.kind === "promotion") {
+      setState({ fen, selected: null, pending: { from, to } });
       return false;
     }
-    const parsed = parseMove(fen, `${from}${to}${promotion ?? ""}`);
+    const parsed = parseMove(fen, resolution.uci);
     if (!parsed) return false;
-    setSelected(null);
-    setPending(null);
+    setState(emptySelection(fen));
     return onMove({ from, to, ...(promotion ? { promotion } : {}), san: parsed.san });
   }
 
   function handleSquareClick({ square }: { square: string }) {
-    if (!onMove || pending) return;
-    if (selected && selected !== square && attempt(selected, square)) return;
-    if (selected && targets.includes(square)) return; // promotion picker opened
-    const canMove = legal.some((move) => move.uci.startsWith(square));
-    setSelected(canMove && square !== selected ? square : null);
+    if (!onMove) return;
+    const result = tap(selectionFor(state, fen), square, legalUcis);
+    if (result.attempt) {
+      attempt(result.attempt.from, result.attempt.to);
+      return;
+    }
+    setState(result.selection);
   }
 
   const squareStyles: Record<string, CSSProperties> = {};
@@ -142,7 +141,7 @@ export default function ChessBoardImpl({
       {pending && (
         <PromotionPicker
           onPick={(piece) => attempt(pending.from, pending.to, piece)}
-          onCancel={() => setPending(null)}
+          onCancel={() => setState(emptySelection(fen))}
         />
       )}
     </div>
