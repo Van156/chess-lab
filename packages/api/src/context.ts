@@ -5,6 +5,23 @@ import type { Database } from "@b2c-template/db";
 import type { AuthorizationPort } from "./authorization";
 import type { PlatformAdminPort } from "./platform-admin";
 
+export type ImportStatus = {
+  state: "idle" | "running" | "backoff" | "failed";
+  lastSyncedAt: Date | null;
+  retryAt: Date | null;
+  gamesImported: number;
+};
+
+/**
+ * Lichess access for procedures. Type-only like `AuthorizationPort`: the token and the Lichess
+ * client live behind it in `apps/server`, so `packages/api` never sees either.
+ */
+export type LichessPort = {
+  status(userId: string): Promise<ImportStatus>;
+  /** Starts a sync in the background when none runs; never throws for "already running". */
+  requestSync(userId: string): Promise<ImportStatus>;
+};
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -19,4 +36,5 @@ export type Context = {
    * runtime dependency.
    */
   auditLogger: AuditLogger;
+  lichess: LichessPort;
 };

@@ -75,6 +75,7 @@ describe.skipIf(!reachable)("createBetterAuthAuthorization integration", () => {
       authorization: createBetterAuthAuthorization(auth),
       platformAdmin: createBetterAuthPlatformAdmin(auth),
       auditLogger,
+      lichess: {} as unknown as Context["lichess"],
     };
   }
 

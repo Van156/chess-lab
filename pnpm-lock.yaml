@@ -275,6 +275,9 @@ importers:
       '@b2c-template/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@b2c-template/lichess':
+        specifier: workspace:*
+        version: link:../../packages/lichess
       '@orpc/openapi':
         specifier: 'catalog:'
         version: 1.15.4(ws@8.21.3)
@@ -436,9 +439,15 @@ importers:
       '@b2c-template/auth':
         specifier: workspace:*
         version: link:../auth
+      '@b2c-template/chess':
+        specifier: workspace:*
+        version: link:../chess
       '@b2c-template/db':
         specifier: workspace:*
         version: link:../db
+      '@b2c-template/lichess':
+        specifier: workspace:*
+        version: link:../lichess
       '@orpc/client':
         specifier: 'catalog:'
         version: 1.15.4

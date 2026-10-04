@@ -82,6 +82,7 @@ describe.skipIf(!reachable)("audit list procedures", () => {
       platformAdmin: createBetterAuthPlatformAdmin(auth),
       // Unused by the router under test.
       auditLogger: {} as unknown as Context["auditLogger"],
+      lichess: {} as unknown as Context["lichess"],
     };
   }
 

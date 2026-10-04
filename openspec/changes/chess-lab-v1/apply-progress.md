@@ -92,3 +92,20 @@ S3 was split into S3a `73a0153` (S3.1 to S3.7, about 692 lines, needs `size:exce
 ## S4a split (auto-chain)
 
 S4a came in at about 905 authored lines, so it was split at the task boundary: S4a-1 (S4a.1 to S4a.5: package, types, config, NDJSON parser, serial gate) on `feat/chess-lab-v1-s4a`, and S4a-2 (S4a.6, S4a.7: client) on `feat/chess-lab-v1-s4a2`, base S4a-1.
+
+## Review S3 + S4a (base 4c8a2ec to 1c04ff6)
+
+- High risk, 4 lenses, 1810 lines: APPROVED and acknowledged (lineage review-9d6d34228f245b17, authority burned). Next review boundary: 1c04ff6.
+
+## S4b (import service and router, branch feat/chess-lab-v1-s4b, base feat/chess-lab-v1-s4a2)
+
+- Delivery: single PR with user-approved `size:exception` (about 1,000+ authored lines across service, router, server wiring and tests). Base `feat/chess-lab-v1-s4a2`, chain strategy `feature-branch-chain`. No sub-branches.
+- [x] S4b.1 `services/import-config.ts` (`IMPORT_WINDOW_MONTHS` 3, `FIRST_IMPORT_MAX_GAMES` 1000, `AUTO_SYNC_AFTER_MS` 6 h, plus `IMPORT_LEASE_MS` 2 min and `IMPORT_BATCH_SIZE` 50).
+- [x] S4b.2 RED observed: `Cannot find module './import-service'` (0 pass, 1 error).
+- [x] S4b.3 GREEN: `services/import-service.ts` (`createImportService` with `status`, `startSync`, `requestSync`; `shouldAutoSync`; `GamesSource`). First run 18 pass, 2 fail, both faulty test fixtures (a mid-stream failure that never triggered, `replace` instead of `replaceAll` on a PGN); fixed, 20 pass. `@b2c-template/chess` and `@b2c-template/lichess` (type-only) added to `packages/api` deps and tsconfig references; `apps/server` gained `@b2c-template/lichess`.
+- [x] S4b.4 RED observed: `lichess.test.ts` 0 pass, 1 error (module missing); GREEN: 8 pass.
+- [x] S4b.5 `routers/lichess.ts` (`status`, `sync`), registered in `routers/index.ts` (`privateData` kept); `context.ts` gained `ImportStatus`, `LichessPort`, `lichess` on `Context`. Existing test contexts in `packages/api` got a `lichess` stub.
+- [x] S4b.6 `apps/server/src/import-runner.ts` (+ test, 4 pass; one `AbortController` per running import, `stop` aborts all), `lichess-port.ts` (`createGamesSource`, `createLichessPort`), `services.ts` wiring, `context.ts` passes `lichess`; `startBackgroundJobs().stop` aborts imports.
+- Design notes and deviations: (1) `GamesSource.exportGames` receives `userId` and has no `token`; the server adapter resolves the token per run (`auth.api.getAccessToken`, selected by `accountId` = Lichess id because better-auth 1.7.5 does not accept `providerId` in the body) and throws `LichessUnauthorized` when none exists. (2) The service never imports Lichess at runtime: errors are classified by `name` (`LichessRateLimited` with `retryAt`, `LichessUnauthorized`); the raw error message is never stored (safe fixed messages). (3) `startSync` returns `{ status, done }` so the runner can fire and forget; `requestSync` awaits it (used by tests). (4) A `running` row whose lease lapsed reads as `idle` in `status` (interrupted, resumable). (5) `failed` is not auto-retried by `lichess.status` (avoids hammering with a rejected token); manual `lichess.sync` retries. (6) After the first import, a user with no cursor resumes from `last_synced_at`. (7) Games that cannot be mapped (invalid PGN, user not a player) are skipped but still advance the cursor. (8) Past the first-import cap, the remainder arrives on later syncs from the cursor.
+- Verification: focused `bun test packages/api/src/services/import-service.test.ts packages/api/src/routers/lichess.test.ts` 28 pass; `bun test apps/server` 6 pass; `bun test` 1114 pass, 1 skip, 0 fail; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` clean.
+- Work Unit Evidence: focused command above; runtime harness = real Postgres test DB with a fake `GamesSource` that fails mid-stream then resumes (resume test: 2 committed, failure, resume from cursor, 5 total, zero duplicates); rollback boundary = `packages/api/src/services/**`, `routers/lichess*`, `context.ts`, `routers/index.ts`, test context stubs, `apps/server/src/{import-runner,lichess-port,services,context}.ts`, package manifests and lockfile.

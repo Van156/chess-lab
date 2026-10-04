@@ -2,6 +2,7 @@ import type { RouterClient } from "@orpc/server";
 
 import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
+import { lichessRouter } from "./lichess";
 import { platformRouter } from "./platform";
 
 export const appRouter = {
@@ -18,6 +19,8 @@ export const appRouter = {
   platform: platformRouter,
   // Audit activity log: audit.list (the caller's own security log) and platform audit views.
   audit: auditRouter,
+  // Lichess import status and manual sync.
+  lichess: lichessRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

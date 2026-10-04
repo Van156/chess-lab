@@ -41,6 +41,7 @@ function fakeContext(overrides: {
     platformAdmin: {} as unknown as Context["platformAdmin"],
     // Unused by any builder under test.
     auditLogger: {} as unknown as Context["auditLogger"],
+    lichess: {} as unknown as Context["lichess"],
   };
 }
 

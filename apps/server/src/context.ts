@@ -1,7 +1,7 @@
 import type { Context as ApiContext } from "@b2c-template/api/context";
 import type { Context as HonoContext } from "hono";
 
-import { auditLogger, auth, authorization, db, platformAdmin } from "./services";
+import { auditLogger, auth, authorization, db, lichess, platformAdmin } from "./services";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -17,6 +17,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     authorization,
     platformAdmin,
     auditLogger,
+    lichess,
   };
 }
 

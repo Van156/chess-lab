@@ -16,6 +16,7 @@
     "@b2c-template/api": "workspace:*",
     "@b2c-template/auth": "workspace:*",
     "@b2c-template/db": "workspace:*",
+    "@b2c-template/lichess": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
