@@ -4,7 +4,9 @@ import { PrototypeSwitcher } from "@/shared/components/prototype/prototype-switc
 import { variantSearch } from "@/shared/prototype/variants";
 
 import { midnightVariants } from "./-registry";
+import { BlindfoldScreen } from "./-midnight-screen-blindfold";
 import { MistakesScreen } from "./-midnight-screen-mistakes";
+import { ProgressScreen } from "./-midnight-screen-progress";
 import { RepertoireScreen } from "./-midnight-screen-repertoire";
 import { ReviewScreen } from "./-midnight-screen-review";
 import { TodayScreen } from "./-midnight-screen-today";
@@ -23,6 +25,8 @@ function MidnightPrototype() {
       {variant === "B" && <ReviewScreen />}
       {variant === "C" && <RepertoireScreen />}
       {variant === "D" && <MistakesScreen />}
+      {variant === "E" && <BlindfoldScreen />}
+      {variant === "F" && <ProgressScreen />}
       <PrototypeSwitcher variants={midnightVariants} current={variant} />
     </>
   );

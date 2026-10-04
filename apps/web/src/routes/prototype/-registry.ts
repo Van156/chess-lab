@@ -30,6 +30,8 @@ export const midnightVariants: readonly PrototypeVariant[] = [
   { key: "B", name: "Review session" },
   { key: "C", name: "Repertoire" },
   { key: "D", name: "Mistakes" },
+  { key: "E", name: "Blindfold" },
+  { key: "F", name: "Progress" },
 ];
 
 /** Register new prototypes here so they show up on `/prototype`. */
