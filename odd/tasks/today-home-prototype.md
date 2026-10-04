@@ -60,4 +60,5 @@ Five structurally different variants of the Chess Lab "Today" home screen (the f
 - Deviations: variants use plain elements + Tailwind (no `@b2c-template/ui` components) so per-variant radius/palette stay free; E's ring shows queue composition (7/8/3), not completion.
 - Review T1+T2 (base `6700a8a`, through `e864594`, medium risk): consent granted (standing), 1 lens (reliability), **approved**, acknowledged (authority burned). Non-blocking suggestions: R3-fen-parser-unchecked, R3-queue-total-not-derived, R3-ring-cap-overlap, R3-task-status-stale (fixed by this update). Next boundary: `e864594`.
 - Not verified: browser run of the five variants.
-- Next: user picks a variant (or a mix); then capture the verdict and fold the winner into the real Today page per the prototype skill.
+- **Verdict (2026-10-04): Variant A "Midnight" wins** — dark navy + mint, left sidebar, 16px radius. The user chose it as the visual base for every other view; continued in `odd/tasks/midnight-screens-prototype.md` on branch `prototype/midnight-screens`.
+- Dev setup note: `apps/web/.env` (gitignored) needs `VITE_SERVER_URL=http://localhost:3000` or the app crashes at `orpc.ts`.
