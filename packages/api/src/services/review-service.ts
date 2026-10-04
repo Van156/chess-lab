@@ -6,7 +6,7 @@ import { game, mistake } from "@b2c-template/db/schema/games";
 import { clampReviewedAt, grade, localDayBounds, selectQueue } from "@b2c-template/study";
 import type { CardState, Grade, QueueCandidate } from "@b2c-template/study";
 import { ORPCError } from "@orpc/server";
-import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, lte, ne, sql } from "drizzle-orm";
 
 import { getSettings } from "./settings-service";
 
@@ -107,10 +107,30 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
       due: card.due,
     };
     const scope = and(eq(card.userId, userId), inArray(cardPillarSql, enabled));
-    const dueRows = await db
-      .select(columns)
+    // Bound the backlog. `selectQueue` leads with learning/relearning cards already due (oldest
+    // first), then round-robins the rest across pillars, and cuts to `limit`. Both groups are
+    // prefixes of their due order, so keeping the first `limit` cards per (pillar, group) is enough.
+    const learningNow = sql`(${card.state} in (1, 3) and ${card.due} <= ${current})`;
+    const rankedDue = db
+      .select({
+        ...columns,
+        pillar: sql<CardPillar>`${cardPillarSql}`.as("pillar"),
+        rank: sql<number>`row_number() over (partition by ${cardPillarSql}, ${learningNow} order by ${card.due}, ${card.id})`.as(
+          "rank",
+        ),
+      })
       .from(card)
-      .where(and(scope, ne(card.state, 0), lt(card.due, end)));
+      .where(and(scope, ne(card.state, 0), lt(card.due, end)))
+      .as("ranked_due");
+    const dueRows = await db
+      .select({
+        cardId: rankedDue.cardId,
+        pillar: rankedDue.pillar,
+        state: rankedDue.state,
+        due: rankedDue.due,
+      })
+      .from(rankedDue)
+      .where(lte(rankedDue.rank, opts.limit));
     const freshRows =
       newBudget === 0
         ? []

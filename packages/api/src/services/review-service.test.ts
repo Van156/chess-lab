@@ -358,6 +358,30 @@ describe.skipIf(!reachable)("review service", () => {
       ).toHaveLength(1);
     });
 
+    test("with more due cards than the limit, the queue still starts with the right cards", async () => {
+      // 8 review cards (day -8 .. -1), plus 2 learning cards due an hour ago (more recent than all
+      // of them): learning cards lead, then the oldest review cards by due date.
+      const reviewIds: string[] = [];
+      for (let d = 8; d >= 1; d--) {
+        const { cardId } = await seedCard("u1", {
+          state: dueCard(new Date(NOW.getTime() - d * DAY)),
+        });
+        reviewIds.push(cardId);
+      }
+      const learningIds: string[] = [];
+      for (const minutes of [90, 30]) {
+        const { cardId } = await seedCard("u1", {
+          state: {
+            ...dueCard(new Date(NOW.getTime() - minutes * 60 * 1000)),
+            state: 1,
+          },
+        });
+        learningIds.push(cardId);
+      }
+      const ids = (await service().getQueue("u1", { limit: 5 })).map((i) => i.cardId);
+      expect(ids).toEqual([...learningIds, ...reviewIds.slice(0, 3)]);
+    });
+
     test("respects the limit and defaults the settings lazily", async () => {
       for (let i = 0; i < 3; i++) await seedCard("u1");
       expect(await service().getQueue("u1", { limit: 2 })).toHaveLength(2);
