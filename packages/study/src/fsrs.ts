@@ -5,6 +5,12 @@ import { DEFAULT_STUDY_PARAMS, MAX_REVIEW_CLOCK_SKEW_MS, type StudyParams } from
 /** 1 Again, 2 Hard, 3 Good, 4 Easy. */
 export type Grade = 1 | 2 | 3 | 4;
 
+/** Named card states; the values match ts-fsrs `State` and the `card.state` column. */
+export const CARD_STATE = { New: 0, Learning: 1, Review: 2, Relearning: 3 } as const;
+
+/** States `selectQueue` treats as learning: due ones lead the queue. */
+export const LEARNING_CARD_STATES = [CARD_STATE.Learning, CARD_STATE.Relearning] as const;
+
 /** 0 New, 1 Learning, 2 Review, 3 Relearning. */
 export type CardState = {
   due: Date;

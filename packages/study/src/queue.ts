@@ -1,3 +1,5 @@
+import { CARD_STATE } from "./fsrs";
+
 export type QueueCandidate = {
   cardId: string;
   pillar: string;
@@ -64,7 +66,8 @@ export function selectQueue(input: {
   const nowMs = input.now.getTime();
   const sorted = [...input.due].sort(byDueThenId);
   const isLearningNow = (c: QueueCandidate) =>
-    (c.state === 1 || c.state === 3) && c.due.getTime() <= nowMs;
+    (c.state === CARD_STATE.Learning || c.state === CARD_STATE.Relearning) &&
+    c.due.getTime() <= nowMs;
   const learningNow = sorted.filter(isLearningNow);
   const rest = sorted.filter((c) => !isLearningNow(c));
 

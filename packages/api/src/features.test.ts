@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { CARD_PILLARS } from "@b2c-template/db/card-pillar";
 import { enabledCardPillars, parseFeatureFlags } from "./features";
 
 describe("parseFeatureFlags", () => {
@@ -52,5 +53,12 @@ describe("enabledCardPillars", () => {
   test("lists the card pillars whose flag is on", () => {
     expect(enabledCardPillars(parseFeatureFlags({}))).toEqual(["mistakes"]);
     expect(enabledCardPillars(parseFeatureFlags({ CHESSLAB_FEATURES: "blindfold" }))).toEqual([]);
+  });
+});
+
+describe("CARD_PILLARS", () => {
+  test("every card pillar maps to a feature flag", () => {
+    const flags = parseFeatureFlags({});
+    for (const pillar of CARD_PILLARS) expect(pillar in flags).toBe(true);
   });
 });

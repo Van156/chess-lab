@@ -3,7 +3,14 @@ import { cardPillar, cardPillarSql } from "@b2c-template/db/card-pillar";
 import type { CardPillar } from "@b2c-template/db/card-pillar";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { game, mistake } from "@b2c-template/db/schema/games";
-import { clampReviewedAt, grade, localDayBounds, selectQueue } from "@b2c-template/study";
+import {
+  CARD_STATE,
+  LEARNING_CARD_STATES,
+  clampReviewedAt,
+  grade,
+  localDayBounds,
+  selectQueue,
+} from "@b2c-template/study";
 import type { CardState, Grade, QueueCandidate } from "@b2c-template/study";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, gte, inArray, lt, lte, ne, sql } from "drizzle-orm";
@@ -100,7 +107,7 @@ export async function newCardAllowance(
         eq(reviewLog.userId, userId),
         gte(reviewLog.reviewedAt, start),
         lt(reviewLog.reviewedAt, end),
-        sql`(${reviewLog.stateBefore}->>'state')::int = 0`,
+        sql`(${reviewLog.stateBefore}->>'state')::int = ${CARD_STATE.New}`,
       ),
     );
   const introducedToday = introduced?.n ?? 0;
@@ -141,7 +148,10 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
     // Bound the backlog. `selectQueue` leads with learning/relearning cards already due (oldest
     // first), then round-robins the rest across pillars, and cuts to `limit`. Both groups are
     // prefixes of their due order, so keeping the first `limit` cards per (pillar, group) is enough.
-    const learningNow = sql`(${card.state} in (1, 3) and ${card.due} <= ${current})`;
+    const learningNow = sql`(${card.state} in (${sql.join(
+      LEARNING_CARD_STATES.map((state) => sql`${state}`),
+      sql`, `,
+    )}) and ${card.due} <= ${current})`;
     const rankedDue = db
       .select({
         ...columns,
@@ -151,7 +161,7 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
         ),
       })
       .from(card)
-      .where(and(scope, ne(card.state, 0), lt(card.due, end)))
+      .where(and(scope, ne(card.state, CARD_STATE.New), lt(card.due, end)))
       .as("ranked_due");
     const dueRows = await db
       .select({
@@ -168,7 +178,7 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
         : await db
             .select(columns)
             .from(card)
-            .where(and(scope, eq(card.state, 0)))
+            .where(and(scope, eq(card.state, CARD_STATE.New)))
             .orderBy(asc(card.createdAt), asc(card.id))
             .limit(newBudget);
 

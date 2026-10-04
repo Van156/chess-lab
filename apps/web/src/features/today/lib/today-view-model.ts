@@ -7,7 +7,7 @@ export type TodayMode = "onboarding" | "due" | "caught-up";
  * "caught up" is nothing due and no new cards allowed (app-shell / Today home).
  */
 export function todayMode(summary: TodaySummary): TodayMode {
-  if (summary.sync.gamesImported === 0 && summary.sync.lastSyncedAt === null) {
+  if (summary.sync?.gamesImported === 0 && summary.sync.lastSyncedAt === null) {
     return "onboarding";
   }
   return summary.dueTotal > 0 || summary.newBudgetLeft > 0 ? "due" : "caught-up";

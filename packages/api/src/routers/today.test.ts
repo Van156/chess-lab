@@ -217,8 +217,23 @@ describe.skipIf(!reachable)("today router", () => {
     const summary = await call(todayRouter.summary, undefined, {
       context: context("u1", { lichess } as unknown as Partial<Context>),
     });
-    expect(summary.sync.state).toBe("running");
+    expect(summary.sync?.state).toBe("running");
     expect(requested).toBe(0);
+  });
+
+  test("a failing sync status degrades only the sync field", async () => {
+    await seedCard("u1", "c1", { state: 2, due: new Date(Date.now() - DAY) });
+    const lichess = {
+      status: async () => {
+        throw new Error("lichess status unavailable");
+      },
+    };
+    const summary = await call(todayRouter.summary, undefined, {
+      context: context("u1", { lichess } as unknown as Partial<Context>),
+    });
+    expect(summary.sync).toBeNull();
+    expect(summary.dueTotal).toBe(1);
+    expect(summary.streak).toEqual({ days: 0, reviewedToday: false });
   });
 
   test("unauthenticated callers are rejected", async () => {

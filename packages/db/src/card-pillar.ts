@@ -3,7 +3,8 @@ import { sql } from "drizzle-orm";
 import { card } from "./schema/cards";
 
 /** The pillars a card can belong to. Phase 2 and 3 add `repertoire` and `drills`. */
-export type CardPillar = "mistakes";
+export const CARD_PILLARS = ["mistakes"] as const;
+export type CardPillar = (typeof CARD_PILLARS)[number];
 
 /**
  * The pillar of a card, derived from which source FK is set (ADR-04). There is no `source_type`

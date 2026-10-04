@@ -242,3 +242,10 @@ Workload: the web part is about 1,280 authored lines (additions plus deletions, 
   - R2-card-pillar-list-duplicated: derive `enabledCardPillars` from the `CardPillar` source of truth.
   - R2-today-router-comment-misnames-caller: the comment mentions a Today loader; the caller is the `useToday` hook.
   - R2-use-today-unused-error: drop the unused `error` or use it to drive the load-error UI.
+
+- Follow-ups done (server side, commit fix(api), S7 branch; the others stay pending):
+  - R3/R4-today-summary-coupled-to-sync-status: `today.summary` now settles `lichess.status` separately; output is `{ ...TodayCounts, sync: ImportStatus | null }` (`null` when the status read rejects). RED: new `today.test.ts` case with a rejecting stub failed with the thrown error; GREEN after the change. Web: `SyncStatus` is `NonNullable<TodaySummary["sync"]>`, `todayMode` null-guards, `TodayView` shows "Sync status unavailable" when `sync` is null.
+  - R2-review-queue-magic-state-numbers: `CARD_STATE` and `LEARNING_CARD_STATES` exported from `packages/study` (used by `selectQueue`, `review-service.ts`, `today-service.ts`).
+  - R2-card-pillar-list-duplicated: `CARD_PILLARS` in `packages/db` card-pillar is the source of truth for `CardPillar`; `enabledCardPillars` derives from it; new test asserts every pillar has a flag.
+  - R2-today-router-comment-misnames-caller: comment now names the `useToday` status query.
+  - Verification: `bun test packages/api packages/study` 229 pass; `pnpm check-types` and `pnpm --filter web check-types` exit 0; `pnpm check` clean; `bun test` 1331 pass, 0 fail.

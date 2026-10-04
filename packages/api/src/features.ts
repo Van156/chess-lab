@@ -1,4 +1,4 @@
-import type { CardPillar } from "@b2c-template/db/card-pillar";
+import { CARD_PILLARS, type CardPillar } from "@b2c-template/db/card-pillar";
 
 /** Pillars that can be switched off per deployment (ADR-17). */
 export const PILLAR_FLAGS = ["mistakes", "repertoire", "blindfold", "progress"] as const;
@@ -39,6 +39,5 @@ export function parseFeatureFlags(env: { CHESSLAB_FEATURES?: string | undefined 
 
 /** Card pillars (the ones `review.queue` can serve) whose flag is on. */
 export function enabledCardPillars(flags: FeatureFlags): CardPillar[] {
-  const pillars: CardPillar[] = ["mistakes"];
-  return pillars.filter((pillar) => flags[pillar]);
+  return CARD_PILLARS.filter((pillar): pillar is CardPillar => flags[pillar]);
 }

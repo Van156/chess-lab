@@ -1,6 +1,7 @@
 import type { Database } from "@b2c-template/db";
 import { cardPillarSql } from "@b2c-template/db/card-pillar";
 import type { CardPillar } from "@b2c-template/db/card-pillar";
+import { CARD_STATE } from "@b2c-template/study";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { and, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 
@@ -78,7 +79,7 @@ export function createTodayService({ db, now = () => new Date() }: TodayServiceD
           and(
             eq(card.userId, userId),
             inArray(cardPillarSql, opts.enabledPillars),
-            ne(card.state, 0),
+            ne(card.state, CARD_STATE.New),
             lt(card.due, end),
           ),
         )

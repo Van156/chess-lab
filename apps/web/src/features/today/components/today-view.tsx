@@ -30,7 +30,9 @@ export default function TodayView({
   syncPending?: boolean;
 }) {
   const mode = todayMode(summary);
-  const description = describeSync(summary.sync, now);
+  const description = summary.sync
+    ? describeSync(summary.sync, now)
+    : { tone: "neutral" as const, message: "Sync status unavailable", canSync: true };
 
   return (
     <div className="flex flex-col gap-6">
