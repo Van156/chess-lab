@@ -3,19 +3,16 @@ import { useEffect, useRef } from "react";
 
 import { orpc } from "@/app/orpc";
 
-import type { SyncStatus } from "../lib/today-types";
-
-/** While an import is running or backing off, re-read its status this often. */
-const SYNC_POLL_MS = 5000;
-
-const isInFlight = (state: SyncStatus["state"] | undefined) =>
-  state === "running" || state === "backoff";
+import { shouldRefreshSummary, syncPollInterval } from "../lib/sync-schedule";
+import { useNow } from "./use-now";
 
 /**
  * Data and actions behind Today. `lichess.status` owns the auto-sync (it enqueues one when the
  * last import is stale), so the screen calls it once on mount and then polls it while a sync is in
- * flight; `lichess.sync` is the manual "Sync now" (the only retry for a failed import). When a
- * sync finishes the summary is refetched, because new games change what is due.
+ * flight; `lichess.sync` is the manual "Sync now" (the only retry for a failed import). The summary
+ * is refetched whenever the observed sync result can change counts (see `shouldRefreshSummary`).
+ * `now` is a live clock, so relative times keep ticking between fetches. `sync` falls back to the
+ * summary's copy and is `null` when both reads failed; the view renders "Sync status unavailable".
  */
 export function useToday() {
   const queryClient = useQueryClient();
@@ -23,21 +20,22 @@ export function useToday() {
   const status = useQuery({
     ...orpc.lichess.status.queryOptions(),
     refetchOnWindowFocus: false,
-    refetchInterval: (query) => (isInFlight(query.state.data?.state) ? SYNC_POLL_MS : false),
+    refetchInterval: (query) => syncPollInterval(query.state.data, Date.now()),
   });
   const syncNow = useMutation({
     ...orpc.lichess.sync.mutationOptions(),
     onSuccess: (next) => queryClient.setQueryData(orpc.lichess.status.queryKey(), next),
   });
 
-  const state = status.data?.state;
-  const previous = useRef(state);
+  const now = useNow();
+  const observed = status.data;
+  const previous = useRef(observed);
   useEffect(() => {
-    if (previous.current === "running" && state !== "running") {
+    if (shouldRefreshSummary(previous.current, observed)) {
       void queryClient.invalidateQueries({ queryKey: orpc.today.summary.key() });
     }
-    previous.current = state;
-  }, [state, queryClient]);
+    previous.current = observed ?? previous.current;
+  }, [observed, queryClient]);
 
   function prefetchReview() {
     void queryClient.prefetchQuery(orpc.review.queue.queryOptions({ input: {} }));
@@ -45,9 +43,8 @@ export function useToday() {
 
   return {
     data: summary.data ? { ...summary.data, sync: status.data ?? summary.data.sync } : undefined,
-    now: Math.max(summary.dataUpdatedAt, status.dataUpdatedAt),
+    now,
     isPending: summary.isPending,
-    error: summary.error,
     retry: () => void summary.refetch(),
     syncNow: () => syncNow.mutate(undefined),
     syncPending: syncNow.isPending,

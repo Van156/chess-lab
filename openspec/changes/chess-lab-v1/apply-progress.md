@@ -249,3 +249,10 @@ Workload: the web part is about 1,280 authored lines (additions plus deletions, 
   - R2-card-pillar-list-duplicated: `CARD_PILLARS` in `packages/db` card-pillar is the source of truth for `CardPillar`; `enabledCardPillars` derives from it; new test asserts every pillar has a flag.
   - R2-today-router-comment-misnames-caller: comment now names the `useToday` status query.
   - Verification: `bun test packages/api packages/study` 229 pass; `pnpm check-types` and `pnpm --filter web check-types` exit 0; `pnpm check` clean; `bun test` 1331 pass, 0 fail.
+
+- Follow-ups done (web side, `fix(web)` commit, S7 branch; R1-emailsignup-flag-ui-only stays pending for a user decision):
+  - R3-today-summary-refresh-missed-transitions: pure `shouldRefreshSummary(prev, next)` in `features/today/lib/sync-schedule.ts`; `useToday` invalidates the summary when a sync leaves running/backoff or `lastSyncedAt`/`gamesImported` change (covers running -> backoff -> idle and "Sync now" returning idle). RED: `bun test` on `sync-schedule.test.ts` failed with "Cannot find module './sync-schedule'"; GREEN after implementation.
+  - R2-today-now-is-fetch-timestamp: `useNow()` live clock (30 s tick) in `hooks/use-now.ts`; `useToday().now` is that clock, `TodayView` keeps its injected `now`.
+  - R4-backoff-polls-at-fixed-5s: pure `syncPollInterval(sync, now)`: 5 s while running, until retryAt + 2 s bounded to 5-60 s in backoff, `false` otherwise. Tests in the same file.
+  - R2-use-today-unused-error: `error` removed from `useToday`; `TodayPage` already drives the load-error UI off missing `data`. Null `sync` falls back to the summary's copy, then to the view's "Sync status unavailable".
+  - Verification: `bun test` 1345 pass, 0 fail; `pnpm check-types`, `pnpm --filter web check-types`, `pnpm check` exit 0.
