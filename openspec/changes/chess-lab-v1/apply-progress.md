@@ -169,3 +169,12 @@ S4a came in at about 905 authored lines, so it was split at the task boundary: S
 - Not verifiable here: real touch behaviour at 375 px (S0.6) and drag-vs-scroll; SSR tests cannot exercise pointer events or the promotion flow interactively.
 - Verification: `bun test apps/web/src/shared/components/board` 23 pass; `bun test tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` pass (55 with the board tests); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0; `bun test` 1242 pass, 1 skip, 0 fail.
 - Work Unit Evidence: focused `bun test apps/web/src/shared/components/board` 23 pass; runtime harness = SSR render of the placeholder and the impl (`renderToStaticMarkup`), plus `pnpm check-types` which builds the web bundle with the lazy chunk; rollback boundary = `apps/web/src/shared/components/board/**`, `apps/web/package.json` and `pnpm-lock.yaml` entries.
+
+## Review S5b + S4b follow-ups + S6 (base f3a998c to 35ac23d)
+
+- Medium risk, 1 lens (reliability), 2051 lines: APPROVED and acknowledged (lineage review-60a97d9bad988a1b, authority burned). Next review boundary: 35ac23d.
+- Non-blocking follow-ups (pending):
+  - R3-token-resolver-errors-all-map-to-unauthorized (`apps/server/src/lichess-port.ts`): only not-found and refresh-rejected token errors should map to `LichessUnauthorized`; transient errors (DB, network timeout, abort) must be rethrown so the import records a retryable failure. Add tests that separate both kinds.
+  - R3-board-selection-survives-position-change (`chess-board-impl.tsx`): reset the selected square and the pending promotion when `fen` changes; add interaction tests for tap-tap, promotion, `onMove` rejection and blindfold click.
+  - R3-move-list-out-of-range-ply-label (`move-list.tsx`): clamp or reject an out-of-range `currentPly`; add a test.
+  - R3-queue-due-rows-unbounded (`review-service.ts`): bound the due-card query (for example by the requested limit plus learning cards) instead of loading the whole backlog.
