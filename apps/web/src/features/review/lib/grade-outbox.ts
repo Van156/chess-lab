@@ -185,7 +185,10 @@ export function createGradeOutbox({
           remove(head.reviewLogId);
           continue;
         }
-        if (!isTransientGradeError(error)) {
+        if (isTransientGradeError(error)) {
+          // The server did not answer, so earlier server failures no longer count as consecutive.
+          attempts.delete(head.reviewLogId);
+        } else {
           const count = (attempts.get(head.reviewLogId) ?? 0) + 1;
           attempts.set(head.reviewLogId, count);
           if (count >= OUTBOX_MAX_ATTEMPTS) {

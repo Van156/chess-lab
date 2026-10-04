@@ -4,6 +4,8 @@ import {
   EngineJobCancelledError,
   EngineUnavailableError,
   createEngineQueue,
+  searchTimeoutMs,
+  type EngineQueueOptions,
   type EngineTransport,
 } from "./engine-queue";
 
@@ -286,5 +288,148 @@ describe("engine queue: cancel while pre-empted", () => {
     fake.emit("bestmove e7e5");
     expect((await interactive.result).bestMove).toBe("e7e5");
     expect(fake.take().filter((c) => c === `position fen ${FEN_A}`)).toEqual([]);
+  });
+});
+
+/** Manual clock: timers fire only when the test advances it. */
+const createManualTimers = () => {
+  let now = 0;
+  let nextId = 0;
+  const timers = new Map<number, { at: number; run: () => void }>();
+  const options: Pick<EngineQueueOptions, "setTimer" | "clearTimer"> = {
+    setTimer: (run, ms) => {
+      nextId += 1;
+      timers.set(nextId, { at: now + ms, run });
+      return nextId;
+    },
+    clearTimer: (handle) => void timers.delete(handle as number),
+  };
+  return {
+    options,
+    pendingCount: () => timers.size,
+    advance: (ms: number) => {
+      now += ms;
+      for (const [id, timer] of timers) {
+        if (timer.at <= now && timers.delete(id)) timer.run();
+      }
+    },
+  };
+};
+
+describe("engine queue watchdog", () => {
+  const SEARCH_MS = 1_000;
+  const STOP_MS = 200;
+  const setup = () => {
+    const fake = createFakeTransport();
+    const clock = createManualTimers();
+    const stalls: Error[] = [];
+    const queue = createEngineQueue(fake.transport, {
+      ...clock.options,
+      searchTimeoutMs: () => SEARCH_MS,
+      stopTimeoutMs: STOP_MS,
+      onStall: (error) => stalls.push(error),
+    });
+    return { fake, clock, queue, stalls };
+  };
+
+  test("a running job that never answers is rejected as unavailable and the engine reported stalled", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    const queued = queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "background" });
+    fake.take();
+
+    clock.advance(SEARCH_MS);
+
+    const outcome = await settle(job.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+    const queuedOutcome = await settle(queued.result);
+    expect(queuedOutcome.status === "error" && queuedOutcome.error).toBeInstanceOf(
+      EngineUnavailableError,
+    );
+    expect(stalls).toHaveLength(1);
+    expect(stalls[0]).toBeInstanceOf(EngineUnavailableError);
+    expect(fake.take()).toEqual([]);
+  });
+
+  test("a job that answers in time never trips the watchdog", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    clock.advance(SEARCH_MS - 1);
+    fake.emit("bestmove e2e4");
+    await job.result;
+    expect(clock.pendingCount()).toBe(0);
+    clock.advance(SEARCH_MS * 5);
+    expect(stalls).toHaveLength(0);
+  });
+
+  test("each job gets a fresh watchdog", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const first = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    const second = queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "background" });
+    clock.advance(SEARCH_MS - 1);
+    fake.emit("bestmove e2e4");
+    await first.result;
+    clock.advance(SEARCH_MS - 1);
+    expect(stalls).toHaveLength(0);
+    fake.emit("bestmove e7e5");
+    await second.result;
+  });
+
+  test("a cancel during a silent search sends stop, then gives up after the bounded wait", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    fake.take();
+
+    job.cancel();
+    expect(fake.take()).toEqual(["stop"]);
+    clock.advance(STOP_MS);
+
+    const outcome = await settle(job.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+    expect(stalls).toHaveLength(1);
+  });
+
+  test("a cancel answered by bestmove in time disarms the stop wait", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    job.cancel();
+    clock.advance(STOP_MS - 1);
+    fake.emit("bestmove e2e4");
+    const outcome = await settle(job.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineJobCancelledError);
+    expect(clock.pendingCount()).toBe(0);
+    expect(stalls).toHaveLength(0);
+  });
+
+  test("a pre-emption whose bestmove never arrives is bounded too", async () => {
+    const { clock, queue, stalls } = setup();
+    const background = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    const interactive = queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "interactive" });
+    clock.advance(STOP_MS);
+    for (const job of [background, interactive]) {
+      const outcome = await settle(job.result);
+      expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+    }
+    expect(stalls).toHaveLength(1);
+  });
+
+  test("a stalled queue rejects later submissions", async () => {
+    const { clock, queue } = setup();
+    const stuck = queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    clock.advance(SEARCH_MS);
+    await settle(stuck.result);
+    const late = queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "background" });
+    const outcome = await settle(late.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+  });
+});
+
+describe("searchTimeoutMs", () => {
+  test("movetime adds slack, depth scales per ply, both capped by the ceiling", () => {
+    const budget = { slackMs: 1_000, perDepthMs: 100, ceilingMs: 5_000 };
+    expect(searchTimeoutMs({ movetimeMs: 500 }, budget)).toBe(1_500);
+    expect(searchTimeoutMs({ depth: 10 }, budget)).toBe(2_000);
+    expect(searchTimeoutMs({ depth: 100 }, budget)).toBe(5_000);
+    expect(searchTimeoutMs({ movetimeMs: 60_000 }, budget)).toBe(5_000);
   });
 });

@@ -2,8 +2,9 @@ import type { Grade } from "@b2c-template/study";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { gradeFromKey, matchesAnswer } from "../lib/answer";
+import { initialCardTurn, nextCardTurnState } from "../lib/card-turn";
 import type { QueueItem } from "../lib/review-types";
-import ReviewCardView, { type Attempt } from "./review-card-view";
+import ReviewCardView from "./review-card-view";
 
 /** Keys typed in a field must not grade the card. */
 function isTypingTarget(target: EventTarget): boolean {
@@ -30,15 +31,13 @@ export default function ReviewCard({
   turnKey: string;
   onGrade: (grade: Grade) => void;
 }) {
-  const [attempt, setAttempt] = useState<Attempt | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [shownTurn, setShownTurn] = useState(turnKey);
-  if (shownTurn !== turnKey) {
+  const [turn, setTurn] = useState(() => initialCardTurn(turnKey));
+  const nextTurn = nextCardTurnState(turn, turnKey);
+  if (nextTurn !== turn) {
     // Adjusting state during render (not in an effect) avoids a frame of the previous answer.
-    setShownTurn(turnKey);
-    setAttempt(null);
-    setRevealed(false);
+    setTurn(nextTurn);
   }
+  const { attempt, revealed } = nextTurn;
   const rootRef = useRef<HTMLElement>(null);
   const goodRef = useRef<HTMLButtonElement>(null);
 
@@ -71,8 +70,13 @@ export default function ReviewCard({
         revealed={revealed}
         rootRef={rootRef}
         goodRef={goodRef}
-        onMove={(move) => setAttempt({ ...move, correct: matchesAnswer(card.answers, move.san) })}
-        onReveal={() => setRevealed(true)}
+        onMove={(move) =>
+          setTurn({
+            ...nextTurn,
+            attempt: { ...move, correct: matchesAnswer(card.answers, move.san) },
+          })
+        }
+        onReveal={() => setTurn({ ...nextTurn, revealed: true })}
         onGrade={onGrade}
       />
     </div>

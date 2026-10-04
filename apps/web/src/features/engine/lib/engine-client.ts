@@ -17,6 +17,7 @@ import {
   type EngineJobHandle,
   type EngineJobRequest,
   type EngineQueue,
+  type EngineQueueOptions,
   type EngineTransport,
 } from "./engine-queue";
 import { ISREADY, UCI, buildSetOption, parseUciLine, type EloRange, type UciLine } from "./uci";
@@ -30,6 +31,11 @@ export interface EngineClientTransport extends EngineTransport {
 export interface EngineClientOptions {
   createTransport: () => EngineClientTransport;
   handshakeTimeoutMs?: number;
+  /** Search watchdog tuning and timers, forwarded to the queue (tests inject a manual clock). */
+  searchTimeoutMs?: EngineQueueOptions["searchTimeoutMs"];
+  stopTimeoutMs?: EngineQueueOptions["stopTimeoutMs"];
+  setTimer?: EngineQueueOptions["setTimer"];
+  clearTimer?: EngineQueueOptions["clearTimer"];
 }
 
 export interface EngineClient {
@@ -105,6 +111,7 @@ const handshake = async (transport: EngineClientTransport, timeoutMs: number) =>
 export const createEngineClient = ({
   createTransport,
   handshakeTimeoutMs = ENGINE_HANDSHAKE_TIMEOUT_MS,
+  ...watchdog
 }: EngineClientOptions): EngineClient => {
   let session: Promise<Session> | null = null;
 
@@ -117,12 +124,18 @@ export const createEngineClient = ({
     }
     try {
       const eloRange = await handshake(transport, handshakeTimeoutMs);
-      const queue = createEngineQueue(transport);
+      let current: Promise<Session> | null = null;
+      const retire = () => {
+        transport.terminate();
+        if (session === current) session = null;
+      };
+      // A stalled search already failed the queue; kill the worker so the next call starts afresh.
+      const queue = createEngineQueue(transport, { ...watchdog, onStall: retire });
       transport.onError((error) => {
         queue.fail(unavailable(error));
-        transport.terminate();
-        session = null;
+        retire();
       });
+      current = session;
       return { transport, queue, eloRange };
     } catch (cause) {
       transport.terminate();

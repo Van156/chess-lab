@@ -187,4 +187,38 @@ describe("engine client", () => {
     expect(outcome).toBeInstanceOf(EngineJobCancelledError);
     expect(fake.sent.some((command) => command.startsWith("go"))).toBe(false);
   });
+
+  test("a silent search stalls the worker: it is terminated and the next call starts a fresh one", async () => {
+    const timers: Array<{ run: () => void; cleared: boolean }> = [];
+    const silentGo = (command: string, emit: (line: string) => void) => {
+      if (!command.startsWith("go")) healthyAnswer(command, emit);
+    };
+    const fakes = [createFakeEngine(silentGo), createFakeEngine(healthyAnswer)];
+    let created = 0;
+    const client = createEngineClient({
+      createTransport: () => fakes[created++]!.transport,
+      searchTimeoutMs: () => 1_000,
+      stopTimeoutMs: 100,
+      setTimer: (run) => {
+        const timer = { run, cleared: false };
+        timers.push(timer);
+        return timer;
+      },
+      clearTimer: (handle) => {
+        (handle as { cleared: boolean }).cleared = true;
+      },
+    });
+
+    const stuck = client.analyse({ fen: FEN, limit: { depth: 10 }, priority: "interactive" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const watchdog = timers.filter((timer) => !timer.cleared).at(-1);
+    watchdog?.run();
+    await expect(stuck.result).rejects.toBeInstanceOf(EngineUnavailableError);
+    expect(fakes[0]!.isTerminated()).toBe(true);
+
+    const result = await client.analyse({ fen: FEN, limit: { depth: 10 }, priority: "interactive" })
+      .result;
+    expect(result.bestMove).toBe("e2e4");
+    expect(created).toBe(2);
+  });
 });

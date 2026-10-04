@@ -396,4 +396,28 @@ describe("grade outbox head-of-line blocking", () => {
       expect(calls).toBe(OUTBOX_MAX_ATTEMPTS + 2);
     }
   });
+
+  test("the attempt cap counts consecutive server failures: a network failure resets it", async () => {
+    const errors: Error[] = [
+      ...Array.from({ length: OUTBOX_MAX_ATTEMPTS - 1 }, serverError),
+      new Error("offline"),
+      ...Array.from({ length: OUTBOX_MAX_ATTEMPTS - 1 }, serverError),
+    ];
+    let calls = 0;
+    const { outbox, logs } = setup({
+      submit: async () => {
+        const error = errors[calls];
+        calls += 1;
+        if (error) throw error;
+      },
+    });
+    outbox.append(input("c1"));
+    for (let pass = 0; pass < errors.length; pass += 1) {
+      await outbox.flush();
+    }
+    expect(logs.some((line) => line.includes("setting aside"))).toBe(false);
+    await outbox.flush();
+    expect(calls).toBe(errors.length + 1);
+    expect(outbox.pending()).toEqual([]);
+  });
 });

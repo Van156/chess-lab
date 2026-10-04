@@ -30,3 +30,15 @@ export const ENGINE_THREADS = 1;
 
 /** The worker must answer `uci` and `isready` within this time, otherwise it is unavailable. */
 export const ENGINE_HANDSHAKE_TIMEOUT_MS = 30_000;
+
+/**
+ * Per-search watchdog: a search gets `slack + depth * perDepth` (or `slack + movetime`), never more
+ * than the ceiling. A worker that stays silent past it is terminated and restarted.
+ */
+export const ENGINE_SEARCH_BUDGET = {
+  slackMs: 10_000,
+  perDepthMs: 3_000,
+  ceilingMs: 120_000,
+} as const;
+/** After `stop`, the engine must answer `bestmove` within this time, otherwise it is stalled. */
+export const ENGINE_STOP_TIMEOUT_MS = 5_000;

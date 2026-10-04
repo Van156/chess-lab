@@ -3,6 +3,7 @@
  * running `background` job by sending `stop`; every job can be cancelled. The engine is reached
  * through an injected transport, so the queue is pure logic and testable without a worker.
  */
+import { ENGINE_SEARCH_BUDGET, ENGINE_STOP_TIMEOUT_MS } from "../config";
 import {
   STOP,
   buildGo,
@@ -70,6 +71,33 @@ export interface EngineQueue {
   fail: (error: Error) => void;
 }
 
+export interface SearchBudget {
+  slackMs: number;
+  perDepthMs: number;
+  ceilingMs: number;
+}
+
+/** How long a search may stay silent before the engine counts as stalled. */
+export const searchTimeoutMs = (
+  limit: GoLimit,
+  budget: SearchBudget = ENGINE_SEARCH_BUDGET,
+): number => {
+  const expected = "depth" in limit ? limit.depth * budget.perDepthMs : limit.movetimeMs;
+  return Math.min(budget.slackMs + expected, budget.ceilingMs);
+};
+
+export interface EngineQueueOptions {
+  /** Watchdog duration for a search with this limit. */
+  searchTimeoutMs?: (limit: GoLimit) => number;
+  /** Bounded wait for `bestmove` after `stop`. */
+  stopTimeoutMs?: number;
+  /** Injected timers (defaults to `setTimeout`/`clearTimeout`) so tests control the clock. */
+  setTimer?: (run: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
+  /** Called once when the watchdog fires, after the queue failed itself; the owner kills the engine. */
+  onStall?: (error: EngineUnavailableError) => void;
+}
+
 interface Job {
   request: EngineJobRequest;
   latest: EngineInfo | null;
@@ -79,11 +107,35 @@ interface Job {
 
 type StopReason = "cancel" | "preempt";
 
-export const createEngineQueue = (transport: EngineTransport): EngineQueue => {
+export const createEngineQueue = (
+  transport: EngineTransport,
+  {
+    searchTimeoutMs: timeoutFor = searchTimeoutMs,
+    stopTimeoutMs = ENGINE_STOP_TIMEOUT_MS,
+    setTimer = (run, ms) => setTimeout(run, ms),
+    clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    onStall,
+  }: EngineQueueOptions = {},
+): EngineQueue => {
   const pending: Job[] = [];
   let running: Job | null = null;
   let stopReason: StopReason | null = null;
   let failure: Error | null = null;
+  let watchdog: unknown = null;
+
+  const disarm = () => {
+    if (watchdog !== null) clearTimer(watchdog);
+    watchdog = null;
+  };
+  const arm = (ms: number, message: string) => {
+    disarm();
+    watchdog = setTimer(() => {
+      watchdog = null;
+      const error = new EngineUnavailableError(message);
+      fail(error);
+      onStall?.(error);
+    }, ms);
+  };
 
   const insertPending = (job: Job, atFront: boolean) => {
     if (atFront || job.request.priority === "interactive") {
@@ -100,6 +152,7 @@ export const createEngineQueue = (transport: EngineTransport): EngineQueue => {
     const job = pending.shift();
     if (!job) return;
     running = job;
+    arm(timeoutFor(job.request.limit), "Engine search timed out");
     const { fen, limit, strength } = job.request;
     for (const option of buildStrengthOptions(strength)) transport.send(option);
     transport.send(buildPosition(fen));
@@ -110,6 +163,7 @@ export const createEngineQueue = (transport: EngineTransport): EngineQueue => {
     const job = running;
     if (!job) return;
     const reason = stopReason;
+    disarm();
     running = null;
     stopReason = null;
 
@@ -151,6 +205,7 @@ export const createEngineQueue = (transport: EngineTransport): EngineQueue => {
       return;
     }
     stopReason = reason;
+    arm(stopTimeoutMs, "Engine did not stop in time");
     transport.send(STOP);
   };
 
@@ -189,13 +244,14 @@ export const createEngineQueue = (transport: EngineTransport): EngineQueue => {
     return { result, cancel };
   };
 
-  const fail = (error: Error) => {
+  function fail(error: Error) {
+    disarm();
     failure = error;
     const jobs = [...(running ? [running] : []), ...pending.splice(0, pending.length)];
     running = null;
     stopReason = null;
     for (const job of jobs) job.reject(error);
-  };
+  }
 
   return { submit, fail };
 };
