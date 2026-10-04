@@ -38,9 +38,9 @@ One prototype at `/prototype/midnight` that shows every main view of Chess Lab i
 
 ## Tasks
 
-- [ ] **T1 — Shell + Today + Review session**: shared Midnight shell component, `/prototype/midnight` route + registry entry (6 screens), screens A and B. Route: delegated (react-staff, 2+ non-trivial files).
-- [ ] **T2 — Repertoire + Mistakes**: screens C and D with their mock data. Route: delegated (same writer).
-- [ ] **T3 — Blindfold + Progress**: screens E and F with their mock data. Route: delegated (same writer).
+- [x] **T1 — Shell + Today + Review session**: shared Midnight shell component, `/prototype/midnight` route + registry entry (6 screens), screens A and B. Route: delegated (react-staff, 2+ non-trivial files).
+- [x] **T2 — Repertoire + Mistakes**: screens C and D with their mock data. Route: delegated (same writer).
+- [x] **T3 — Blindfold + Progress**: screens E and F with their mock data. Route: delegated (same writer).
 
 ## Acceptance criteria
 
@@ -55,4 +55,11 @@ One prototype at `/prototype/midnight` that shows every main view of Chess Lab i
 ## Progress
 
 - Created 2026-10-04.
-- Next: T1.
+- T1 done — commit `7cdf9cb` (delegated, react-staff): shell, route, registry, Today + Review session. Checks: `pnpm --filter web check-types` pass; `pnpm check` pass.
+- T2 done — commit `1a2c239`: Repertoire + Mistakes. Same checks pass.
+- T3 done — commit `0f80e68`: Blindfold + Progress. Same checks pass; parent spot check `pnpm check` pass; dev server answers 200 for `?variant=A`–`F`.
+- Deviations: shared `Board` (`-today-home-board.tsx`) gained optional props (squares, label, highlights, arrows, hidden) and `squaresFromFen` is exported — additive, today-home variants unchanged. Screens export `TodayScreen`…`ProgressScreen` instead of `VariantX`. Mock data split per screen. FENs hand-written (no chess library), not machine-validated.
+- Review T1+T2 (base `e4af9fc`, through `1a2c239`, medium; run from a temporary worktree at `1a2c239`): consent granted (standing), reliability lens, **approved**, acknowledged. Non-blocking: R3-repertoire-label-position-mismatch (WARNING: Repertoire board label/position may not match the shown line), R3-arrow-center-unvalidated (SUGGESTION).
+- Review T3 (base `1a2c239`, through `0f80e68`): consent granted (standing), reliability lens, **approved**, acknowledged. Non-blocking: R3-blindfold-unvalidated-san, R3-duplicated-best-depth, R3-trend-hardcoded-weeks (SUGGESTIONS). Next boundary: `0f80e68`.
+- Not verified: browser rendering, 375px layout, keyboard focus, contrast.
+- Next: user walks the screens at `/prototype/midnight?variant=A`…`F`; feedback → revisions or start the real build.
