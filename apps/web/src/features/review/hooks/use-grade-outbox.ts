@@ -12,6 +12,13 @@ import {
 } from "../lib/grade-outbox";
 
 const outboxes = new Map<string, GradeOutbox>();
+/** The signed-in user; an outbox only submits while its owner is this user. */
+let activeUserId: string | undefined;
+
+function discardOutbox(userId: string) {
+  outboxes.get(userId)?.dispose();
+  outboxes.delete(userId);
+}
 
 /** One outbox per user for the page's lifetime, so every flush trigger shares a single pass. */
 export function getGradeOutbox(userId: string): GradeOutbox {
@@ -19,6 +26,7 @@ export function getGradeOutbox(userId: string): GradeOutbox {
   if (!outbox) {
     outbox = createGradeOutbox({
       userId,
+      isActive: () => activeUserId === userId,
       storage: window.localStorage,
       submit: (entry) => client.review.grade(entry),
     });
@@ -36,14 +44,20 @@ export function useGradeOutboxSync(): void {
   const userId = session?.user.id;
   useEffect(() => {
     if (!userId) return;
-    return bindFlushTriggers(getGradeOutbox(userId), window, document);
+    activeUserId = userId;
+    const unbind = bindFlushTriggers(getGradeOutbox(userId), window, document);
+    return () => {
+      unbind();
+      if (activeUserId === userId) activeUserId = undefined;
+      discardOutbox(userId);
+    };
   }, [userId]);
 }
 
 /** Best-effort flush before sign-out; never blocks longer than the timeout. */
 export function flushPendingGrades(): Promise<void> {
-  const flushAll = Promise.all([...outboxes.values()].map((outbox) => outbox.flush())).then(
-    () => undefined,
-  );
-  return flushWithin({ flush: () => flushAll }, SIGN_OUT_FLUSH_TIMEOUT_MS);
+  const userId = activeUserId;
+  const outbox = userId ? outboxes.get(userId) : undefined;
+  if (!userId || !outbox) return Promise.resolve();
+  return flushWithin(outbox, SIGN_OUT_FLUSH_TIMEOUT_MS).finally(() => discardOutbox(userId));
 }

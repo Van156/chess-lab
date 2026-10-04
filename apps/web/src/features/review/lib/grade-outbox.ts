@@ -23,8 +23,10 @@ export type GradeOutboxDeps = {
   /** Sends one grade (`client.review.grade`); rejects on failure. */
   submit: (entry: GradeEntry) => Promise<unknown>;
   newId?: () => string;
-  /** Runs `run` once after `delayMs`; defaults to `setTimeout`. */
-  schedule?: (run: () => void, delayMs: number) => void;
+  /** True while this user's session is the live one; an inactive outbox never submits. */
+  isActive?: () => boolean;
+  /** Runs `run` once after `delayMs` and returns a canceller; defaults to `setTimeout`. */
+  schedule?: (run: () => void, delayMs: number) => void | (() => void);
   log?: (message: string, detail?: unknown) => void;
 };
 
@@ -34,6 +36,8 @@ export type GradeOutbox = {
   pending: () => GradeEntry[];
   /** Sends pending entries in order; concurrent calls share one pass. */
   flush: () => Promise<void>;
+  /** Cancels any pending retry; later flushes do nothing. The queue stays in storage. */
+  dispose: () => void;
 };
 
 /** One queue per user, so a shared browser never sends another account's grades. */
@@ -71,13 +75,19 @@ export function createGradeOutbox({
   storage,
   submit,
   newId = () => crypto.randomUUID(),
-  schedule = (run, delayMs) => void setTimeout(run, delayMs),
+  isActive = () => true,
+  schedule = (run, delayMs) => {
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  },
   log = (message, detail) => console.warn(`[grade-outbox] ${message}`, detail),
 }: GradeOutboxDeps): GradeOutbox {
   const key = outboxKey(userId);
   let inFlight: Promise<void> | null = null;
   let retryScheduled = false;
   let failures = 0;
+  let disposed = false;
+  let cancelRetry: void | (() => void);
 
   function read(): GradeEntry[] {
     const raw = storage.getItem(key);
@@ -117,7 +127,7 @@ export function createGradeOutbox({
     if (retryScheduled) return;
     retryScheduled = true;
     failures += 1;
-    schedule(() => {
+    cancelRetry = schedule(() => {
       retryScheduled = false;
       void flush();
     }, backoffDelay(failures));
@@ -125,6 +135,7 @@ export function createGradeOutbox({
 
   async function drain() {
     for (let head = read()[0]; head; head = read()[0]) {
+      if (disposed || !isActive()) return;
       try {
         await submit(head);
       } catch (error) {
@@ -142,13 +153,20 @@ export function createGradeOutbox({
   }
 
   function flush(): Promise<void> {
+    if (disposed) return Promise.resolve();
     inFlight ??= drain().finally(() => {
       inFlight = null;
     });
     return inFlight;
   }
 
-  return { append, pending: read, flush };
+  function dispose() {
+    disposed = true;
+    retryScheduled = false;
+    if (cancelRetry) cancelRetry();
+  }
+
+  return { append, pending: read, flush, dispose };
 }
 
 /**

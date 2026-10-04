@@ -24,7 +24,14 @@ function fakeStorage(initial: Record<string, string> = {}): OutboxStorage & {
 
 type Submit = (entry: GradeEntry) => Promise<unknown>;
 
-function setup(options: { userId?: string; storage?: OutboxStorage; submit?: Submit } = {}) {
+function setup(
+  options: {
+    userId?: string;
+    storage?: OutboxStorage;
+    submit?: Submit;
+    isActive?: () => boolean;
+  } = {},
+) {
   const storage = options.storage ?? fakeStorage();
   const submitted: GradeEntry[] = [];
   const logs: string[] = [];
@@ -38,8 +45,9 @@ function setup(options: { userId?: string; storage?: OutboxStorage; submit?: Sub
       (async (entry) => {
         submitted.push(entry);
       }),
+    isActive: options.isActive,
     newId: () => `log-${++counter}`,
-    schedule: (run, delayMs) => scheduled.push({ run, delayMs }),
+    schedule: (run, delayMs) => void scheduled.push({ run, delayMs }),
     log: (message) => logs.push(message),
   });
   return { outbox, storage, submitted, logs, scheduled };
@@ -257,5 +265,36 @@ describe("flushWithin", () => {
 
   test("never rejects", async () => {
     await flushWithin({ flush: () => Promise.reject(new Error("offline")) }, 1_000);
+  });
+});
+
+describe("grade outbox ownership", () => {
+  test("an inactive outbox neither submits nor removes entries", async () => {
+    const { outbox, submitted } = setup({ isActive: () => false });
+    outbox.append(input("c1"));
+    await outbox.flush();
+    expect(submitted).toEqual([]);
+    expect(outbox.pending().map((e) => e.cardId)).toEqual(["c1"]);
+  });
+
+  test("after dispose a pending retry does not submit and flush is a no-op", async () => {
+    let fail = true;
+    const sent: GradeEntry[] = [];
+    const { outbox, scheduled } = setup({
+      submit: async (entry) => {
+        if (fail) throw new Error("offline");
+        sent.push(entry);
+      },
+    });
+    outbox.append(input("c1"));
+    await outbox.flush();
+    expect(scheduled).toHaveLength(1);
+
+    fail = false;
+    outbox.dispose();
+    scheduled[0]?.run();
+    await outbox.flush();
+    expect(sent).toEqual([]);
+    expect(outbox.pending().map((e) => e.cardId)).toEqual(["c1"]);
   });
 });
