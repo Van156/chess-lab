@@ -12,6 +12,7 @@
     { "path": "../db" },
     { "path": "../auth" },
     { "path": "../chess" },
-    { "path": "../lichess" }
+    { "path": "../lichess" },
+    { "path": "../study" }
   ]
 }

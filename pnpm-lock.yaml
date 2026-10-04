@@ -448,6 +448,9 @@ importers:
       '@b2c-template/lichess':
         specifier: workspace:*
         version: link:../lichess
+      '@b2c-template/study':
+        specifier: workspace:*
+        version: link:../study
       '@orpc/client':
         specifier: 'catalog:'
         version: 1.15.4

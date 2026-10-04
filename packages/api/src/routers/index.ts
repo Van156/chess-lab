@@ -4,6 +4,8 @@ import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
 import { lichessRouter } from "./lichess";
 import { platformRouter } from "./platform";
+import { reviewRouter } from "./review";
+import { settingsRouter } from "./settings";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -21,6 +23,10 @@ export const appRouter = {
   audit: auditRouter,
   // Lichess import status and manual sync.
   lichess: lichessRouter,
+  // Review queue and idempotent grading.
+  review: reviewRouter,
+  // Per-user settings (daily new-card limit, time zone).
+  settings: settingsRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

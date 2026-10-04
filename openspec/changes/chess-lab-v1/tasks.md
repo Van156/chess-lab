@@ -179,10 +179,10 @@ Verify: `bun test packages/study`; standard checks.
 
 Satisfies: review-queue / Single card with exactly one source; Daily queue from all pillars; Grades never lost (server idempotency); Cards only for the owning user; app-shell / Per-phase feature flags (queue excludes flagged-off pillars, flags object added in S7: use pillar filter input now); mistake-analysis / Card prompt is the position before the mistake; ADR-13, ADR-19.
 
-- [ ] S5b.1 [T] RED: `packages/api/src/services/review-service.test.ts` (real DB): `grade` replay of the same `reviewLogId` returns stored `state_after` and does not double-apply; concurrent grade of same card is serialized (`FOR UPDATE`); `reviewedAt` clamped to `[last_review, now + 5 min]`; grading another user's card returns NOT_FOUND; queue respects daily new limit in the user's time zone and `introducedToday` from `state_before.state = 0`; queue hydrates prompt FEN (position before the mistake), orientation, answers (best move), context (played SAN, game id, eval loss).
-- [ ] S5b.2 [T] GREEN: `packages/api/src/services/review-service.ts` (`getQueue`, `gradeCard`), `cardPillar(row)` TS helper and `cardPillarSql` helper in `packages/db`.
-- [ ] S5b.3 [T] RED then GREEN: `packages/api/src/routers/review.test.ts` and `settings.test.ts`: `review.queue({limit})`, `review.grade` zod input (`reviewLogId` uuid, grade 1..4, elapsedMs bounds), `settings.get` (lazy upsert defaults), `settings.update` (daily limit bounds, IANA time zone validation).
-- [ ] S5b.4 [O] Create `packages/api/src/routers/review.ts`, `settings.ts`; register in `packages/api/src/routers/index.ts`; add `@b2c-template/study` dep to `packages/api`.
+- [x] S5b.1 [T] RED: `packages/api/src/services/review-service.test.ts` (real DB): `grade` replay of the same `reviewLogId` returns stored `state_after` and does not double-apply; concurrent grade of same card is serialized (`FOR UPDATE`); `reviewedAt` clamped to `[last_review, now + 5 min]`; grading another user's card returns NOT_FOUND; queue respects daily new limit in the user's time zone and `introducedToday` from `state_before.state = 0`; queue hydrates prompt FEN (position before the mistake), orientation, answers (best move), context (played SAN, game id, eval loss).
+- [x] S5b.2 [T] GREEN: `packages/api/src/services/review-service.ts` (`getQueue`, `gradeCard`), `cardPillar(row)` TS helper and `cardPillarSql` helper in `packages/db`.
+- [x] S5b.3 [T] RED then GREEN: `packages/api/src/routers/review.test.ts` and `settings.test.ts`: `review.queue({limit})`, `review.grade` zod input (`reviewLogId` uuid, grade 1..4, elapsedMs bounds), `settings.get` (lazy upsert defaults), `settings.update` (daily limit bounds, IANA time zone validation).
+- [x] S5b.4 [O] Create `packages/api/src/routers/review.ts`, `settings.ts`; register in `packages/api/src/routers/index.ts`; add `@b2c-template/study` dep to `packages/api`.
 
 Verify: `bun test packages/api`; standard checks.
 
