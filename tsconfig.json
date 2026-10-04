@@ -1,0 +1,3 @@
+{
+  "extends": "@b2c-template/config/tsconfig.base.json"
+}
