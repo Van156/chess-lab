@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { enabledCardPillars } from "../features";
 import { protectedProcedure } from "../index";
 import { createReviewService } from "../services/review-service";
 
@@ -32,6 +33,7 @@ export const reviewRouter = {
     .handler(({ input, context }) =>
       createReviewService({ db: context.db }).getQueue(context.session.user.id, {
         limit: input.limit,
+        enabledPillars: enabledCardPillars(context.features),
       }),
     ),
   /** Applies a grade at most once per `reviewLogId`; a replay returns the stored state. */

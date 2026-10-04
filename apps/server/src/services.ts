@@ -1,3 +1,4 @@
+import { parseFeatureFlags } from "@b2c-template/api/features";
 import { createBetterAuthAuthorization } from "@b2c-template/api/authorization";
 import { createBetterAuthPlatformAdmin } from "@b2c-template/api/platform-admin";
 import { createAuth } from "@b2c-template/auth";
@@ -13,6 +14,7 @@ import { ENV } from "./env.server";
 import { createGamesSource, createLichessPort } from "./lichess-port";
 
 export const db = createDb(ENV);
+export const features = parseFeatureFlags(ENV);
 export const emailSender = createEmailSender(ENV);
 export const auditLogger = createDrizzleAuditLogger(db);
 export const auth = createAuth(ENV, db, emailSender, auditLogger);

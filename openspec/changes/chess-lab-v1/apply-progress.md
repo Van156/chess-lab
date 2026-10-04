@@ -186,3 +186,29 @@ S4a came in at about 905 authored lines, so it was split at the task boundary: S
   - R3-board-selection-survives-position-change: DONE. The tap-to-move state machine moved to the pure `board-selection.ts` (`tap`, `resolveMove`, `selectionFor`); the selection is stamped with its `fen` and `selectionFor` discards it when the position differs (derived, no reset effect). `chess-board-impl.tsx` uses it. apps/web has no DOM test environment (only `renderToStaticMarkup`), so interaction tests target the pure logic in `board-selection.test.ts`: tap-tap move, deselect/reselect, promotion choice and pending-ignores-taps, illegal move rejection, blindfold (selection depends only on the real fen), reset on `fen` change for selection and pending. Not covered without a DOM: the actual library click wiring and the `onMove` returning false path inside the component.
   - R3-move-list-out-of-range-ply-label: DONE. `move-list.tsx` clamps `currentPly` to `[0, moves.length]` (non-finite becomes 0). RED: 2 new tests failed (past-end ply gave "Starting position"; the board test file errored on the missing module); GREEN: `bun test apps/web/src/shared/components/board` 36 pass, 0 fail.
   - Verification: `pnpm check-types`, `pnpm --filter web check-types`, `pnpm check` clean; `bun test` 1259 pass, 1 skip, 0 fail.
+
+## S7 (Midnight shell, flags and Today, branch feat/chess-lab-v1-s7, base feat/chess-lab-v1-s6)
+
+### Server part (S7.1 to S7.4)
+
+Mode: standard (strict_tdd false), `[T]` tasks with observed RED before GREEN. Runner `bun test`. Delivery: single-pr slice in the `feature-branch-chain` (PR base `feat/chess-lab-v1-s6`). The web part (S7.5 to S7.8) is done separately.
+
+- [x] S7.1 RED observed: `bun test packages/api/src/features.test.ts` 0 pass, 1 error (`Cannot find module './features'`).
+- [x] S7.2 GREEN: `packages/api/src/features.ts` (`PILLAR_FLAGS`, `PillarFlag`, `FeatureFlags`, `parseFeatureFlags`, `enabledCardPillars`); `Context.features`; `featureProcedure(pillar)` in `packages/api/src/index.ts` (protected, then `NOT_FOUND` when off). RED for the procedure: `index.test.ts` errored on the missing `featureProcedure` export; GREEN: features + index 17 pass. Existing test contexts now carry `features: parseFeatureFlags({})`.
+- [x] S7.3 RED observed: `GET /features` tests failed with a non-JSON 404 body (2 fail); GREEN: `public-routes.test.ts` 4 pass. `createPublicRoutes(env, features)` serves the flags with `Cache-Control: no-store`. `CHESSLAB_FEATURES` added to `.env.schema` (`@optional @public`), `env.ts` regenerated with `pnpm --filter server env:generate` (gitignored), `services.ts` exports `features = parseFeatureFlags(ENV)`, passed by `context.ts` and `index.ts`.
+- [x] S7.4 RED observed: `today.test.ts` 0 pass, 1 error (missing `../services/today-service` and `./today`); GREEN: pure `computeStreak` plus DB-backed router tests (zeros, session scoping, flag-off pillars excluded, new budget, streak in the user time zone, sync status read without triggering a sync, unauthenticated). `today-service.ts` (`createTodayService().getCounts`, `computeStreak`); `review-service.ts` now exports `newCardAllowance` (local day, introduced today, new budget), reused by `getQueue` and Today so both agree; `routers/today.ts` registered as `today` in `routers/index.ts`.
+- `review.queue` now passes `enabledPillars: enabledCardPillars(context.features)` (ADR-17: flagged-off pillars leave the queue); new test in `review.test.ts`.
+
+API surface for the web part:
+
+- `GET /api/public/features` (no-store) returns `{ mistakes: boolean, repertoire: boolean, blindfold: boolean, progress: boolean, emailSignUp: boolean }` (`FeatureFlags`, exported from `@b2c-template/api/features`). Default: only `mistakes` true.
+- `today.summary` (no input) returns `{ due: { mistakes?: number }, dueTotal: number, newBudgetLeft: number, streak: { days: number, reviewedToday: boolean }, sync: ImportStatus }`, where `ImportStatus = { state: "idle" | "running" | "backoff" | "failed", lastSyncedAt: Date | null, retryAt: Date | null, gamesImported: number }`. `sync.gamesImported === 0` with no `lastSyncedAt` is the "no games yet" onboarding signal; `today.summary` does not enqueue a sync (the Today loader calls `lichess.status`).
+- Flag names in `CHESSLAB_FEATURES`: `mistakes`, `repertoire`, `blindfold`, `progress`, `emailSignUp` (comma list, case-insensitive; unset means `mistakes` only; an explicit list replaces the default).
+
+Deviations and notes: (1) `emailSignUp` is a token in the same `CHESSLAB_FEATURES` list (design says it "uses the same mechanism"). (2) `featureProcedure` has no consumer yet (pillar routers arrive in later slices); it is covered by unit tests. (3) `due` counts cards with state != New and due before the end of the user's local day (the same window as the queue).
+
+Verification: focused `bun test packages/api/src/features.test.ts packages/api/src/index.test.ts packages/api/src/routers/today.test.ts apps/server` 44 pass, 0 fail; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` clean; `bun test` 1284 pass, 1 skip, 0 fail.
+
+Work Unit Evidence: focused command above; runtime harness = real Postgres test DB through the router tests (`today.test.ts`, `review.test.ts`) and Hono `routes.request` for the public route; rollback boundary = `packages/api/src/{features,index,context}.ts`, `routers/{today,review,index}.ts`, `services/{today-service,review-service}.ts`, `apps/server/src/{public-routes,services,context,index}.ts`, `.env.schema`.
+
+Workload: the server part alone is about 657 authored lines (630 added, 27 deleted, openspec docs excluded), roughly 55% tests. It stays one cohesive unit (flags, procedure, route, summary share one context change), so it is recorded as `size:exception` (user-approved for S7); the split point named in tasks.md (after S7.6) is not used.

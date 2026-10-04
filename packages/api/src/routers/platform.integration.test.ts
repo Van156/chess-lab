@@ -19,6 +19,7 @@ import { createBetterAuthAuthorization } from "../authorization";
 import type { Context } from "../context";
 import { createBetterAuthPlatformAdmin } from "../platform-admin";
 import { platformRouter } from "./platform";
+import { parseFeatureFlags } from "../features";
 
 /**
  * Integration tests for the platform admin router against a real Postgres database, following
@@ -81,6 +82,7 @@ describe.skipIf(!reachable)("platform admin router", () => {
       // Unused by the router under test.
       auditLogger: {} as unknown as Context["auditLogger"],
       lichess: {} as unknown as Context["lichess"],
+      features: parseFeatureFlags({}),
     };
   }
 

@@ -14,7 +14,7 @@ import { cors } from "hono/cors";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { createPublicRoutes } from "./public-routes";
-import { auth, startBackgroundJobs } from "./services";
+import { auth, features, startBackgroundJobs } from "./services";
 
 initLogger({
   env: { service: "b2c-template-server" },
@@ -44,7 +44,7 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
-app.route("/api/public", createPublicRoutes(ENV));
+app.route("/api/public", createPublicRoutes(ENV, features));
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

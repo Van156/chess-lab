@@ -71,6 +71,48 @@ function snapshot(state: CardState): CardState {
   return reviveState(JSON.parse(JSON.stringify(state)));
 }
 
+export type NewCardAllowance = {
+  settings: Awaited<ReturnType<typeof getSettings>>;
+  /** The user's local day: `[start, end)`. */
+  start: Date;
+  end: Date;
+  introducedToday: number;
+  /** New cards the user may still start today (never negative). */
+  newBudget: number;
+};
+
+/**
+ * The user's local day and how many new cards they may still start in it. Shared by the queue and
+ * Today so both agree on the budget. Scoped to `userId`.
+ */
+export async function newCardAllowance(
+  db: Database,
+  userId: string,
+  current: Date,
+): Promise<NewCardAllowance> {
+  const settings = await getSettings(db, userId);
+  const { start, end } = localDayBounds(current, settings.timeZone);
+  const [introduced] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(reviewLog)
+    .where(
+      and(
+        eq(reviewLog.userId, userId),
+        gte(reviewLog.reviewedAt, start),
+        lt(reviewLog.reviewedAt, end),
+        sql`(${reviewLog.stateBefore}->>'state')::int = 0`,
+      ),
+    );
+  const introducedToday = introduced?.n ?? 0;
+  return {
+    settings,
+    start,
+    end,
+    introducedToday,
+    newBudget: Math.max(0, settings.dailyNewCardLimit - introducedToday),
+  };
+}
+
 export type ReviewServiceDeps = { db: Database; now?: () => Date };
 
 /** Review queue and idempotent grading (ADR-13). Every query filters by the session user id. */
@@ -83,22 +125,11 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
     if (enabled.length === 0 || opts.limit <= 0) return [];
 
     const current = now();
-    const settings = await getSettings(db, userId);
-    const { start, end } = localDayBounds(current, settings.timeZone);
-
-    const [introduced] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(reviewLog)
-      .where(
-        and(
-          eq(reviewLog.userId, userId),
-          gte(reviewLog.reviewedAt, start),
-          lt(reviewLog.reviewedAt, end),
-          sql`(${reviewLog.stateBefore}->>'state')::int = 0`,
-        ),
-      );
-    const introducedToday = introduced?.n ?? 0;
-    const newBudget = Math.max(0, settings.dailyNewCardLimit - introducedToday);
+    const { settings, end, introducedToday, newBudget } = await newCardAllowance(
+      db,
+      userId,
+      current,
+    );
 
     const columns = {
       cardId: card.id,

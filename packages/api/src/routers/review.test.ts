@@ -9,6 +9,7 @@ import { call, ORPCError } from "@orpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
 import type { Context } from "../context";
+import { parseFeatureFlags } from "../features";
 import { reviewRouter } from "./review";
 
 const TEST_DATABASE_URL = resolveTestDatabaseUrl();
@@ -41,10 +42,11 @@ describe.skipIf(!reachable)("review router", () => {
     await handle.close();
   });
 
-  const context = (userId: string | null): Context =>
+  const context = (userId: string | null, features = parseFeatureFlags({})): Context =>
     ({
       session: userId ? { user: { id: userId } } : null,
       db: handle.db,
+      features,
     }) as unknown as Context;
 
   async function seedCard(userId: string, id: string) {
@@ -122,6 +124,13 @@ describe.skipIf(!reachable)("review router", () => {
     const items = await call(reviewRouter.queue, undefined, { context: context("u1") });
     expect(items.map((i) => i.cardId)).toEqual(["card-1"]);
     expect(items[0]?.prompt.orientation).toBe("white");
+  });
+
+  test("queue excludes pillars whose flag is off", async () => {
+    await seedCard("u1", "card-1");
+    const features = parseFeatureFlags({ CHESSLAB_FEATURES: "blindfold" });
+    const items = await call(reviewRouter.queue, undefined, { context: context("u1", features) });
+    expect(items).toEqual([]);
   });
 
   test("grade applies once and replays idempotently", async () => {

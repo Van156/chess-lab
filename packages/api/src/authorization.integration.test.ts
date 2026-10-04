@@ -18,6 +18,7 @@ import { createBetterAuthAuthorization } from "./authorization";
 import type { Context } from "./context";
 import { createBetterAuthPlatformAdmin } from "./platform-admin";
 import { platformProcedure } from "./index";
+import { parseFeatureFlags } from "./features";
 
 /**
  * Integration tests for the oRPC authorization port against a real Postgres database, using
@@ -76,6 +77,7 @@ describe.skipIf(!reachable)("createBetterAuthAuthorization integration", () => {
       platformAdmin: createBetterAuthPlatformAdmin(auth),
       auditLogger,
       lichess: {} as unknown as Context["lichess"],
+      features: parseFeatureFlags({}),
     };
   }
 

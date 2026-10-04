@@ -3,6 +3,7 @@ import type { AuditLogger } from "@b2c-template/auth/audit";
 import type { Database } from "@b2c-template/db";
 
 import type { AuthorizationPort } from "./authorization";
+import type { FeatureFlags } from "./features";
 import type { PlatformAdminPort } from "./platform-admin";
 
 export type ImportStatus = {
@@ -37,4 +38,6 @@ export type Context = {
    */
   auditLogger: AuditLogger;
   lichess: LichessPort;
+  /** Per-deployment feature flags (ADR-17), parsed once at startup. */
+  features: FeatureFlags;
 };
