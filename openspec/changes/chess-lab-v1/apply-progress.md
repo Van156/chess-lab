@@ -125,3 +125,12 @@ S4a came in at about 905 authored lines, so it was split at the task boundary: S
 ## Decision: failed import retry (2026-10-04)
 
 - User decision: an import in `failed` state (for example a rejected token) is retried only through the manual `lichess.sync` ("Sync now"). `lichess.status` does not auto-retry it; 429 backoff still resumes automatically through `import_retry_at`. Matches S4b as implemented in c5be388.
+
+## Review S4b + S5a (base 1c04ff6 to 4912cb9)
+
+- Medium risk, 1 lens (reliability), 1786 lines: APPROVED and acknowledged (lineage review-b76aeedda75bd8c5, authority burned). Next review boundary: 4912cb9.
+- Non-blocking follow-ups (pending):
+  - R3-cursor-createdat-skips-late-finishing-games: the cursor is `max(createdAt) + 1`, and Lichess `since` filters by creation time, so a game created before a sync but finished after it (concurrent or correspondence games) is never imported. Needs a decision (exclude correspondence and/or re-fetch a lookback window; the upsert is idempotent).
+  - R3-cursor-assumes-ascending-stream: resume is correct only for ascending `createdAt`. The client sends `sort=dateAsc`, so this holds today; document the ordering contract on `GamesSource` and assert it in a test.
+  - R3-lease-not-fenced: `commitBatch` and the final state updates filter only by `userId`, not by lease ownership; a stale run past `IMPORT_LEASE_MS` can overwrite a newer run. v1 is single-instance, but fence the writes by lease holder.
+  - R3-games-source-untested: add tests for `createGamesSource` / `createLichessPort` (missing token maps to `LichessUnauthorized`; a `getAccessToken` failure should map to unauthorized, not generic).
