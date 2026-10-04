@@ -20,6 +20,8 @@ export interface BoardTheme {
 export interface BoardArrow {
   from: string;
   to: string;
+  /** Overrides the theme arrow colour, e.g. to tell the played move from the best one. */
+  color?: string;
 }
 
 const OUTLINE = "-1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 0 0 3px #111";
@@ -94,19 +96,22 @@ export function Board({
           aria-hidden
         >
           <defs>
-            <marker
-              id={markerId}
-              viewBox="0 0 4 4"
-              refX="2.4"
-              refY="2"
-              markerWidth="2.4"
-              markerHeight="2.4"
-              orient="auto"
-            >
-              <path d="M0 0 L4 2 L0 4 Z" fill={arrowColor} />
-            </marker>
+            {arrows.map((arrow, index) => (
+              <marker
+                key={`${arrow.from}${arrow.to}`}
+                id={`${markerId}-${index}`}
+                viewBox="0 0 4 4"
+                refX="2.4"
+                refY="2"
+                markerWidth="2.4"
+                markerHeight="2.4"
+                orient="auto"
+              >
+                <path d="M0 0 L4 2 L0 4 Z" fill={arrow.color ?? arrowColor} />
+              </marker>
+            ))}
           </defs>
-          {arrows.map((arrow) => {
+          {arrows.map((arrow, index) => {
             const from = center(arrow.from);
             const to = center(arrow.to);
             return (
@@ -116,11 +121,11 @@ export function Board({
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
-                stroke={arrowColor}
+                stroke={arrow.color ?? arrowColor}
                 strokeWidth="0.18"
                 strokeLinecap="round"
                 opacity="0.9"
-                markerEnd={`url(#${markerId})`}
+                markerEnd={`url(#${markerId}-${index})`}
               />
             );
           })}
