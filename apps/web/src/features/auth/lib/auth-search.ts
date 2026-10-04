@@ -31,7 +31,7 @@ export function authLinkSearch(search?: AuthSearch): AuthSearch {
 
 /** Where a successful sign-in lands. */
 export function postSignInPath(): string {
-  return "/dashboard";
+  return "/today";
 }
 
 /**

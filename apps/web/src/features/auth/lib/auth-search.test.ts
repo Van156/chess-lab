@@ -42,15 +42,15 @@ describe("authLinkSearch (sign-in <-> sign-up links)", () => {
 });
 
 describe("postSignInPath", () => {
-  test("always lands on the dashboard", () => {
-    expect(postSignInPath()).toBe("/dashboard");
+  test("always lands on Today", () => {
+    expect(postSignInPath()).toBe("/today");
   });
 });
 
 describe("socialSignInTargets", () => {
-  test("success lands on the dashboard and errors return to the originating page", () => {
+  test("success lands on Today and errors return to the originating page", () => {
     expect(socialSignInTargets({ origin: "http://app", errorPath: "/sign-in" })).toEqual({
-      callbackURL: "http://app/dashboard",
+      callbackURL: "http://app/today",
       errorCallbackURL: "http://app/sign-in",
     });
   });

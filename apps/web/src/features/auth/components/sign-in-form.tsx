@@ -28,7 +28,14 @@ import SocialSignInButtons from "./social-sign-in-buttons";
  * button below submit. Server errors (including an OAuth `?error=` return and a network
  * failure) render inline above the submit button.
  */
-export default function SignInForm({ search }: { search?: AuthSearch }) {
+export default function SignInForm({
+  search,
+  showSignUp = true,
+}: {
+  search?: AuthSearch;
+  /** Offers the email sign-up link; the sign-in page ties it to the `emailSignUp` flag. */
+  showSignUp?: boolean;
+}) {
   const navigate = useNavigate({ from: "/" });
   const [serverError, setServerError] = useState<string | null>(() =>
     oauthErrorMessage(search?.error),
@@ -130,12 +137,14 @@ export default function SignInForm({ search }: { search?: AuthSearch }) {
           />
         )}
       </form.Subscribe>
-      <AuthSwitchPrompt
-        prompt="Don't have an account?"
-        to="/sign-up"
-        label="Sign up"
-        search={authLinkSearch(search)}
-      />
+      {showSignUp ? (
+        <AuthSwitchPrompt
+          prompt="Don't have an account?"
+          to="/sign-up"
+          label="Sign up"
+          search={authLinkSearch(search)}
+        />
+      ) : null}
     </form>
   );
 }

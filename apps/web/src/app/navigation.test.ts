@@ -2,10 +2,17 @@ import { describe, expect, test } from "bun:test";
 
 import { filterNavGroups, getBreadcrumbs, type NavGroup } from "@/shared/lib/navigation";
 
-import { deriveSectionItems, getSectionItems, type NavContext, navGroups } from "./navigation";
+import { NO_FEATURES } from "./feature-flags";
+import {
+  deriveSectionItems,
+  getSectionItems,
+  pillarEnabled,
+  type NavContext,
+  navGroups,
+} from "./navigation";
 
-const member: NavContext = { isSuperadmin: false };
-const superadmin: NavContext = { isSuperadmin: true };
+const member: NavContext = { isSuperadmin: false, features: NO_FEATURES };
+const superadmin: NavContext = { isSuperadmin: true, features: NO_FEATURES };
 
 describe("getSectionItems", () => {
   test("derives the account tabs from the sidebar config, in order", () => {
@@ -35,21 +42,26 @@ describe("getSectionItems", () => {
 });
 
 describe("navGroups visibility", () => {
-  test("a regular user sees dashboard and account settings but not the platform admin group", () => {
+  test("a regular user sees Today and account settings but not the platform admin group", () => {
     const labels = filterNavGroups(navGroups, member).flatMap((group) =>
       group.items.map((item) => item.label),
     );
-    expect(labels).toEqual(["Dashboard", "Account settings"]);
+    expect(labels).toEqual(["Today", "Account settings"]);
   });
 
   test("a superadmin additionally sees the admin parent with its children", () => {
     const groups = filterNavGroups(navGroups, superadmin);
-    expect(groups.map((group) => group.id)).toEqual([undefined, "account", "admin"]);
+    expect(groups.map((group) => group.id)).toEqual(["chess-lab", "account", "admin"]);
     const admin = groups.find((group) => group.id === "admin");
     expect(admin?.items[0]?.children?.map((child) => child.to)).toEqual([
       "/admin/users",
       "/admin/activity",
     ]);
+  });
+
+  test("template-only entries stay out of the Chess Lab group", () => {
+    const chessLab = navGroups.find((group) => group.id === "chess-lab");
+    expect(chessLab?.items.map((item) => item.to)).toEqual(["/today"]);
   });
 
   test("breadcrumbs resolve through the real config", () => {
@@ -93,5 +105,38 @@ describe("deriveSectionItems with parents (local fixture)", () => {
       "Secret",
       "Preferences",
     ]);
+  });
+});
+
+describe("pillarEnabled", () => {
+  const pillarGroup: NavGroup<NavContext>[] = [
+    {
+      label: "Chess Lab",
+      items: [
+        { label: "Today", to: "/today" },
+        { label: "Blindfold", to: "/account/profile", visible: pillarEnabled("blindfold") },
+        { label: "Mistakes", to: "/account/security", visible: pillarEnabled("mistakes") },
+      ],
+    },
+  ];
+  const labels = (ctx: NavContext) =>
+    filterNavGroups(pillarGroup, ctx).flatMap((group) => group.items.map((item) => item.label));
+
+  test("hides a pillar item while its flag is off", () => {
+    expect(labels({ isSuperadmin: false, features: { ...NO_FEATURES, mistakes: true } })).toEqual([
+      "Today",
+      "Mistakes",
+    ]);
+  });
+
+  test("shows the item once its flag is on and keeps the rest", () => {
+    expect(labels({ isSuperadmin: false, features: { ...NO_FEATURES, blindfold: true } })).toEqual([
+      "Today",
+      "Blindfold",
+    ]);
+  });
+
+  test("shows only the always-on entries before the server answers", () => {
+    expect(labels(member)).toEqual(["Today"]);
   });
 });

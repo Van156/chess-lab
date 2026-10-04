@@ -7,13 +7,12 @@ import { ImpersonationBanner } from "@/features/admin";
 import { UserMenu } from "@/features/auth";
 import AppBreadcrumbs from "@/shared/components/layout/app-breadcrumbs";
 import AppShell from "@/shared/components/layout/app-shell";
-import { ModeToggle } from "@/shared/components/layout/mode-toggle";
 import { filterNavGroups, getBreadcrumbs } from "@/shared/lib/navigation";
 
 /**
  * Wires the presentational `AppShell` to the app: nav config, the superadmin
  * visibility context, the sidebar user menu, the breadcrumb
- * derived from the nav config and the impersonation banner.
+ * derived from the nav config and the impersonation banner. No theme toggle: v1 is dark only (ADR-21).
  */
 export default function AuthenticatedShell({ children }: { children: ReactNode }) {
   const navContext = useNavContext();
@@ -27,7 +26,6 @@ export default function AuthenticatedShell({ children }: { children: ReactNode }
       sidebarFooter={<UserMenu variant="sidebar" />}
       breadcrumb={<AppBreadcrumbs items={breadcrumbs} />}
       banner={<ImpersonationBanner />}
-      headerActions={<ModeToggle />}
     >
       {children}
     </AppShell>

@@ -3,9 +3,9 @@ import { describe, expect, test } from "bun:test";
 import { loadHomeRedirect, resolveHomeRedirect } from "./home-redirect";
 
 describe("resolveHomeRedirect", () => {
-  test("sends a signed-in user to the dashboard", () => {
+  test("sends a signed-in user to Today", () => {
     expect(resolveHomeRedirect({ data: { user: { id: "u1" } }, error: null })).toEqual({
-      to: "/dashboard",
+      to: "/today",
     });
   });
 
@@ -16,31 +16,31 @@ describe("resolveHomeRedirect", () => {
     expect(resolveHomeRedirect(undefined)).toEqual({ to: "/sign-in" });
   });
 
-  test("defers to the dashboard guard when the session lookup failed", () => {
+  test("defers to Today guard when the session lookup failed", () => {
     expect(resolveHomeRedirect({ data: null, error: { status: 503 } })).toEqual({
-      to: "/dashboard",
+      to: "/today",
     });
   });
 
-  test("prefers the dashboard when both a session and an error are present", () => {
+  test("prefers Today when both a session and an error are present", () => {
     expect(resolveHomeRedirect({ data: { user: {} }, error: { status: 500 } })).toEqual({
-      to: "/dashboard",
+      to: "/today",
     });
   });
 });
 
 describe("loadHomeRedirect", () => {
-  test("sends a resolved session to the dashboard", async () => {
+  test("sends a resolved session to Today", async () => {
     const getSession = async () => ({ data: { user: { id: "u1" } }, error: null });
-    expect(await loadHomeRedirect(getSession)).toEqual({ to: "/dashboard" });
+    expect(await loadHomeRedirect(getSession)).toEqual({ to: "/today" });
   });
 
-  test("defers a resolved error to the dashboard guard", async () => {
+  test("defers a resolved error to Today guard", async () => {
     const getSession = async () => ({ data: null, error: { status: 503 } });
-    expect(await loadHomeRedirect(getSession)).toEqual({ to: "/dashboard" });
+    expect(await loadHomeRedirect(getSession)).toEqual({ to: "/today" });
   });
 
-  test("defers a rejected lookup to the dashboard guard and logs it", async () => {
+  test("defers a rejected lookup to Today guard and logs it", async () => {
     const originalError = console.error;
     const logged: unknown[][] = [];
     console.error = (...args: unknown[]) => {
@@ -49,7 +49,7 @@ describe("loadHomeRedirect", () => {
     try {
       const failure = new Error("network down");
       const getSession = () => Promise.reject(failure);
-      expect(await loadHomeRedirect(getSession)).toEqual({ to: "/dashboard" });
+      expect(await loadHomeRedirect(getSession)).toEqual({ to: "/today" });
       expect(logged).toHaveLength(1);
       expect(logged[0]).toContain(failure);
     } finally {
