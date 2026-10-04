@@ -86,4 +86,46 @@ describe("import boundary lint rules", () => {
   test("does not report a feature's public API import from routes", () => {
     expect(reports.get("apps/web/src/routes/public-api.ts")).toBeUndefined();
   });
+
+  const pureMessage = "packages/chess and packages/study must stay pure and isomorphic";
+  const clientOnlyMessage = "packages/lichess is an HTTP client only";
+  const serverOnlyMessage = "server-only package; the browser must never import it";
+
+  test.each([
+    "packages/chess/src/imports-db.ts",
+    "packages/chess/src/imports-auth.ts",
+    "packages/chess/src/imports-api.ts",
+    "packages/chess/src/imports-lichess.ts",
+    "packages/chess/src/imports-react.ts",
+    "packages/chess/src/imports-alias.ts",
+    "packages/study/src/imports-db.ts",
+  ])("reports %s as breaking package purity", (file) => {
+    expect((reports.get(file) ?? []).join("\n")).toContain(pureMessage);
+  });
+
+  test.each([
+    "packages/lichess/src/imports-db.ts",
+    "packages/lichess/src/imports-api.ts",
+    "packages/lichess/src/imports-react.ts",
+  ])("reports %s as breaking the HTTP-client-only rule", (file) => {
+    expect((reports.get(file) ?? []).join("\n")).toContain(clientOnlyMessage);
+  });
+
+  test.each([
+    "apps/web/src/app/imports-lichess.ts",
+    "apps/web/src/app/imports-db.ts",
+    "apps/web/src/app/imports-auth.ts",
+    "apps/web/src/app/imports-auth-audit.ts",
+    "apps/web/src/shared/lib/imports-lichess.ts",
+  ])("reports %s as importing a server-only package from the web app", (file) => {
+    expect((reports.get(file) ?? []).join("\n")).toContain(serverOnlyMessage);
+  });
+
+  test("does not report the client-safe auth permissions entrypoint in the web app", () => {
+    expect(reports.get("apps/web/src/app/imports-auth-permissions.ts")).toBeUndefined();
+  });
+
+  test("does not report a relative import inside a pure package", () => {
+    expect(reports.get("packages/chess/src/imports-relative.ts")).toBeUndefined();
+  });
 });

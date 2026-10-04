@@ -21,6 +21,8 @@ Chain strategy: feature-branch-chain
 
 Chain bases (feature-branch-chain, user-selected): tracker branch `feat/chess-lab-v1`. PR 1 (S0) base = `feat/chess-lab-v1`. Every later PR base = the immediately previous PR branch in the order above. Only the tracker merges to `main`. If a child PR shows the previous PR's changes, its base is wrong and must be retargeted or rebased before review. Slices without a dependency between them (S4a, S5a, S9a after S0) may be reordered, but then the base of each child must be re-chosen to the new previous slice.
 
+Split log: S2 was split into S2a (schema, PR 4) and S2b (lint, PR 5); later PR numbers shift by one.
+
 Budget notes: S7, S8 and S9b are estimated at about 400 lines. If an implementation exceeds 400 authored lines (additions plus deletions, migrations and lockfile excluded), split at the task boundary noted in the slice (S7 split point: after S7.6; S8 split point: after S8.3; S9b split point: after S9b.5) and insert the new PR in the chain. Per the Review Policy, review once per group of two completed slices.
 
 ### Suggested Work Units
@@ -105,13 +107,13 @@ Verify: `bun test packages/chess`; standard checks.
 
 Satisfies: review-queue / Single card with exactly one source; review-queue / Cards only for the owning user; mistake-analysis / Exactly one card per mistake; mistake-analysis / Analysis owned by the user; lichess-account / Account linking to games; data-control / Deletion removes all user data (cascade); game-import / Idempotent and resumable import (unique key); ADR-02, ADR-03, ADR-04, ADR-05, ADR-06.
 
-- [ ] S2.1 [O] Inspect `packages/db/package.json` scripts and `packages/db/src/schema/audit.ts` (read-only) to confirm migration command and conventions.
-- [ ] S2.2 [T] RED: write `packages/db/src/schema/chess-schema.test.ts` (against the test DB via `db:test:prepare`): CHECK `card_exactly_one_source` rejects zero sources; unique `(user_id, lichess_game_id)`; unique `(game_id, ply)` on `mistake`; unique `card.mistake_id`; unique `review_log.id`; deleting a `user` cascades to every Phase 1 chess table.
-- [ ] S2.3 [T] GREEN: create `packages/db/src/schema/lichess.ts` (`lichess_profile`), `settings.ts` (`user_settings`), `games.ts` (`game`, `game_analysis`, `mistake` with pgEnums `severity`, `phase`), `cards.ts` (`card` with CHECK and FSRS columns, `review_log`) per ADR-04 to ADR-06, including named indexes `(user_id, due)`, `(user_id, state)`, `(user_id, position_key, played_uci)`, `(user_id, eco)`, `(user_id, played_at desc)`, `(user_id, reviewed_at)`, `(card_id, reviewed_at)`.
-- [ ] S2.4 [O] Modify `packages/db/src/schema/index.ts` and `packages/db/src/relations.ts` (spread new `defineRelationsPart` parts).
-- [ ] S2.5 [O] Generate the add-only migration via the db generate script; commit `packages/db/src/migrations/*`.
-- [ ] S2.6 [T] RED: extend `tests/lint-boundaries.test.ts` with cases and add fixtures under `tests/lint-boundaries/fixtures/`: `packages/chess/**` and `packages/study/**` importing db/auth/api/lichess/react/`@/**` fail; `packages/lichess/**` importing db/api/react fail; `apps/web/src/**` importing `@b2c-template/lichess|db|auth` fail; a `shared/` file importing `@b2c-template/lichess` fails (repeat web patterns in the `shared/**` override).
-- [ ] S2.7 [O] GREEN: modify `.oxlintrc.json` with the three overrides and repeat the new web patterns in the `apps/web/src/shared/**` override.
+- [x] S2.1 [O] Inspect `packages/db/package.json` scripts and `packages/db/src/schema/audit.ts` (read-only) to confirm migration command and conventions.
+- [x] S2.2 [T] RED: write `packages/db/src/schema/chess-schema.test.ts` (against the test DB via `db:test:prepare`): CHECK `card_exactly_one_source` rejects zero sources; unique `(user_id, lichess_game_id)`; unique `(game_id, ply)` on `mistake`; unique `card.mistake_id`; unique `review_log.id`; deleting a `user` cascades to every Phase 1 chess table.
+- [x] S2.3 [T] GREEN: create `packages/db/src/schema/lichess.ts` (`lichess_profile`), `settings.ts` (`user_settings`), `games.ts` (`game`, `game_analysis`, `mistake` with pgEnums `severity`, `phase`), `cards.ts` (`card` with CHECK and FSRS columns, `review_log`) per ADR-04 to ADR-06, including named indexes `(user_id, due)`, `(user_id, state)`, `(user_id, position_key, played_uci)`, `(user_id, eco)`, `(user_id, played_at desc)`, `(user_id, reviewed_at)`, `(card_id, reviewed_at)`.
+- [x] S2.4 [O] Modify `packages/db/src/schema/index.ts` and `packages/db/src/relations.ts` (spread new `defineRelationsPart` parts).
+- [x] S2.5 [O] Generate the add-only migration via the db generate script; commit `packages/db/src/migrations/*`.
+- [x] S2.6 [T] RED: extend `tests/lint-boundaries.test.ts` with cases and add fixtures under `tests/lint-boundaries/fixtures/`: `packages/chess/**` and `packages/study/**` importing db/auth/api/lichess/react/`@/**` fail; `packages/lichess/**` importing db/api/react fail; `apps/web/src/**` importing `@b2c-template/lichess|db|auth` fail; a `shared/` file importing `@b2c-template/lichess` fails (repeat web patterns in the `shared/**` override).
+- [x] S2.7 [O] GREEN: modify `.oxlintrc.json` with the three overrides and repeat the new web patterns in the `apps/web/src/shared/**` override.
 
 Verify: `pnpm db:test:prepare && bun test packages/db tests/lint-boundaries.test.ts`; standard checks.
 
