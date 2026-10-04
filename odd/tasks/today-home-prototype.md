@@ -38,8 +38,8 @@ Five structurally different variants of the Chess Lab "Today" home screen (the f
 
 ## Tasks
 
-- [ ] **T1 — Route, mock data, registry + variants A–C**: `/prototype/today-home` route, `-today-home-mock-data.ts` (incl. board squares from FEN), registry entry, Variants A, B, C. Route: delegated (react-staff, 2+ non-trivial files).
-- [ ] **T2 — Variants D–E**: Variants D and E wired into the route and registry. Route: delegated (same writer).
+- [x] **T1 — Route, mock data, registry + variants A–C**: `/prototype/today-home` route, `-today-home-mock-data.ts` (incl. board squares from FEN), registry entry, Variants A, B, C. Route: delegated (react-staff, 2+ non-trivial files).
+- [x] **T2 — Variants D–E**: Variants D and E wired into the route and registry. Route: delegated (same writer).
 
 ## Acceptance criteria
 
@@ -55,4 +55,9 @@ Five structurally different variants of the Chess Lab "Today" home screen (the f
 ## Progress
 
 - Created 2026-10-04. An earlier attempt as a Claude Design canvas (https://claude.ai/artifact/2B5A2jxWctHuLMQV82WNXo, variant A only) was abandoned on user request in favour of the in-repo lab.
-- Next: T1.
+- T1 done — commit `988ea85` (delegated, react-staff). Checks: `pnpm --filter web check-types` pass; `pnpm check` pass.
+- T2 done — commit `e864594` (delegated, same writer). Same checks pass; parent spot check `pnpm check` pass.
+- Deviations: variants use plain elements + Tailwind (no `@b2c-template/ui` components) so per-variant radius/palette stay free; E's ring shows queue composition (7/8/3), not completion.
+- Review T1+T2 (base `6700a8a`, through `e864594`, medium risk): consent granted (standing), 1 lens (reliability), **approved**, acknowledged (authority burned). Non-blocking suggestions: R3-fen-parser-unchecked, R3-queue-total-not-derived, R3-ring-cap-overlap, R3-task-status-stale (fixed by this update). Next boundary: `e864594`.
+- Not verified: browser run of the five variants.
+- Next: user picks a variant (or a mix); then capture the verdict and fold the winner into the real Today page per the prototype skill.
