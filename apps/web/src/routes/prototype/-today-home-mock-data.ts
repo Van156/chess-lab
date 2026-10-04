@@ -74,7 +74,7 @@ const GLYPHS: Record<string, string> = {
 };
 
 /** Parses the piece-placement field of a FEN into 64 squares, rank 8 to rank 1, file a to h. */
-function squaresFromFen(fen: string, lastMove: readonly string[]): BoardSquare[] {
+export function squaresFromFen(fen: string, lastMove: readonly string[]): BoardSquare[] {
   const rows = fen.split(" ")[0].split("/");
   return rows.flatMap((row, rowIndex) => {
     const cells: (string | null)[] = [];

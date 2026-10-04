@@ -24,6 +24,12 @@ export const todayHomeVariants: readonly PrototypeVariant[] = [
   { key: "E", name: "Playful" },
 ];
 
+/** Screens of the Midnight app prototype; only screens that exist are listed. */
+export const midnightVariants: readonly PrototypeVariant[] = [
+  { key: "A", name: "Today" },
+  { key: "B", name: "Review session" },
+];
+
 /** Register new prototypes here so they show up on `/prototype`. */
 export const prototypes: readonly PrototypeEntry[] = [
   {
@@ -37,5 +43,11 @@ export const prototypes: readonly PrototypeEntry[] = [
     title: "Today home screen",
     question: "What should the first screen after sign-in look like: palette, composition, radius?",
     variants: todayHomeVariants,
+  },
+  {
+    to: "/prototype/midnight",
+    title: "Chess Lab app (Midnight)",
+    question: "Does the Midnight look hold up across every main view?",
+    variants: midnightVariants,
   },
 ];
