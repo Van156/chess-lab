@@ -218,10 +218,10 @@ Verify: `bun test packages/api apps/server apps/web/src/app`; `pnpm --filter web
 
 Satisfies: review-queue / Review session flow; Next card under 200 ms; Grades never lost; Daily queue from all pillars; chess-board / Typed SAN input and Keyboard operation (used in session); ADR-14, ADR-15.
 
-- [ ] S8.1 [T] RED: `apps/web/src/features/review/lib/grade-outbox.test.ts` (fake storage): synchronous append survives reload, FIFO order, removal only after success or non-retryable error (`NOT_FOUND`, `BAD_REQUEST` dropped and logged), retry with backoff on network error, replay keeps `reviewLogId`, per-user key.
-- [ ] S8.2 [T] GREEN: `apps/web/src/features/review/lib/grade-outbox.ts` (flush on `online`, `visibilitychange`, app start; sign-out best-effort flush); `config.ts` (`QUEUE_PAGE_SIZE` 50, `QUEUE_PREFETCH_THRESHOLD` 10).
-- [ ] S8.3 [O] [react] `hooks/use-review-queue.ts` (TanStack Query, in-memory queue, prefetch when remaining < 10, optimistic re-show of Again cards using `@b2c-template/study` `grade`). (Split point if over budget.)
-- [ ] S8.4 [O] [react] `components/review-session.tsx` (board props change only, answer by move or `SanInput`, reveal answer, four grade buttons at least 44 px, session summary) and `apps/web/src/routes/_auth/review.tsx`.
+- [x] S8.1 [T] RED: `apps/web/src/features/review/lib/grade-outbox.test.ts` (fake storage): synchronous append survives reload, FIFO order, removal only after success or non-retryable error (`NOT_FOUND`, `BAD_REQUEST` dropped and logged), retry with backoff on network error, replay keeps `reviewLogId`, per-user key.
+- [x] S8.2 [T] GREEN: `apps/web/src/features/review/lib/grade-outbox.ts` (flush on `online`, `visibilitychange`, app start; sign-out best-effort flush); `config.ts` (`QUEUE_PAGE_SIZE` 50, `QUEUE_PREFETCH_THRESHOLD` 10).
+- [x] S8.3 [O] [react] `hooks/use-review-queue.ts` (TanStack Query, in-memory queue, prefetch when remaining < 10, optimistic re-show of Again cards using `@b2c-template/study` `grade`). (Split point if over budget.)
+- [x] S8.4 [O] [react] `components/review-session.tsx` (board props change only, answer by move or `SanInput`, reveal answer, four grade buttons at least 44 px, session summary) and `apps/web/src/routes/_auth/review.tsx`.
 - [ ] S8.5 [O] Manual: next card under 200 ms on throttled 4G profile; offline grading then reconnect shows no lost or duplicated logs; keyboard-only session.
 
 Verify: `bun test apps/web/src/features/review`; `pnpm --filter web check-types`; standard checks.

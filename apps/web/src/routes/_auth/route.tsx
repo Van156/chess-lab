@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 import { authClient } from "@/app/auth-client";
 import { signInRedirect } from "@/features/auth";
+import { useGradeOutboxSync } from "@/features/review";
 import AuthenticatedShell from "@/app/authenticated-shell";
 import { useUsesAppShell } from "@/app/route-static-data";
 
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/_auth")({
  */
 function AuthLayout() {
   const usesAppShell = useUsesAppShell();
+  // Pending grades are sent from any signed-in page, not only the review screen (NFR-07).
+  useGradeOutboxSync();
 
   if (!usesAppShell) {
     return <Outlet />;

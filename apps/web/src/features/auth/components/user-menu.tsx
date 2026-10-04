@@ -22,12 +22,20 @@ import { handleSignOut } from "../lib/sign-out";
  * `variant="sidebar"` renders the shell's footer menu; the default outline-button
  * variant stays for `PublicHeader` (R1.9).
  */
-export default function UserMenu({ variant = "header" }: { variant?: "header" | "sidebar" }) {
+export default function UserMenu({
+  variant = "header",
+  beforeSignOut,
+}: {
+  variant?: "header" | "sidebar";
+  /** Best-effort work to finish before signing out, such as sending queued data. */
+  beforeSignOut?: () => Promise<void>;
+}) {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
   const signOut = () =>
     handleSignOut({
+      beforeSignOut,
       signOut: () => authClient.signOut(),
       onSignedOut: () => navigate({ to: "/" }),
       showError: (message) => toast.error(message),

@@ -61,7 +61,16 @@ describe("navGroups visibility", () => {
 
   test("template-only entries stay out of the Chess Lab group", () => {
     const chessLab = navGroups.find((group) => group.id === "chess-lab");
-    expect(chessLab?.items.map((item) => item.to)).toEqual(["/today"]);
+    expect(chessLab?.items.map((item) => item.to)).toEqual(["/today", "/review"]);
+  });
+
+  test("Review follows the mistakes pillar flag", () => {
+    const labels = (features: NavContext["features"]) =>
+      filterNavGroups(navGroups, { ...member, features })
+        .find((group) => group.id === "chess-lab")
+        ?.items.map((item) => item.label);
+    expect(labels(NO_FEATURES)).toEqual(["Today"]);
+    expect(labels({ ...NO_FEATURES, mistakes: true })).toEqual(["Today", "Review"]);
   });
 
   test("breadcrumbs resolve through the real config", () => {
