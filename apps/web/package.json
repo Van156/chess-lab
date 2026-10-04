@@ -28,7 +28,7 @@
     "@tanstack/react-router": "^1.170.32",
     "@tanstack/react-table": "^9.2.4",
     "better-auth": "catalog:",
-    "chess.js": "^1.4.0",
+    "chess.js": "catalog:",
     "date-fns": "^4.4.0",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",

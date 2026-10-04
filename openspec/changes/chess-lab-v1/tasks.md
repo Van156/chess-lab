@@ -80,12 +80,12 @@ Verify: `pnpm --filter web build`; `ls apps/web/public/engine`; confirm dist con
 
 Satisfies: chess-board / Typed SAN input (parser), mistake-analysis / Repeat-mistake identification (position key), mistake-analysis / Mistake record contents (clocks, FEN); ADR-01, ADR-05.
 
-- [ ] S1a.1 [O] Create `packages/chess/package.json` (`@b2c-template/chess`, dep `chess.js`), `packages/chess/tsconfig.json`, `packages/chess/src/index.ts` (public interface); register the package in the workspace; update lockfile.
-- [ ] S1a.2 [T] RED: write `packages/chess/src/position.test.ts` covering `positionKey` (same key regardless of move order and clocks; castling rights included; en-passant square only when an en-passant capture is legal), `parseMove` (SAN and UCI, case-tolerant, illegal returns `null`, promotion), `legalMoves`, `applyMove`.
-- [ ] S1a.3 [T] GREEN: implement `packages/chess/src/position.ts` (`positionKey`, `legalMoves`, `parseMove`, `applyMove`) per the Interfaces section of design.
-- [ ] S1a.4 [T] RED: write `packages/chess/src/pgn.test.ts` with fixture PGNs: headers, `%clk` clock comments, missing clocks (null), non-standard start FEN, initial clock from `TimeControl`.
-- [ ] S1a.5 [T] GREEN: implement `packages/chess/src/pgn.ts` `parseGame(pgn)` returning headers, `ParsedPly[]` (fenBefore, san, uci, color, clockMs) and `initialClockMs`.
-- [ ] S1a.6 [O] Create `GLOSSARY.md` at repo root from the design glossary table (terms only, no implementation detail), first slice that introduces code using these terms.
+- [x] S1a.1 [O] Create `packages/chess/package.json` (`@b2c-template/chess`, dep `chess.js`), `packages/chess/tsconfig.json`, `packages/chess/src/index.ts` (public interface); register the package in the workspace; update lockfile.
+- [x] S1a.2 [T] RED: write `packages/chess/src/position.test.ts` covering `positionKey` (same key regardless of move order and clocks; castling rights included; en-passant square only when an en-passant capture is legal), `parseMove` (SAN and UCI, case-tolerant, illegal returns `null`, promotion), `legalMoves`, `applyMove`.
+- [x] S1a.3 [T] GREEN: implement `packages/chess/src/position.ts` (`positionKey`, `legalMoves`, `parseMove`, `applyMove`) per the Interfaces section of design.
+- [x] S1a.4 [T] RED: write `packages/chess/src/pgn.test.ts` with fixture PGNs: headers, `%clk` clock comments, missing clocks (null), non-standard start FEN, initial clock from `TimeControl`.
+- [x] S1a.5 [T] GREEN: implement `packages/chess/src/pgn.ts` `parseGame(pgn)` returning headers, `ParsedPly[]` (fenBefore, san, uci, color, clockMs) and `initialClockMs`.
+- [x] S1a.6 [O] Create `GLOSSARY.md` at repo root from the design glossary table (terms only, no implementation detail), first slice that introduces code using these terms.
 
 Verify: `bun test packages/chess`; `pnpm check-types`; standard checks.
 
