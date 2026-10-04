@@ -228,3 +228,17 @@ Verification: `bun test apps/web/src/features/today apps/web/src/app tests/story
 Work Unit Evidence: focused commands above; runtime harness = SSR render tests for every Today state plus the production build (manual runtime check is S7.8); rollback boundary = `packages/ui/src/styles/globals.css`, `apps/web/src/app/{feature-flags,use-feature-flags,use-nav-context,navigation,home-redirect}*`, `apps/web/src/features/today/`, `routes/_auth/today.tsx`, sign-in flag wiring, `tests/lib/app-story-registry.ts`.
 
 Workload: the web part is about 1,280 authored lines (additions plus deletions, openspec docs excluded), roughly 55% tests and stories; with the server part (about 657) the slice is about 1,940 lines. Recorded as `size:exception` (user-approved); the S7.6 split point is not used.
+
+## Review S5b/S6 follow-ups + S7 (base 35ac23d to 4ef2777)
+
+- High risk (auth: sign-in form), 4 lenses, 2320 lines: APPROVED and acknowledged (lineage review-21dc445ad0f5ee24, authority burned). Next review boundary: 4ef2777.
+- Non-blocking follow-ups (pending):
+  - R1-emailsignup-flag-ui-only (WARNING): `emailSignUp` only hides the link; better-auth email sign-up and `/sign-up` still accept registrations. Gate email sign-up server-side in `createAuth` (and the `/sign-up` route) on the flag, or reword the env comment to say it is UI-only. Needs a user decision.
+  - R3-today-summary-refresh-missed-transitions (WARNING): `use-today.ts` refetches the summary only on the running -> other edge; transitions running -> backoff -> idle, or a sync that finishes between polls, leave counts stale. Refetch on any change of `lastSyncedAt` / `gamesImported`, and test the invalidation logic.
+  - R2-today-now-is-fetch-timestamp (WARNING): `now` in `use-today.ts` is a fetch timestamp; rename (for example `asOf`) or tick a clock so relative times stay live.
+  - R3/R4-today-summary-coupled-to-sync-status: settle `lichess.status` separately in `today.summary` so a status failure degrades only the sync field.
+  - R4-backoff-polls-at-fixed-5s: derive the poll interval from `retryAt` while in backoff.
+  - R2-review-queue-magic-state-numbers: share named card-state constants with `packages/study` instead of `in (1, 3)`.
+  - R2-card-pillar-list-duplicated: derive `enabledCardPillars` from the `CardPillar` source of truth.
+  - R2-today-router-comment-misnames-caller: the comment mentions a Today loader; the caller is the `useToday` hook.
+  - R2-use-today-unused-error: drop the unused `error` or use it to drive the load-error UI.
