@@ -45,4 +45,8 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/account/components/theme-preference-card.tsx",
   "features/account/components/delete-account-card.tsx",
   "features/admin/components/user-detail-tabs.tsx",
+  "features/today/components/today-view.tsx",
+  "features/today/components/due-card.tsx",
+  "features/today/components/summary-cards.tsx",
+  "features/today/components/sync-status.tsx",
 ];
