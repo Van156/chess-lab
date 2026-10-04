@@ -30,7 +30,7 @@ The system SHALL perform a first import covering the games played within the con
 
 ### Requirement: Incremental sync
 
-After the first import, each sync SHALL import only games newer than the last successful sync cursor and MUST update the cursor and last sync time on success. (FR-12)
+After the first import, each sync SHALL import only games newer than the last successful sync cursor, re-fetching a 24 h lookback window before the cursor so late-finishing games are not missed (duplicates are absorbed by the idempotent upsert), and MUST update the cursor and last sync time on success. Correspondence games are excluded from the import. (FR-12)
 
 #### Scenario: Only new games
 

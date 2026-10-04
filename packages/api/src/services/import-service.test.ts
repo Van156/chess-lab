@@ -8,7 +8,12 @@ import type { LichessGame } from "@b2c-template/lichess";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
-import { FIRST_IMPORT_MAX_GAMES, IMPORT_LEASE_MS, IMPORT_WINDOW_MONTHS } from "./import-config";
+import {
+  FIRST_IMPORT_MAX_GAMES,
+  IMPORT_LEASE_MS,
+  IMPORT_LOOKBACK_MS,
+  IMPORT_WINDOW_MONTHS,
+} from "./import-config";
 import { createImportService, shouldAutoSync } from "./import-service";
 import type { GamesSource } from "./import-service";
 
@@ -52,6 +57,14 @@ function lichessGame(index: number, overrides: Partial<LichessGame> = {}): Liche
     ].join("\n"),
     ...overrides,
   };
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
 }
 
 type FakeSource = GamesSource & { calls: Parameters<GamesSource["exportGames"]>[0][] };
@@ -212,10 +225,109 @@ describe.skipIf(!reachable)("import service", () => {
     await service(fakeSource([lichessGame(1)])).requestSync("u1", signal);
     const second = fakeSource([lichessGame(1), lichessGame(2)]);
     const status = await service(second, NOW + DAY).requestSync("u1", signal);
-    expect(second.calls[0]?.sinceMs).toBe(lichessGame(1).createdAt + 1);
+    expect(second.calls[0]?.sinceMs).toBe(lichessGame(1).createdAt + 1 - IMPORT_LOOKBACK_MS);
     expect(second.calls[0]?.max).toBeUndefined();
     expect(status.gamesImported).toBe(2);
     expect((await profile()).lastSyncedAt?.getTime()).toBe(NOW + DAY);
+  });
+
+  test("an incremental sync re-fetches the lookback window without duplicates or resetting analysis", async () => {
+    await service(fakeSource([lichessGame(1)])).requestSync("u1", signal);
+    await handle.db.update(gameAnalysis).set({ status: "complete" });
+    const cursorBefore = (await profile()).importCursorMs!;
+
+    const second = fakeSource([lichessGame(1), lichessGame(2)]);
+    await service(second, NOW + DAY).requestSync("u1", signal);
+
+    expect(await gameCount()).toBe(2);
+    const analysis = await handle.db.select().from(gameAnalysis);
+    expect(analysis).toHaveLength(2);
+    expect(analysis.filter((row) => row.status === "complete")).toHaveLength(1);
+    expect((await profile()).importCursorMs).toBeGreaterThanOrEqual(cursorBefore);
+  });
+
+  test("the cursor never moves backwards when a lookback batch holds only old games", async () => {
+    await service(fakeSource([lichessGame(1), lichessGame(2)])).requestSync("u1", signal);
+    const cursorBefore = (await profile()).importCursorMs!;
+    // Batch size 2: one batch of two already-known (old) games.
+    await service(fakeSource([lichessGame(1), lichessGame(2)]), NOW + DAY).requestSync(
+      "u1",
+      signal,
+    );
+    expect((await profile()).importCursorMs).toBe(cursorBefore);
+  });
+
+  test("the first import applies no lookback", async () => {
+    const source = fakeSource([]);
+    await service(source).requestSync("u1", signal);
+    const windowStart = new Date(NOW);
+    windowStart.setUTCMonth(windowStart.getUTCMonth() - IMPORT_WINDOW_MONTHS);
+    expect(source.calls[0]?.sinceMs).toBe(windowStart.getTime());
+  });
+
+  test("a non-ascending stream never moves the cursor below the newest game seen", async () => {
+    // GamesSource contract: ascending createdAt. A violation must not regress the cursor.
+    const newest = lichessGame(3);
+    await service(fakeSource([lichessGame(1), newest, lichessGame(2)])).requestSync("u1", signal);
+    expect(await gameCount()).toBe(3);
+    expect((await profile()).importCursorMs).toBe(newest.createdAt + 1);
+  });
+
+  test("a stale run whose lease was taken over cannot overwrite the newer run", async () => {
+    const reached = deferred();
+    const release = deferred();
+    const staleSource: GamesSource = {
+      async *exportGames() {
+        yield lichessGame(1);
+        yield lichessGame(2);
+        reached.resolve();
+        await release.promise;
+        yield lichessGame(3);
+        yield lichessGame(4);
+      },
+    };
+    const a = await service(staleSource).startSync("u1", signal);
+    await reached.promise;
+    // Let A's first batch commit before B takes the expired lease.
+    await Bun.sleep(50);
+    expect(await gameCount()).toBe(2);
+
+    const laterNow = NOW + IMPORT_LEASE_MS + 1;
+    await service(fakeSource([lichessGame(1), lichessGame(2)]), laterNow).requestSync("u1", signal);
+    const afterB = await profile();
+    expect(afterB.importState).toBe("idle");
+    expect(afterB.lastSyncedAt?.getTime()).toBe(laterNow);
+
+    release.resolve();
+    await a.done;
+
+    expect(await gameCount()).toBe(2);
+    const afterA = await profile();
+    expect(afterA.importCursorMs).toBe(afterB.importCursorMs);
+    expect(afterA.importState).toBe("idle");
+    expect(afterA.lastSyncedAt?.getTime()).toBe(laterNow);
+  });
+
+  test("a stale run's failure does not overwrite the newer run's state", async () => {
+    const reached = deferred();
+    const release = deferred();
+    const staleSource: GamesSource = {
+      async *exportGames() {
+        reached.resolve();
+        await release.promise;
+        yield* [];
+        throw new Error("boom");
+      },
+    };
+    const a = await service(staleSource).startSync("u1", signal);
+    await reached.promise;
+    const laterNow = NOW + IMPORT_LEASE_MS + 1;
+    await service(fakeSource([]), laterNow).requestSync("u1", signal);
+    release.resolve();
+    await a.done;
+    const row = await profile();
+    expect(row.importState).toBe("idle");
+    expect(row.importError).toBeNull();
   });
 
   test("a held lease blocks a concurrent run and returns the current status", async () => {

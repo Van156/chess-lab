@@ -19,7 +19,14 @@ export function createGamesSource(
 ): GamesSource {
   return {
     async *exportGames(args) {
-      const token = await resolveToken(args.userId);
+      let token: string | null;
+      try {
+        token = await resolveToken(args.userId);
+      } catch {
+        // A failed lookup (e.g. `auth.api.getAccessToken` cannot refresh or find the account)
+        // means the stored sign-in is unusable: the user must sign in with Lichess again.
+        throw new LichessUnauthorized();
+      }
       if (!token) {
         throw new LichessUnauthorized();
       }

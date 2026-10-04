@@ -112,6 +112,7 @@ describe("exportGames", () => {
       moves: "true",
       evals: "false",
       finished: "true",
+      perfType: "ultraBullet,bullet,blitz,rapid,classical",
       max: "50",
     });
     expect(header(init.headers, "accept")).toBe("application/x-ndjson");
@@ -128,6 +129,14 @@ describe("exportGames", () => {
     const { client } = setup(() => ndjsonResponse([game("a"), game("b")], 17));
     const games = await collect(client.exportGames(exportArgs()));
     expect(games.map((g) => g.id)).toEqual(["a", "b"]);
+  });
+
+  test("skips correspondence records even if the server returns them", async () => {
+    const { client } = setup(() =>
+      ndjsonResponse([game("a"), game("b", { speed: "correspondence" }), game("c")]),
+    );
+    const games = await collect(client.exportGames(exportArgs()));
+    expect(games.map((g) => g.id)).toEqual(["a", "c"]);
   });
 
   test("skips non-standard variants", async () => {

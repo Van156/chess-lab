@@ -262,7 +262,7 @@ requestSync(userId)
      WHERE user_id=$1 AND (import_lease_until IS NULL OR import_lease_until < now())
        AND (import_retry_at IS NULL OR import_retry_at < now())
      (0 rows => already running or backing off: return current status, do nothing)
-  -> sinceMs = import_cursor_ms ?? now - IMPORT_WINDOW_MONTHS
+  -> sinceMs = first import: import_cursor_ms ?? now - IMPORT_WINDOW_MONTHS; incremental: (import_cursor_ms ?? last_synced_at) - IMPORT_LOOKBACK_MS (24 h)
   -> for await batch of 50 games from source.exportGames(...):
         BEGIN
           INSERT game ... ON CONFLICT (user_id, lichess_game_id) DO NOTHING
@@ -278,6 +278,8 @@ requestSync(userId)
 - **One request per user (NFR-06)**: the DB lease makes concurrent triggers (two tabs, a restart) safe; the in-process `SerialGate` additionally serializes explorer calls with the import.
 - **Triggers**: `lichess.sync` mutation (manual "Sync now"), and the Today loader calls `lichess.status`, which enqueues a sync when `last_synced_at` is older than `AUTO_SYNC_AFTER_MS` (6 h). Runs are fire-and-forget on the server (`void runImport(...)`); the client polls `lichess.status` while `running`. No global cron in v1 (server cost; Lichess load).
 - **Lifecycle**: the server keeps an `ImportRunner` with an `AbortController` per running import. `startBackgroundJobs()` in `apps/server/src/services.ts` returns a `stop` that also aborts running imports, so SIGTERM leaves the lease to expire and the next trigger resumes from the committed cursor.
+- **Lookback and correspondence**: Lichess `since` filters by creation time, so incremental syncs re-fetch `IMPORT_LOOKBACK_MS` (24 h) before the cursor and the export excludes correspondence (`perfType` lists only non-correspondence perfs, plus a client-side `speed` guard). The cursor never moves backwards (`GREATEST`), re-fetched games hit `ON CONFLICT DO NOTHING` so no duplicate `game_analysis` rows appear and existing analysis is untouched. `GamesSource` MUST yield ascending `createdAt`.
+- **Lease fencing**: the `import_lease_until` value a run last wrote is its token; every batch commit and the final idle/failed/backoff update match on it, so a run whose lease was taken over writes nothing.
 - **First import cap**: `FIRST_IMPORT_MAX_GAMES = 1000` as a safety bound for very active players (the window still bounds normal users).
 
 **Alternatives considered**: a job queue library or table-backed queue (more infrastructure than a single always-on instance needs); client-side import (exposes the token, violates NFR-05).

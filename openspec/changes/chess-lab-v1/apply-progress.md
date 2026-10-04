@@ -135,6 +135,12 @@ S4a came in at about 905 authored lines, so it was split at the task boundary: S
   - R3-lease-not-fenced: `commitBatch` and the final state updates filter only by `userId`, not by lease ownership; a stale run past `IMPORT_LEASE_MS` can overwrite a newer run. v1 is single-instance, but fence the writes by lease holder.
   - R3-games-source-untested: add tests for `createGamesSource` / `createLichessPort` (missing token maps to `LichessUnauthorized`; a `getAccessToken` failure should map to unauthorized, not generic).
 
+- Follow-ups done (commit fix(lichess), S5b branch):
+  - [x] R3-cursor-createdat-skips-late-finishing-games: `IMPORT_LOOKBACK_MS` (24 h) applied to incremental `since`; export sends `perfType=ultraBullet,bullet,blitz,rapid,classical` plus client-side skip of `speed === "correspondence"`; cursor uses a stored-cursor baseline and `GREATEST`. RED: missing `IMPORT_LOOKBACK_MS` export and client param/skip tests failing; GREEN: service and client tests pass. Spec and design updated.
+  - [x] R3-cursor-assumes-ascending-stream: ordering contract documented on `GamesSource`; test pins that an out-of-order stream imports all games and leaves the cursor at newest + 1.
+  - [x] R3-lease-not-fenced: the lease timestamp is the fence token (no schema change, no migration); `commitBatch` and the final state updates match on it. RED: stale-run tests failed against unfenced writes; GREEN: real-DB takeover tests (stale commit and stale failure are no-ops).
+  - [x] R3-games-source-untested: `apps/server/src/lichess-port.test.ts` added; token resolver errors now map to `LichessUnauthorized` (RED observed, then GREEN).
+
 ## S5b (review and settings routers, branch feat/chess-lab-v1-s5b, base feat/chess-lab-v1-s5a)
 
 - Delivery: single PR with user-approved `size:exception` (see Size). Chain `feature-branch-chain`, PR base `feat/chess-lab-v1-s5a`.

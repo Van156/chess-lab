@@ -3,7 +3,7 @@ import type { Database } from "@b2c-template/db";
 import { game, gameAnalysis } from "@b2c-template/db/schema/games";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
 import type { ExportGamesArgs, LichessGame } from "@b2c-template/lichess";
-import { and, eq, isNull, lt, or } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { ImportStatus } from "../context";
 import {
@@ -11,12 +11,17 @@ import {
   FIRST_IMPORT_MAX_GAMES,
   IMPORT_BATCH_SIZE,
   IMPORT_LEASE_MS,
+  IMPORT_LOOKBACK_MS,
   IMPORT_WINDOW_MONTHS,
 } from "./import-config";
 
 /**
  * Where games come from. The server adapter resolves the user's token behind this port, so the
  * service never sees it and `packages/api` has no Lichess runtime import (type-only below).
+ *
+ * Ordering contract: games MUST be yielded in ascending `createdAt` (the Lichess client sends
+ * `sort=dateAsc`). The cursor commits `max(createdAt) + 1` per batch, so resuming after a failure
+ * is only correct for an ascending stream. Correspondence games are excluded by the source.
  */
 export type GamesSource = {
   exportGames(
@@ -189,8 +194,32 @@ export function createImportService({
     return row ?? null;
   }
 
-  async function commitBatch(userId: string, rows: GameInsert[], cursorMs: number): Promise<void> {
-    await db.transaction(async (tx) => {
+  function ownedBy(userId: string, lease: Date) {
+    return and(eq(lichessProfile.userId, userId), eq(lichessProfile.importLeaseUntil, lease));
+  }
+
+  /**
+   * Persists one batch and advances the cursor, fenced by lease ownership: the lease value this
+   * run last wrote is its token, so a run whose lease was taken over matches no row and writes
+   * nothing. Returns the extended lease, or null when the lease was lost.
+   */
+  async function commitBatch(
+    userId: string,
+    lease: Date,
+    rows: GameInsert[],
+    cursorMs: number,
+  ): Promise<Date | null> {
+    return db.transaction(async (tx) => {
+      const [owned] = await tx
+        .update(lichessProfile)
+        .set({
+          // Never backwards, even if a batch only holds games older than the cursor.
+          importCursorMs: sql`GREATEST(COALESCE(${lichessProfile.importCursorMs}, ${cursorMs}), ${cursorMs})`,
+          importLeaseUntil: new Date(now() + IMPORT_LEASE_MS),
+        })
+        .where(and(eq(lichessProfile.userId, userId), eq(lichessProfile.importLeaseUntil, lease)))
+        .returning({ lease: lichessProfile.importLeaseUntil });
+      if (!owned) return null;
       if (rows.length > 0) {
         const inserted = await tx
           .insert(game)
@@ -204,26 +233,28 @@ export function createImportService({
             .onConflictDoNothing();
         }
       }
-      await tx
-        .update(lichessProfile)
-        .set({
-          importCursorMs: cursorMs,
-          importLeaseUntil: new Date(now() + IMPORT_LEASE_MS),
-        })
-        .where(eq(lichessProfile.userId, userId));
+      return owned.lease;
     });
   }
 
   async function runImport(userId: string, profile: Profile, signal: AbortSignal): Promise<void> {
     const firstImport = profile.firstImportDoneAt === null;
-    const sinceMs =
+    // Incremental syncs start a lookback before the cursor (late-finishing games); the first
+    // import starts at its window. `maxCreatedAt` starts at the stored cursor so it never regresses.
+    const resumeFromMs =
       profile.importCursorMs ??
-      (profile.lastSyncedAt && !firstImport
-        ? profile.lastSyncedAt.getTime()
-        : windowStartMs(now()));
+      (profile.lastSyncedAt && !firstImport ? profile.lastSyncedAt.getTime() : null);
+    const sinceMs =
+      resumeFromMs === null
+        ? windowStartMs(now())
+        : firstImport
+          ? resumeFromMs
+          : resumeFromMs - IMPORT_LOOKBACK_MS;
+    // The lease this run holds; it changes on every commit and fences every write below.
+    let lease = profile.importLeaseUntil as Date;
 
     let pending: GameInsert[] = [];
-    let maxCreatedAt = sinceMs - 1;
+    let maxCreatedAt = (resumeFromMs ?? sinceMs) - 1;
     let received = 0;
 
     try {
@@ -246,14 +277,18 @@ export function createImportService({
         const row = toGameRow(userId, profile, item);
         if (row) pending.push(row);
         if (batchSeen >= batchSize) {
-          await commitBatch(userId, pending, maxCreatedAt + 1);
+          const next = await commitBatch(userId, lease, pending, maxCreatedAt + 1);
+          if (!next) return; // lease lost: a newer run owns the import
+          lease = next;
           pending = [];
           batchSeen = 0;
         }
       }
       if (signal.aborted) return;
       if (batchSeen > 0) {
-        await commitBatch(userId, pending, maxCreatedAt + 1);
+        const next = await commitBatch(userId, lease, pending, maxCreatedAt + 1);
+        if (!next) return;
+        lease = next;
       }
       const finishedAt = new Date(now());
       await db
@@ -266,7 +301,7 @@ export function createImportService({
           importRetryAt: null,
           importError: null,
         })
-        .where(eq(lichessProfile.userId, userId));
+        .where(ownedBy(userId, lease));
     } catch (error) {
       if (signal.aborted) return;
       const failure = classifyFailure(error);
@@ -278,7 +313,7 @@ export function createImportService({
           importError: failure.message,
           importLeaseUntil: null,
         })
-        .where(eq(lichessProfile.userId, userId));
+        .where(ownedBy(userId, lease));
     }
   }
 

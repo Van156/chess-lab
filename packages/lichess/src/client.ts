@@ -18,6 +18,9 @@ import type {
   LichessGame,
 } from "./types";
 
+/** Every non-correspondence perf: correspondence games are excluded from the import (R3). */
+const EXPORT_PERF_TYPES = "ultraBullet,bullet,blitz,rapid,classical";
+
 const NDJSON = "application/x-ndjson";
 const JSON_ACCEPT = "application/json";
 
@@ -103,6 +106,7 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
       moves: "true",
       evals: "false",
       finished: "true",
+      perfType: EXPORT_PERF_TYPES,
       ...(args.max === undefined ? {} : { max: String(args.max) }),
     }).toString();
 
@@ -115,7 +119,7 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
       for await (const record of parseNdjson(readChunks(response.body))) {
         args.signal.throwIfAborted();
         if (!isGame(record)) throw new LichessProtocolError("Export record is not a game");
-        if (record.variant !== "standard") continue;
+        if (record.variant !== "standard" || record.speed === "correspondence") continue;
         yield record;
       }
       args.signal.throwIfAborted();
