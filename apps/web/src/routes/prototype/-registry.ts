@@ -16,6 +16,14 @@ export const exampleVariants: readonly PrototypeVariant[] = [
   { key: "C", name: "Timeline feed" },
 ];
 
+export const todayHomeVariants: readonly PrototypeVariant[] = [
+  { key: "A", name: "Midnight" },
+  { key: "B", name: "Club" },
+  { key: "C", name: "Bento" },
+  { key: "D", name: "Focus" },
+  { key: "E", name: "Playful" },
+];
+
 /** Register new prototypes here so they show up on `/prototype`. */
 export const prototypes: readonly PrototypeEntry[] = [
   {
@@ -23,5 +31,11 @@ export const prototypes: readonly PrototypeEntry[] = [
     title: "Team activity overview",
     question: "How should a team lead scan what everyone did this week?",
     variants: exampleVariants,
+  },
+  {
+    to: "/prototype/today-home",
+    title: "Today home screen",
+    question: "What should the first screen after sign-in look like: palette, composition, radius?",
+    variants: todayHomeVariants,
   },
 ];
