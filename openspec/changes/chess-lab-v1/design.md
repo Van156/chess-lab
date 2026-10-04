@@ -214,7 +214,7 @@ Synthetic email rules (`packages/auth/src/synthetic-email.ts`): `syntheticEmail(
 `POST /api/auth/lichess/delete-account` with body `{ confirmUsername: string }`:
 
 1. Require a session; reject impersonated sessions.
-2. Require a **fresh** session: `session.createdAt` within `DELETE_FRESH_WINDOW_MS` (default 10 minutes). Otherwise respond `403 { code: "REAUTH_REQUIRED" }`; the client then calls `authClient.signIn.oauth2({ providerId: "lichess", callbackURL: "/account/danger?confirm=1" })`, which creates a new session.
+2. Require a **fresh** session: `session.createdAt` within `DELETE_FRESH_WINDOW_MS` (default 10 minutes). Otherwise respond `403 { code: "REAUTH_REQUIRED" }`; the client then calls `authClient.signIn.social({ provider: "lichess", callbackURL: "/account/danger?confirm=1" })`, which creates a new session.
 3. Compare `confirmUsername` case-insensitively with `lichess_profile.username`; mismatch returns `400 { code: "USERNAME_MISMATCH" }`.
 4. Call the same `events.userDeleting` seam used by `deleteUser.beforeDelete` (fail closed: an audit failure aborts the delete).
 5. `ctx.context.internalAdapter.deleteSessions(userId)` and `deleteUser(userId)`, then clear the session cookie. All chess rows cascade from `user.id`.
@@ -541,8 +541,8 @@ Recommendation: A, with exactly one instance in v1, placed close to the Postgres
 ### Sign-in with Lichess (FR-01)
 
 ```
-Browser --signIn.oauth2(lichess)--> better-auth --302 PKCE S256--> lichess.org/oauth
-lichess.org --code--> /api/auth/oauth2/callback/lichess
+Browser --signIn.social(lichess)--> better-auth --302 PKCE S256--> lichess.org/oauth
+lichess.org --code--> /api/auth/callback/lichess
   better-auth: token exchange -> getUserInfo(/api/account) -> accountSubject = id
              -> create/find user (synthetic email) -> account row (token encrypted)
   lichess-account plugin (after hook): upsert lichess_profile(id, username, ratings)
@@ -588,7 +588,7 @@ remaining < 10 -> prefetch next page
 ```
 <a href=/api/export/data.json> -> Hono route -> session -> export-service (keyset pages) -> stream
 Danger zone (synthetic email) -> POST /api/auth/lichess/delete-account {confirmUsername}
-   -> 403 REAUTH_REQUIRED -> signIn.oauth2(lichess, callback ?confirm=1) -> retry
+   -> 403 REAUTH_REQUIRED -> signIn.social(lichess, callback ?confirm=1) -> retry
    -> audit userDeleting (fail closed) -> delete sessions + user -> FK cascade -> cookie cleared
 ```
 

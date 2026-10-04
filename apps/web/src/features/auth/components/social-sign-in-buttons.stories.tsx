@@ -33,3 +33,7 @@ export const Disabled: Story = {
 export const NoProviders: Story = {
   args: { providers: [] },
 };
+
+export const WithLichess: Story = {
+  args: { providers: ["google", "lichess"] },
+};

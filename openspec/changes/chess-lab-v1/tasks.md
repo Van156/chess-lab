@@ -121,16 +121,16 @@ Verify: `pnpm db:test:prepare && bun test packages/db tests/lint-boundaries.test
 
 Satisfies: lichess-account / Sign in with Lichess using PKCE; Immutable Lichess identity as account subject; Synthetic non-deliverable email; Token encrypted at rest and never sent to the browser; Account linking to games; app-shell / Email sign-up UI flag (provider list part); ADR-07.
 
-- [ ] S3.1 [T] RED: `packages/auth/src/synthetic-email.test.ts` for `syntheticEmail(id)` (`<id>@lichess.invalid`) and `isSyntheticEmail`.
-- [ ] S3.2 [T] GREEN: create `packages/auth/src/synthetic-email.ts`.
-- [ ] S3.3 [T] RED: `packages/auth/src/lichess-provider.test.ts`: config builder output (PKCE true, empty scopes, `authentication: "post"`, `accountSubject` uses immutable id, `overrideUserInfo: true`), `fetchLichessAccount` with injected fetch maps /api/account and rejects non-OK.
-- [ ] S3.4 [T] GREEN: create `packages/auth/src/lichess-provider.ts`.
-- [ ] S3.5 [T] RED: `packages/auth/src/lichess-account.integration.test.ts` (better-auth test utils, fake Lichess endpoints): callback creates a user with synthetic email, stores `account.access_token` encrypted (`$ba$` or hex form), upserts `lichess_profile` (id, username, ratings), second sign-in refreshes username and keeps the same user, no auto-link to an email account.
-- [ ] S3.6 [T] GREEN: create the plugin in `packages/auth/src/lichess-account.ts` (profile upsert via plugin `hooks.after` matcher on /oauth2/callback/lichess; delete endpoint comes in S11b); modify `packages/auth/src/index.ts` to register `genericOAuth` when `LICHESS_CLIENT_ID` is set, set `account.encryptOAuthTokens: true`, extend `AuthConfig`.
-- [ ] S3.7 [T] RED then GREEN: `packages/auth/src/email/factory.ts` drops and logs sends to synthetic addresses (test in the existing email factory test file or a new `factory.test.ts`).
-- [ ] S3.8 [T] RED then GREEN: `packages/auth/src/social-providers.ts` `listEnabledSocialProviders` includes `lichess` when configured; test with and without `LICHESS_CLIENT_ID`.
-- [ ] S3.9 [O] Modify `apps/server/src/env.ts` and `.env.schema` for `LICHESS_CLIENT_ID` (optional; no secret).
-- [ ] S3.10 [O] [react] Modify `apps/web/src/features/auth/components/sign-in-page.tsx` to render the Lichess button from the providers list (`authClient.signIn.oauth2({ providerId: "lichess" })`); email sign-up behind the flag lands in S7.
+- [x] S3.1 [T] RED: `packages/auth/src/synthetic-email.test.ts` for `syntheticEmail(id)` (`<id>@lichess.invalid`) and `isSyntheticEmail`.
+- [x] S3.2 [T] GREEN: create `packages/auth/src/synthetic-email.ts`.
+- [x] S3.3 [T] RED: `packages/auth/src/lichess-provider.test.ts`: config builder output (PKCE true, empty scopes, `authentication: "post"`, `accountSubject` uses immutable id, `overrideUserInfo: true`), `fetchLichessAccount` with injected fetch maps /api/account and rejects non-OK.
+- [x] S3.4 [T] GREEN: create `packages/auth/src/lichess-provider.ts`.
+- [x] S3.5 [T] RED: `packages/auth/src/lichess-account.integration.test.ts` (better-auth test utils, fake Lichess endpoints): callback creates a user with synthetic email, stores `account.access_token` encrypted (`$ba$` or hex form), upserts `lichess_profile` (id, username, ratings), second sign-in refreshes username and keeps the same user, no auto-link to an email account.
+- [x] S3.6 [T] GREEN: create the plugin in `packages/auth/src/lichess-account.ts` (profile upsert via plugin `hooks.after` matcher on /callback/:id (provider id from ctx.params.id; better-auth 1.7.5 serves generic-oauth through the social routes); delete endpoint comes in S11b); modify `packages/auth/src/index.ts` to register `genericOAuth` when `LICHESS_CLIENT_ID` is set, set `account.encryptOAuthTokens: true`, extend `AuthConfig`.
+- [x] S3.7 [T] RED then GREEN: `packages/auth/src/email/factory.ts` drops and logs sends to synthetic addresses (test in the existing email factory test file or a new `factory.test.ts`).
+- [x] S3.8 [T] RED then GREEN: `packages/auth/src/social-providers.ts` `listEnabledSocialProviders` includes `lichess` when configured; test with and without `LICHESS_CLIENT_ID`.
+- [x] S3.9 [O] Modify `apps/server/src/env.ts` and `.env.schema` for `LICHESS_CLIENT_ID` (optional; no secret).
+- [x] S3.10 [O] [react] Modify `apps/web/src/features/auth/components/sign-in-page.tsx` to render the Lichess button from the providers list (`authClient.signIn.social({ provider: "lichess" })`); email sign-up behind the flag lands in S7.
 
 Verify: `bun test packages/auth`; standard checks.
 
@@ -281,7 +281,7 @@ Satisfies: data-control / Account deletion without email; Deletion removes all u
 
 - [ ] S11b.1 [T] RED: extend `packages/auth/src/lichess-account.integration.test.ts` for `POST /api/auth/lichess/delete-account`: no session rejected; impersonated session rejected; session older than `DELETE_FRESH_WINDOW_MS` returns 403 `REAUTH_REQUIRED`; wrong username returns 400 `USERNAME_MISMATCH` (case-insensitive match otherwise); audit failure aborts the delete (fail closed); success deletes sessions and user, clears cookie, and cascades every chess row (assert row counts in all Phase 1 tables).
 - [ ] S11b.2 [T] GREEN: add the endpoint and `DELETE_FRESH_WINDOW_MS` to `packages/auth/src/lichess-account.ts` using the existing `events.userDeleting` seam.
-- [ ] S11b.3 [O] [react] Modify `apps/web/src/features/account/components/{danger-page,security-page,profile-page}.tsx`: for synthetic-email users hide email/password/verification flows, show the typed-username delete flow with re-auth via `authClient.signIn.oauth2({ providerId: "lichess", callbackURL: "/account/danger?confirm=1" })` on `REAUTH_REQUIRED`; real-email users keep the emailed-link flow.
+- [ ] S11b.3 [O] [react] Modify `apps/web/src/features/account/components/{danger-page,security-page,profile-page}.tsx`: for synthetic-email users hide email/password/verification flows, show the typed-username delete flow with re-auth via `authClient.signIn.social({ provider: "lichess", callbackURL: "/account/danger?confirm=1" })` on `REAUTH_REQUIRED`; real-email users keep the emailed-link flow.
 - [ ] S11b.4 [O] Manual: keyboard-only and screen-reader labels on the delete flow.
 
 Verify: `bun test packages/auth`; `pnpm --filter web check-types`; standard checks.

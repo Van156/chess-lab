@@ -1,10 +1,11 @@
-/** Social providers the web app knows how to render (spec §6.3: Google only). */
-export type SocialProviderId = "google";
+/** Social providers the web app knows how to render (Google and Lichess). */
+export type SocialProviderId = "google" | "lichess";
 
-const KNOWN_PROVIDERS: readonly SocialProviderId[] = ["google"];
+const KNOWN_PROVIDERS: readonly SocialProviderId[] = ["google", "lichess"];
 
 export const SOCIAL_PROVIDER_LABELS: Record<SocialProviderId, string> = {
   google: "Google",
+  lichess: "Lichess",
 };
 
 /**

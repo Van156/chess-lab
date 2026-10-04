@@ -9,6 +9,13 @@ import {
 } from "./social-providers";
 
 describe("parseEnabledProviders", () => {
+  test("keeps lichess alongside google", () => {
+    expect(parseEnabledProviders({ providers: ["lichess", "google"] })).toEqual([
+      "google",
+      "lichess",
+    ]);
+  });
+
   test("keeps known provider ids", () => {
     expect(parseEnabledProviders({ providers: ["google"] })).toEqual(["google"]);
   });

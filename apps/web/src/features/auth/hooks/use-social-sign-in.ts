@@ -7,7 +7,7 @@ import { isBfcacheRestore, type SocialProviderId } from "../lib/social-providers
 import { useEnabledProviders } from "./use-enabled-providers";
 
 /**
- * Container logic for the Google button (R5.2, R5.3): calls
+ * Container logic for the social provider buttons (R5.2, R5.3): calls
  * `authClient.signIn.social`, which redirects the browser to the provider. Stays
  * pending once the redirect starts; on an error result or a rejected promise the
  * pending state clears and `onError` receives the message for the inline alert.
