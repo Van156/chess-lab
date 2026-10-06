@@ -89,7 +89,7 @@ const DELETE_ERROR_MESSAGES: Record<LichessDeleteErrorCode, string> = {
  * nothing about the state and tells the user how to find out.
  */
 export const DELETE_FALLBACK_MESSAGE =
-  "We could not confirm whether your account was deleted. Reload the page to check. If you are signed out, sign in with Lichess again: a new account means the old one was deleted.";
+  "We could not confirm whether your account was deleted. Reload the page to check. If you are signed out and your games are gone after you sign in with Lichess again, contact support so we can confirm your old data was removed.";
 
 function isDeleteErrorCode(code: string): code is LichessDeleteErrorCode {
   return Object.hasOwn(DELETE_ERROR_MESSAGES, code);

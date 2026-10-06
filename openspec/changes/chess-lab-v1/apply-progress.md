@@ -534,3 +534,9 @@ Verification: `bun test packages/api packages/auth apps/server` 504 pass, 0 fail
 - Audit log: `user.delete_failed` labelled "Account deletion failed".
 
 Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 941 pass; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0.
+
+## Review S11 follow-ups (base d1e0530 to ce1de6b)
+
+- High risk, 4 lenses, 651 lines: APPROVED and acknowledged. Next review boundary: ce1de6b.
+- R1-001 / R4-fallback-recovery-hint-wrong-in-partial-delete (WARNING): DONE in the next commit. The fallback no longer treats a new account as proof of deletion. It tells the user to reload, and to contact support if their games are gone after signing in again, because a partial better-auth delete can orphan the old user row.
+- Pending, non-blocking: R4-export-failure-log-name-only (log a sanitized code, route and user id); R2-001 (`errorCodeOf` should use `UNKNOWN_FAILURE_CODE`); R2-002 (no contract test between server and web delete codes); R3-pending-flush-test-cannot-fail; R3-delete-failed-audit-rejection-untested.
