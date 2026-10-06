@@ -247,8 +247,8 @@ Satisfies: engine-runtime / Shallow-then-deep analysis; Persisted evaluations en
 - [x] S9b.2 [T] GREEN: `packages/api/src/services/analysis-service.ts` using `classifyGame` from `@b2c-template/chess`.
 - [x] S9b.3 [T] RED then GREEN: `packages/api/src/routers/analysis.test.ts` and `analysis.ts` (`next`, `submitEvals`, `complete`) behind `featureProcedure("mistakes")`; register in `routers/index.ts`.
 - [x] S9b.4 [T] RED then GREEN: repeat-mistake query helper test (same `position_key` and `played_uci` across games) in `analysis-service.test.ts` (data availability for Progress).
-- [ ] S9b.5 [O] [react] `apps/web/src/features/engine/hooks/use-game-analysis.ts`: screen at depth 10 from `next_ply`, submit every 10 plies and on `visibilitychange/pagehide`, confirm candidates at depth 18, call `complete`; pause while review session open; stop when hidden longer than `PAUSE_HIDDEN_MS`. (Split point if over budget.)
-- [ ] S9b.6 [O] [react] Analysis status UI component (progress, "engine unavailable", resume) mounted from Today and Games (consumed in S10).
+- [x] S9b.5 [O] [react] `apps/web/src/features/engine/hooks/use-game-analysis.ts`: screen at depth 10 from `next_ply`, submit every 10 plies and on `visibilitychange/pagehide`, confirm candidates at depth 18, call `complete`; pause while review session open; stop when hidden longer than `PAUSE_HIDDEN_MS`. (Split point if over budget.)
+- [x] S9b.6 [O] [react] Analysis status UI component (progress, "engine unavailable", resume) mounted from Today and Games (consumed in S10).
 
 Verify: `bun test packages/api`; `pnpm --filter web check-types`; standard checks. Manual: import a game, let analysis run, confirm mistakes and cards appear in the review queue.
 

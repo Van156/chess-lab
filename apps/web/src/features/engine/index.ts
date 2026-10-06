@@ -1,7 +1,13 @@
 /** Public API of the Engine feature. Everything else is internal. */
-import { createEngineClient, createWorkerTransport } from "./lib/engine-client";
-
-export { CONFIRM_DEPTH, ENGINE_ID, SCREEN_DEPTH, SUBMIT_EVERY_PLIES } from "./config";
+export {
+  CONFIRM_DEPTH,
+  ENGINE_ID,
+  PAUSE_HIDDEN_MS,
+  SCREEN_DEPTH,
+  SUBMIT_EVERY_PLIES,
+} from "./config";
+export { default as AnalysisStatus } from "./components/analysis-status";
+export { useGameAnalysis } from "./hooks/use-game-analysis";
 export { default as LicensesPage } from "./components/licenses-page";
 export { createEngineClient } from "./lib/engine-client";
 export type { EngineClient } from "./lib/engine-client";
@@ -15,5 +21,4 @@ export {
 } from "./lib/engine-queue";
 export { clampElo, type EloRange, type UciStrength } from "./lib/uci";
 
-/** Shared client: the worker is created on the first `analyse` call, not at import time. */
-export const engine = createEngineClient({ createTransport: () => createWorkerTransport() });
+export { engine } from "./lib/shared-engine";

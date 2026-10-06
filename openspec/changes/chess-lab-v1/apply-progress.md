@@ -362,3 +362,14 @@ Mode: standard (strict_tdd false), runner `bun test` against the test database o
 Verification: `bun test packages/api` 225 pass, 0 fail; `pnpm check-types` exit 0; `pnpm check` exit 0.
 
 Next: S9b.5 (`use-game-analysis`) and S9b.6 (analysis status UI), routed to `react-staff`.
+
+## S9b React part (S9b.5, S9b.6), routed to react-staff
+
+- [x] S9b.5 `features/engine/hooks/use-game-analysis.ts` (thin hook) over pure, fake-tested modules: `lib/analysis-plan.ts` (FENs, screen indices from `next_ply`, confirm indices around the user's inaccuracy-or-worse moves skipping depth-18 positions, batching), `lib/analysis-run.ts` (screen at 10, submit every `SUBMIT_EVERY_PLIES` and at phase end, confirm at 18, `complete`, next game), `lib/pause-gate.ts` (closing cancels the running search; the position is redone on reopen). Flush on `visibilitychange` (hidden) and `pagehide`; stop after `PAUSE_HIDDEN_MS` hidden; invalidates review queue and Today summary after each completed game. Shared engine moved to `lib/shared-engine.ts` to avoid an import cycle.
+- [x] S9b.6 `components/analysis-status-view.tsx` (presentational: live-region message, progress, Resume, "Engine licence" link), `components/analysis-status.tsx` (container), 7 stories, registry entry. Not mounted: mounting is left to S10 (mounting would auto-start analysis).
+
+Decision gaps: `PAUSE_HIDDEN_MS` = 5 min (design gives no value); analysis auto-starts on mount; review-open detection is route-based (`/review`); flush on `pagehide` is best effort (server `next_ply` recovers lost work); the hook itself is untested (no DOM env), so browser behaviour rests on the S9b manual check.
+
+Size: about 1,220 authored lines for the React part (about 520 tests), plus 938 for the API part (8c91c0e), against the 400 estimate.
+
+Verification: `bun test apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 127 pass, 0 fail (re-run by the parent); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0. Manual dev-server check (import a game, run analysis, mistakes and cards appear) pending until S10 mounts the UI.

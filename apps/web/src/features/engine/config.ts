@@ -42,3 +42,10 @@ export const ENGINE_SEARCH_BUDGET = {
 } as const;
 /** After `stop`, the engine must answer `bestmove` within this time, otherwise it is stalled. */
 export const ENGINE_STOP_TIMEOUT_MS = 5_000;
+
+/**
+ * Analysis stops (and must be resumed by the user) once the tab has been hidden this long (ADR-12).
+ * The design gives no value; 5 minutes keeps a quick tab switch or a phone lock running while
+ * freeing the CPU and battery for a tab the user has left. Decision gap, easy to change.
+ */
+export const PAUSE_HIDDEN_MS = 5 * 60_000;
