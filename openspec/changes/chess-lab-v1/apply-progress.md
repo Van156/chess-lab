@@ -387,3 +387,14 @@ Mode: standard (strict_tdd false), runner `bun test` (test DB on :5437).
 - Deviations: `pagination.ts` has only page/offset helpers, so keyset cursors got their own helper (reusing `clampLimit`, `MAX_PAGE_SIZE`). Mistake ordering uses the game's `playedAt` instead of `mistake.createdAt` (microsecond precision would break a JS Date cursor). Sync status reuses S4b `lichess.status` and `lichess.sync`; no new procedure.
 
 Verification: `bun test packages/api` 244 pass, 0 fail, 0 skipped; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: games and mistakes tests 19 pass.
+
+- [x] S10.2 `features/games/**` (infinite `games.list` with Load more, analysis status as text, sync status reusing Today's `SyncStatus` with Sync now, polling and backoff/failure message), `routes/_auth/games.tsx`. Routed to `react-staff`.
+- [x] S10.3 `features/mistakes/**` (list filtered by optional `gameId`; detail with board before the mistake, played (red) and best (green) arrows plus a text alternative, evals from the user's side, `MoveList` from the PGN, Lichess game link and "More mistakes from this game"), `routes/_auth/mistakes/{route,index,$id}.tsx` with `beforeLoad` `requireFeature(queryClient, "mistakes")` (redirects to `/today`, fails closed). Routed to `react-staff`.
+- Mounting: `app/background-analysis.tsx` renders `AnalysisStatus` when the `mistakes` flag is on, once on Today and once on Games (sibling routes, so one run at a time; the old route's cleanup stops its run). Plumbing: `app/require-feature.ts`, `isFeatureEnabled`, shared `featureFlagsQueryOptions`, nav items (Games always, Mistakes behind the flag), `shared/testing/render-with-router.tsx` for SSR tests with real `Link` hrefs, analysis invalidates `games.list` and `mistakes.list` after each game.
+- S10.2 and S10.3 are committed together: they share the plumbing, nav and registry hunks, and the Games "View mistakes" link only type-checks once the mistakes routes exist.
+
+Decision gaps: no in-app game page (mistake detail links to Lichess); the sync failure message is generic because the status payload has no failure reason (the spec's "token revoked" wording needs a server field); analysis now starts from Today when games are pending; dates in UTC `YYYY-MM-DD`; the `_auth/review` route has no flag guard (out of scope).
+
+Size: about 1,640 authored lines for S10.2 and S10.3 (mostly tests and stories) plus about 620 for S10.1.
+
+Verification: `bun test apps/web/src/features tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 442 pass; `bun test apps/web/src/app` 38 pass (parent re-run of both: 480 pass, 0 fail); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0. S10.4 (keyboard-only, 375 px) is manual and not marked.

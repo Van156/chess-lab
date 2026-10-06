@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { FEATURES_PATH, NO_FEATURES, fetchFeatureFlags, readFeatureFlags } from "./feature-flags";
+import {
+  FEATURES_PATH,
+  NO_FEATURES,
+  fetchFeatureFlags,
+  isFeatureEnabled,
+  readFeatureFlags,
+} from "./feature-flags";
 
 const ALL_ON = {
   mistakes: true,
@@ -53,5 +59,20 @@ describe("fetchFeatureFlags", () => {
   test("rejects on a malformed body", async () => {
     const fetchImpl = (async () => Response.json({ mistakes: true })) as unknown as typeof fetch;
     await expect(fetchFeatureFlags("http://api.test", fetchImpl)).rejects.toThrow("malformed");
+  });
+});
+
+describe("isFeatureEnabled", () => {
+  test("is true only for a pillar the server turned on", async () => {
+    const load = async () => ({ ...NO_FEATURES, mistakes: true });
+    expect(await isFeatureEnabled(load, "mistakes")).toBe(true);
+    expect(await isFeatureEnabled(load, "repertoire")).toBe(false);
+  });
+
+  test("fails closed when the flags cannot be loaded", async () => {
+    const load = async (): Promise<typeof NO_FEATURES> => {
+      throw new Error("offline");
+    };
+    expect(await isFeatureEnabled(load, "mistakes")).toBe(false);
   });
 });

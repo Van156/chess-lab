@@ -46,7 +46,7 @@ describe("navGroups visibility", () => {
     const labels = filterNavGroups(navGroups, member).flatMap((group) =>
       group.items.map((item) => item.label),
     );
-    expect(labels).toEqual(["Today", "Account settings"]);
+    expect(labels).toEqual(["Today", "Games", "Account settings"]);
   });
 
   test("a superadmin additionally sees the admin parent with its children", () => {
@@ -61,16 +61,26 @@ describe("navGroups visibility", () => {
 
   test("template-only entries stay out of the Chess Lab group", () => {
     const chessLab = navGroups.find((group) => group.id === "chess-lab");
-    expect(chessLab?.items.map((item) => item.to)).toEqual(["/today", "/review"]);
+    expect(chessLab?.items.map((item) => item.to)).toEqual([
+      "/today",
+      "/review",
+      "/games",
+      "/mistakes",
+    ]);
   });
 
-  test("Review follows the mistakes pillar flag", () => {
+  test("Review and Mistakes follow the mistakes pillar flag; Games is always listed", () => {
     const labels = (features: NavContext["features"]) =>
       filterNavGroups(navGroups, { ...member, features })
         .find((group) => group.id === "chess-lab")
         ?.items.map((item) => item.label);
-    expect(labels(NO_FEATURES)).toEqual(["Today"]);
-    expect(labels({ ...NO_FEATURES, mistakes: true })).toEqual(["Today", "Review"]);
+    expect(labels(NO_FEATURES)).toEqual(["Today", "Games"]);
+    expect(labels({ ...NO_FEATURES, mistakes: true })).toEqual([
+      "Today",
+      "Review",
+      "Games",
+      "Mistakes",
+    ]);
   });
 
   test("breadcrumbs resolve through the real config", () => {

@@ -1,4 +1,4 @@
-import { BookOpenCheck, House, ShieldCheck, UserRound } from "lucide-react";
+import { BookOpenCheck, Crosshair, History, House, ShieldCheck, UserRound } from "lucide-react";
 
 import type { FeatureFlags, PillarFlag } from "@/app/feature-flags";
 import type { SectionNavItem } from "@/shared/components/layout/section-nav";
@@ -21,7 +21,7 @@ export function pillarEnabled(pillar: PillarFlag) {
  * admin layout keeps its own superadmin check and every platform procedure
  * re-checks on the server (R6.5).
  *
- * Chess Lab entries are added together with their routes (Review shipped in S8; the other pillars
+ * Chess Lab entries are added together with their routes (Review shipped in S8, Games and Mistakes in S10; the other pillars
  * follow with `visible: pillarEnabled(...)`), so the sidebar never links to a route that does not exist yet.
  */
 export const navGroups: NavGroup<NavContext>[] = [
@@ -31,6 +31,8 @@ export const navGroups: NavGroup<NavContext>[] = [
     items: [
       { label: "Today", to: "/today", icon: House },
       { label: "Review", to: "/review", icon: BookOpenCheck, visible: pillarEnabled("mistakes") },
+      { label: "Games", to: "/games", icon: History },
+      { label: "Mistakes", to: "/mistakes", icon: Crosshair, visible: pillarEnabled("mistakes") },
     ],
   },
   {

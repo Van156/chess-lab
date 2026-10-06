@@ -47,9 +47,12 @@ export function useGameAnalysis({ enabled = true }: { enabled?: boolean } = {}) 
         if (cancelled) return;
         dispatch(event);
         if (event.type === "gameCompleted") {
-          // New mistakes and cards: the review queue and Today's counts are out of date.
+          // New mistakes and cards: the review queue, Today's counts and the games and mistakes
+          // lists (analysis status, new mistakes) are out of date.
           void queryClient.invalidateQueries({ queryKey: orpc.review.queue.key() });
           void queryClient.invalidateQueries({ queryKey: orpc.today.summary.key() });
+          void queryClient.invalidateQueries({ queryKey: orpc.games.list.key() });
+          void queryClient.invalidateQueries({ queryKey: orpc.mistakes.list.key() });
         }
       },
     });

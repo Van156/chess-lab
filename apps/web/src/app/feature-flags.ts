@@ -46,3 +46,18 @@ export async function fetchFeatureFlags(
   }
   return flags;
 }
+
+/**
+ * Whether a pillar is on, for route guards. Fails closed: any failure to load the flags counts as
+ * off, matching `NO_FEATURES`. The server still enforces the flag on every procedure.
+ */
+export async function isFeatureEnabled(
+  load: () => Promise<FeatureFlags>,
+  flag: PillarFlag,
+): Promise<boolean> {
+  try {
+    return (await load())[flag];
+  } catch {
+    return false;
+  }
+}
