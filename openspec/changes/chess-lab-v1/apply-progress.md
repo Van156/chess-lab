@@ -378,3 +378,12 @@ Delivery (user decision 2026-10-06): S9b ships as two PRs in the `feature-branch
 
 - PR 14 `feat/chess-lab-v1-s9b` (base `feat/chess-lab-v1-s9a`): 8c91c0e, API part S9b.1 to S9b.4.
 - PR 14b `feat/chess-lab-v1-s9b2` (base `feat/chess-lab-v1-s9b`): React part S9b.5, S9b.6. S10 now bases on `feat/chess-lab-v1-s9b2`.
+
+## S10 (games and mistakes UI, branch feat/chess-lab-v1-s10, base feat/chess-lab-v1-s9b2)
+
+Mode: standard (strict_tdd false), runner `bun test` (test DB on :5437).
+
+- [x] S10.1 RED observed: `games.test.ts` and `mistakes.test.ts` 0 pass, 2 fail, 2 errors (`Cannot find module './games'`, `./mistakes`). GREEN: `routers/games.ts` (`list` keyset by `(playedAt desc, id desc)` with derived `analysisStatus`, `pending` when no analysis row; `get` with PGN, time control, `nextPly`) on `protectedProcedure` (game import is core, no pillar flag); `routers/mistakes.ts` (`list` by `(game.playedAt, gameId, ply)` desc, optional `gameId`; `get` with game summary and PGN) on `featureProcedure("mistakes")`; `services/cursor.ts` (opaque base64url keyset cursor, bad cursor is BAD_REQUEST). Session user id is in every WHERE clause; foreign ids are NOT_FOUND.
+- Deviations: `pagination.ts` has only page/offset helpers, so keyset cursors got their own helper (reusing `clampLimit`, `MAX_PAGE_SIZE`). Mistake ordering uses the game's `playedAt` instead of `mistake.createdAt` (microsecond precision would break a JS Date cursor). Sync status reuses S4b `lichess.status` and `lichess.sync`; no new procedure.
+
+Verification: `bun test packages/api` 244 pass, 0 fail, 0 skipped; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: games and mistakes tests 19 pass.

@@ -256,7 +256,7 @@ Verify: `bun test packages/api`; `pnpm --filter web check-types`; standard check
 
 Satisfies: mistake-analysis / Mistake record contents (displayed), Analysis owned by the user; game-import / Import progress and failure visibility (Sync now, status); app-shell / Today home links; ADR-19.
 
-- [ ] S10.1 [T] RED then GREEN: `packages/api/src/routers/games.test.ts` + `games.ts` (`list` cursor pagination via `packages/db/src/lib/pagination.ts`, `get`) and `mistakes.test.ts` + `mistakes.ts` (`list`, `get`), all scoped by session user id combined in the WHERE clause; ownership rejection tests; register routers.
+- [x] S10.1 [T] RED then GREEN: `packages/api/src/routers/games.test.ts` + `games.ts` (`list` cursor pagination via `packages/db/src/lib/pagination.ts`, `get`) and `mistakes.test.ts` + `mistakes.ts` (`list`, `get`), all scoped by session user id combined in the WHERE clause; ownership rejection tests; register routers.
 - [ ] S10.2 [O] [react] `apps/web/src/features/games/**` (games list with analysis status, sync status with "Sync now" and failure/backoff message) and `apps/web/src/routes/_auth/games*.tsx`.
 - [ ] S10.3 [O] [react] `apps/web/src/features/mistakes/**` (mistake list, detail with board before the mistake, played vs best move arrows, `MoveList`, link to game) and `apps/web/src/routes/_auth/mistakes*.tsx` guarded by flag in `beforeLoad`.
 - [ ] S10.4 [O] Manual: keyboard-only and 375 px pass on both screens.

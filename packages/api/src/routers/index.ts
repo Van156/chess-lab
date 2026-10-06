@@ -3,7 +3,9 @@ import type { RouterClient } from "@orpc/server";
 import { protectedProcedure, publicProcedure } from "../index";
 import { analysisRouter } from "./analysis";
 import { auditRouter } from "./audit";
+import { gamesRouter } from "./games";
 import { lichessRouter } from "./lichess";
+import { mistakesRouter } from "./mistakes";
 import { platformRouter } from "./platform";
 import { reviewRouter } from "./review";
 import { settingsRouter } from "./settings";
@@ -27,6 +29,10 @@ export const appRouter = {
   lichess: lichessRouter,
   // Game analysis: next game, evaluation upload, classification into mistakes and cards.
   analysis: analysisRouter,
+  // Imported games: cursor list with analysis status, detail with PGN.
+  games: gamesRouter,
+  // Classified mistakes: cursor list and detail with the game.
+  mistakes: mistakesRouter,
   // Review queue and idempotent grading.
   review: reviewRouter,
   // Per-user settings (daily new-card limit, time zone).
