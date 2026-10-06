@@ -43,7 +43,6 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/account/components/change-password-card.tsx",
   "features/account/components/set-password-card.tsx",
   "features/account/components/sessions-card.tsx",
-  "features/account/components/theme-preference-card.tsx",
   "features/account/components/delete-account-card.tsx",
   "features/account/components/lichess-delete-card.tsx",
   "features/data-control/components/data-export-card.tsx",

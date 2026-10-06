@@ -4,7 +4,6 @@ import { authClient } from "@/app/auth-client";
 import { isSuperadminRole } from "@/features/access-control";
 
 import { UserMenu } from "@/features/auth";
-import { ModeToggle } from "@/shared/components/layout/mode-toggle";
 
 /** Top header for public routes (routes without the app shell). */
 export default function PublicHeader() {
@@ -12,7 +11,7 @@ export default function PublicHeader() {
 
   const links = [
     { to: "/", label: "Home" },
-    { to: "/dashboard", label: "Dashboard" },
+    { to: "/today", label: "Today" },
     { to: "/account/profile", label: "Account" },
     // R6.5: the admin link itself is UX only — every platform procedure
     // independently re-checks the caller's platform permission.
@@ -34,7 +33,6 @@ export default function PublicHeader() {
           })}
         </nav>
         <div className="flex items-center gap-2">
-          <ModeToggle />
           <UserMenu />
         </div>
       </div>

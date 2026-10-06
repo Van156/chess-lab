@@ -21,6 +21,8 @@ export function pillarEnabled(pillar: PillarFlag) {
  * admin layout keeps its own superadmin check and every platform procedure
  * re-checks on the server (R6.5).
  *
+ * The admin group is not part of this list; see `adminNavGroup`.
+ *
  * Chess Lab entries are added together with their routes (Review shipped in S8, Games and Mistakes in S10; the other pillars
  * follow with `visible: pillarEnabled(...)`), so the sidebar never links to a route that does not exist yet.
  */
@@ -46,29 +48,44 @@ export const navGroups: NavGroup<NavContext>[] = [
         children: [
           { label: "Profile", to: "/account/profile" },
           { label: "Security", to: "/account/security" },
-          { label: "Preferences", to: "/account/preferences" },
           { label: "Danger zone", to: "/account/danger" },
         ],
       },
     ],
   },
-  {
-    id: "admin",
-    label: "Platform",
-    visible: (ctx) => ctx.isSuperadmin,
-    items: [
-      {
-        label: "Admin",
-        to: "/admin/users",
-        icon: ShieldCheck,
-        children: [
-          { label: "Users", to: "/admin/users" },
-          { label: "Activity", to: "/admin/activity" },
-        ],
-      },
-    ],
-  },
 ];
+
+/**
+ * Platform admin group (ADR-21). Kept out of the main navigation: it is reached from the user
+ * menu (`getUserMenuLinks`) and feeds the admin section tabs and breadcrumbs. Superadmins only.
+ */
+export const adminNavGroup: NavGroup<NavContext> = {
+  id: "admin",
+  label: "Platform",
+  visible: (ctx) => ctx.isSuperadmin,
+  items: [
+    {
+      label: "Admin",
+      to: "/admin/users",
+      icon: ShieldCheck,
+      children: [
+        { label: "Users", to: "/admin/users" },
+        { label: "Activity", to: "/admin/activity" },
+      ],
+    },
+  ],
+};
+
+/** Every group that resolves breadcrumbs and section tabs: the sidebar plus the admin group. */
+export const allNavGroups: NavGroup<NavContext>[] = [...navGroups, adminNavGroup];
+
+/** A link shown in the user menu rather than the sidebar. */
+export type UserMenuLink = { label: string; to: "/admin/users" };
+
+/** User-menu links for the context: the admin entry exists for superadmins only (UX; the server re-checks). */
+export function getUserMenuLinks(context: NavContext): UserMenuLink[] {
+  return context.isSuperadmin ? [{ label: "Platform admin", to: "/admin/users" }] : [];
+}
 
 /**
  * Tab items for a section layout (`account`, `admin`), derived from the
@@ -79,7 +96,7 @@ export function getSectionItems(
   sectionId: "account" | "admin",
   context: NavContext,
 ): SectionNavItem[] {
-  return deriveSectionItems(navGroups, sectionId, context);
+  return deriveSectionItems(allNavGroups, sectionId, context);
 }
 
 /** Pure core of `getSectionItems`, taking the config so tests can use a local fixture. */

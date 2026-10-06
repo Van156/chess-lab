@@ -540,3 +540,10 @@ Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boun
 - High risk, 4 lenses, 651 lines: APPROVED and acknowledged. Next review boundary: ce1de6b.
 - R1-001 / R4-fallback-recovery-hint-wrong-in-partial-delete (WARNING): DONE in the next commit. The fallback no longer treats a new account as proof of deletion. It tells the user to reload, and to contact support if their games are gone after signing in again, because a partial better-auth delete can orphan the old user row.
 - Pending, non-blocking: R4-export-failure-log-name-only (log a sanitized code, route and user id); R2-001 (`errorCodeOf` should use `UNKNOWN_FAILURE_CODE`); R2-002 (no contract test between server and web delete codes); R3-pending-flush-test-cannot-fail; R3-delete-failed-audit-rejection-untested.
+
+## S12 (template cleanup, branch feat/chess-lab-v1-s12, base feat/chess-lab-v1-s11b2)
+
+- [x] S12.1 Deleted `routes/prototype/**` (33 files incl. `board-spike.tsx`), `shared/prototype/variants.ts`, `shared/components/prototype/prototype-switcher.tsx`. Routed to `react-staff`.
+- [x] S12.2 Deleted `routes/_auth/dashboard.tsx`; removed the theme preference card, its stories and `theme-options` (dark stays forced in `routes/__root.tsx`), the now-empty `/account/preferences` route and tab, and `ModeToggle` (no-op under a forced theme). Admin is out of the main navigation: `adminNavGroup` (superadmin-only, still used for admin tabs and breadcrumbs via `allNavGroups`) and a "Platform admin" item in the sidebar user menu from `getUserMenuLinks` (superadmin only); `/admin/*` keeps its own guard. Redirects and links that pointed to `/dashboard` now point to `/today`. Navigation tests cover all of this.
+      Decision gaps: `/account/preferences` removed rather than kept empty; `ModeToggle` removed from the public header; stale `/dashboard` mentions in `docs/` are left for S12.4.
+      Verification: `bun test apps/web tests` 956 pass (parent re-run 956 pass); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0 (parent re-run). 120 insertions, 3594 deletions.

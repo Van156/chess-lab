@@ -1,9 +1,7 @@
 import type { CSSProperties } from "react";
 
 /**
- * Midnight board colours. Values mirror `midnightBoard` in
- * `routes/prototype/-midnight-shell.tsx`, which is deleted in S12, so they are copied here
- * once instead of imported (shared code must not depend on a throwaway prototype route).
+ * Midnight board colours, ported from the retired Midnight prototype shell.
  */
 export const boardTheme = {
   light: "#8fa3c4",

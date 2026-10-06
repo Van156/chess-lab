@@ -1,7 +1,8 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { navGroups } from "@/app/navigation";
+import { allNavGroups, getUserMenuLinks, navGroups } from "@/app/navigation";
 import { useNavContext } from "@/app/use-nav-context";
 import { ImpersonationBanner } from "@/features/admin";
 import { UserMenu } from "@/features/auth";
@@ -13,12 +14,18 @@ import { filterNavGroups, getBreadcrumbs } from "@/shared/lib/navigation";
 /**
  * Wires the presentational `AppShell` to the app: nav config, the superadmin
  * visibility context, the sidebar footer (a public Licences link, then the user menu that sends queued review grades before signing out), the breadcrumb
- * derived from the nav config and the impersonation banner. No theme toggle: v1 is dark only (ADR-21).
+ * derived from the nav config and the impersonation banner. The platform admin entry lives in the user menu, not the sidebar (ADR-21). No theme toggle: v1 is dark only.
  */
 export default function AuthenticatedShell({ children }: { children: ReactNode }) {
   const navContext = useNavContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const breadcrumbs = getBreadcrumbs(filterNavGroups(navGroups, navContext), pathname);
+  const navigate = useNavigate();
+  const adminItems = getUserMenuLinks(navContext).map(({ label, to }) => ({
+    label,
+    icon: <ShieldCheck />,
+    onSelect: () => navigate({ to }),
+  }));
+  const breadcrumbs = getBreadcrumbs(filterNavGroups(allNavGroups, navContext), pathname);
 
   return (
     <AppShell
@@ -32,7 +39,7 @@ export default function AuthenticatedShell({ children }: { children: ReactNode }
           >
             Licences
           </Link>
-          <UserMenu variant="sidebar" beforeSignOut={flushPendingGrades} />
+          <UserMenu variant="sidebar" beforeSignOut={flushPendingGrades} extraItems={adminItems} />
         </>
       }
       breadcrumb={<AppBreadcrumbs items={breadcrumbs} />}

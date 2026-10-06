@@ -24,9 +24,9 @@ describe("pickAuthSearch", () => {
 
 describe("signInRedirect (/login and guard redirects)", () => {
   test("targets /sign-in and preserves redirect", () => {
-    expect(signInRedirect({ redirect: "/dashboard" })).toEqual({
+    expect(signInRedirect({ redirect: "/today" })).toEqual({
       to: "/sign-in",
-      search: { redirect: "/dashboard" },
+      search: { redirect: "/today" },
     });
   });
 
@@ -37,7 +37,7 @@ describe("signInRedirect (/login and guard redirects)", () => {
 
 describe("authLinkSearch (sign-in <-> sign-up links)", () => {
   test("carries the params over", () => {
-    expect(authLinkSearch({ redirect: "/dashboard" })).toEqual({ redirect: "/dashboard" });
+    expect(authLinkSearch({ redirect: "/today" })).toEqual({ redirect: "/today" });
   });
 });
 

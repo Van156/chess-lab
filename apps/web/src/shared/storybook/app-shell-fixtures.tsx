@@ -9,7 +9,7 @@ export type FixtureNavContext = { isSuperadmin: boolean };
 export const fixtureGroups: NavGroup<FixtureNavContext>[] = [
   {
     label: "Dashboard",
-    items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboardIcon }],
+    items: [{ label: "Dashboard", to: "/today", icon: LayoutDashboardIcon }],
   },
   {
     label: "Personal",
@@ -21,7 +21,6 @@ export const fixtureGroups: NavGroup<FixtureNavContext>[] = [
         children: [
           { label: "Profile", to: "/account/profile" },
           { label: "Security", to: "/account/security" },
-          { label: "Preferences", to: "/account/preferences" },
         ],
       },
     ],

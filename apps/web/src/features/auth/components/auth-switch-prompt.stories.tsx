@@ -27,5 +27,5 @@ export const SignInLink: Story = {
 };
 
 export const PreservingRedirect: Story = {
-  args: { search: { redirect: "/dashboard" } },
+  args: { search: { redirect: "/today" } },
 };

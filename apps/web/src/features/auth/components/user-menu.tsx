@@ -14,7 +14,9 @@ import { UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/app/auth-client";
-import SidebarUserMenu from "@/shared/components/layout/sidebar-user-menu";
+import SidebarUserMenu, {
+  type SidebarUserMenuExtraItem,
+} from "@/shared/components/layout/sidebar-user-menu";
 
 import { handleSignOut } from "../lib/sign-out";
 
@@ -25,10 +27,13 @@ import { handleSignOut } from "../lib/sign-out";
 export default function UserMenu({
   variant = "header",
   beforeSignOut,
+  extraItems = [],
 }: {
   variant?: "header" | "sidebar";
   /** Best-effort work to finish before signing out, such as sending queued data. */
   beforeSignOut?: () => Promise<void>;
+  /** Extra sidebar-menu entries listed after Account settings (e.g. a role-gated admin link). */
+  extraItems?: readonly SidebarUserMenuExtraItem[];
 }) {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
@@ -58,6 +63,7 @@ export default function UserMenu({
         onSignOut={signOut}
         extraItems={[
           { label: "Account settings", icon: <UserRoundIcon />, onSelect: openAccountSettings },
+          ...extraItems,
         ]}
       />
     );

@@ -34,7 +34,7 @@ export default function ImpersonateCard({ user }: { user: { id: string; role: st
     onSuccess: async () => {
       // Everything derived from "who am I" is stale at once: invalidate broadly, not key by key.
       await queryClient.invalidateQueries();
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/today" });
     },
     onError: (error) => {
       toast.error(betterAuthErrorMessage(error, "Could not impersonate this user."));

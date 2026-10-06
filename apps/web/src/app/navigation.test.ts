@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { filterNavGroups, getBreadcrumbs, type NavGroup } from "@/shared/lib/navigation";
+import {
+  filterNavGroups,
+  flattenNavItems,
+  getBreadcrumbs,
+  type NavGroup,
+} from "@/shared/lib/navigation";
 
 import { NO_FEATURES } from "./feature-flags";
 import {
@@ -8,6 +13,8 @@ import {
   getSectionItems,
   pillarEnabled,
   type NavContext,
+  adminNavGroup,
+  getUserMenuLinks,
   navGroups,
 } from "./navigation";
 
@@ -19,7 +26,6 @@ describe("getSectionItems", () => {
     expect(getSectionItems("account", member)).toEqual([
       { to: "/account/profile", label: "Profile" },
       { to: "/account/security", label: "Security" },
-      { to: "/account/preferences", label: "Preferences" },
       { to: "/account/danger", label: "Danger zone" },
     ]);
   });
@@ -49,14 +55,11 @@ describe("navGroups visibility", () => {
     expect(labels).toEqual(["Today", "Games", "Account settings"]);
   });
 
-  test("a superadmin additionally sees the admin parent with its children", () => {
+  test("the main navigation never contains the admin group, even for a superadmin", () => {
     const groups = filterNavGroups(navGroups, superadmin);
-    expect(groups.map((group) => group.id)).toEqual(["chess-lab", "account", "admin"]);
-    const admin = groups.find((group) => group.id === "admin");
-    expect(admin?.items[0]?.children?.map((child) => child.to)).toEqual([
-      "/admin/users",
-      "/admin/activity",
-    ]);
+    expect(groups.map((group) => group.id)).toEqual(["chess-lab", "account"]);
+    const targets = groups.flatMap((group) => flattenNavItems(group.items).map((item) => item.to));
+    expect(targets.some((to) => to.startsWith("/admin"))).toBe(false);
   });
 
   test("template-only entries stay out of the Chess Lab group", () => {
@@ -92,6 +95,28 @@ describe("navGroups visibility", () => {
   });
 });
 
+describe("admin entry", () => {
+  test("the admin group is superadmin only and keeps its pages", () => {
+    expect(filterNavGroups([adminNavGroup], member)).toEqual([]);
+    const [group] = filterNavGroups([adminNavGroup], superadmin);
+    expect(group?.items[0]?.children?.map((child) => child.to)).toEqual([
+      "/admin/users",
+      "/admin/activity",
+    ]);
+  });
+
+  test("the user menu offers the admin link to superadmins only", () => {
+    expect(getUserMenuLinks(superadmin)).toEqual([{ label: "Platform admin", to: "/admin/users" }]);
+    expect(getUserMenuLinks(member)).toEqual([]);
+  });
+
+  test("admin breadcrumbs still resolve through the admin group", () => {
+    expect(getBreadcrumbs(filterNavGroups([adminNavGroup], superadmin), "/admin/activity")).toEqual(
+      [{ label: "Platform" }, { label: "Admin", to: "/admin/users" }, { label: "Activity" }],
+    );
+  });
+});
+
 describe("deriveSectionItems with parents (local fixture)", () => {
   const fixture: NavGroup<NavContext>[] = [
     {
@@ -106,7 +131,7 @@ describe("deriveSectionItems with parents (local fixture)", () => {
             { label: "Secret", to: "/admin/activity", visible: (ctx) => ctx.isSuperadmin },
           ],
         },
-        { label: "Preferences", to: "/account/preferences" },
+        { label: "Preferences", to: "/account/danger" },
       ],
     },
   ];
@@ -114,7 +139,7 @@ describe("deriveSectionItems with parents (local fixture)", () => {
   test("flattens parents into their visible children", () => {
     expect(deriveSectionItems(fixture, "settings", member)).toEqual([
       { to: "/account/profile", label: "General" },
-      { to: "/account/preferences", label: "Preferences" },
+      { to: "/account/danger", label: "Preferences" },
     ]);
   });
 

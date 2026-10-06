@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_auth")({
 });
 
 /**
- * Mounts the app shell once for child routes with `staticData: { appShell: true }` (`dashboard`,
+ * Mounts the app shell once for child routes with `staticData: { appShell: true }` (`today`,
  * `account`, `admin`), so the sidebar stays mounted between them.
  */
 function AuthLayout() {
