@@ -1,6 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
 import { protectedProcedure, publicProcedure } from "../index";
+import { analysisRouter } from "./analysis";
 import { auditRouter } from "./audit";
 import { lichessRouter } from "./lichess";
 import { platformRouter } from "./platform";
@@ -24,6 +25,8 @@ export const appRouter = {
   audit: auditRouter,
   // Lichess import status and manual sync.
   lichess: lichessRouter,
+  // Game analysis: next game, evaluation upload, classification into mistakes and cards.
+  analysis: analysisRouter,
   // Review queue and idempotent grading.
   review: reviewRouter,
   // Per-user settings (daily new-card limit, time zone).
