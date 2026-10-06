@@ -3,3 +3,4 @@ export { default as DangerPage } from "./components/danger-page";
 export { default as PreferencesPage } from "./components/preferences-page";
 export { default as ProfilePage } from "./components/profile-page";
 export { default as SecurityPage } from "./components/security-page";
+export { parseDangerSearch } from "./lib/lichess-account";

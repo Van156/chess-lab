@@ -12,12 +12,13 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AuthFormError } from "@/features/auth";
 import { describedBy } from "@/shared/lib/form-errors";
 
+import type { LichessDeleteResult } from "../lib/lichess-account";
 import {
-  deleteErrorMessage,
-  REAUTH_REQUIRED,
-  usernameMatches,
-  type LichessDeleteResult,
-} from "../lib/lichess-account";
+  deleteCardView,
+  errorCodeOf,
+  initialFocusTarget,
+  UNKNOWN_FAILURE_CODE,
+} from "../lib/lichess-delete-state";
 
 /**
  * Danger zone card for Lichess-only accounts (ADR-08), which have no deliverable email. The user
@@ -43,29 +44,25 @@ export default function LichessDeleteCard({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (confirmRequested) {
+    if (initialFocusTarget(confirmRequested) === "username-input") {
       inputRef.current?.focus();
     }
   }, [confirmRequested]);
 
-  const matches = usernameMatches(typed, username);
-  const needsReauth = errorCode === REAUTH_REQUIRED;
-  const errorMessage = errorCode === null ? null : deleteErrorMessage(errorCode);
+  const { canSubmit, error } = deleteCardView({ typed, username, pending, errorCode });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!matches || pending) {
+    if (!canSubmit) {
       return;
     }
     setPending(true);
     setErrorCode(null);
     try {
       const result = await onDelete(typed);
-      if (!result.ok) {
-        setErrorCode(result.code ?? "");
-      }
+      setErrorCode(errorCodeOf(result));
     } catch {
-      setErrorCode("");
+      setErrorCode(UNKNOWN_FAILURE_CODE);
     } finally {
       setPending(false);
     }
@@ -82,7 +79,7 @@ export default function LichessDeleteCard({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-          {errorMessage ? <AuthFormError message={errorMessage} /> : null}
+          {error ? <AuthFormError message={error.message} /> : null}
           <div className="flex flex-col gap-2">
             <label htmlFor="lichess-delete-username" className="text-sm font-medium">
               Type your Lichess username <strong>{username}</strong> to confirm
@@ -100,10 +97,10 @@ export default function LichessDeleteCard({
             />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" variant="destructive" disabled={!matches || pending}>
+            <Button type="submit" variant="destructive" disabled={!canSubmit}>
               {pending ? "Deleting..." : "Delete my account permanently"}
             </Button>
-            {needsReauth ? (
+            {error?.showReauth ? (
               <Button type="button" variant="outline" onClick={onReauth}>
                 Sign in with Lichess again
               </Button>

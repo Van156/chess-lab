@@ -4,9 +4,10 @@ import {
   accountFlows,
   deleteErrorMessage,
   DELETE_FALLBACK_MESSAGE,
-  isConfirmRequested,
   isSyntheticEmail,
+  LICHESS_DELETE_ERROR_CODES,
   lichessUsernameFromEmail,
+  parseDangerSearch,
   reauthCallbackUrl,
   usernameMatches,
 } from "./lichess-account";
@@ -69,20 +70,25 @@ describe("usernameMatches", () => {
 
 describe("deleteErrorMessage", () => {
   test("maps every server code to its own message", () => {
-    const codes = [
-      "IMPERSONATION_NOT_ALLOWED",
-      "LICHESS_ONLY_ACCOUNT_REQUIRED",
-      "REAUTH_REQUIRED",
-      "USERNAME_MISMATCH",
-    ];
+    const codes = Object.values(LICHESS_DELETE_ERROR_CODES);
     const messages = codes.map((code) => deleteErrorMessage(code));
+    expect(codes).toHaveLength(4);
     expect(new Set(messages).size).toBe(codes.length);
     expect(messages).not.toContain(DELETE_FALLBACK_MESSAGE);
   });
 
-  test("falls back for unknown or missing codes", () => {
+  test("falls back for unknown or missing codes, including inherited object keys", () => {
     expect(deleteErrorMessage("SOMETHING_ELSE")).toBe(DELETE_FALLBACK_MESSAGE);
+    expect(deleteErrorMessage("toString")).toBe(DELETE_FALLBACK_MESSAGE);
+    expect(deleteErrorMessage("")).toBe(DELETE_FALLBACK_MESSAGE);
     expect(deleteErrorMessage(undefined)).toBe(DELETE_FALLBACK_MESSAGE);
+  });
+
+  test("the fallback never claims the account is intact or deleted", () => {
+    expect(DELETE_FALLBACK_MESSAGE).toContain("could not confirm");
+    expect(DELETE_FALLBACK_MESSAGE).toContain("Reload");
+    expect(DELETE_FALLBACK_MESSAGE).not.toMatch(/^Could not delete/);
+    expect(DELETE_FALLBACK_MESSAGE).not.toMatch(/nothing was deleted\.?$/i);
   });
 });
 
@@ -93,10 +99,15 @@ describe("re-auth round trip", () => {
     );
   });
 
-  test("recognises the confirm param as parsed by the router", () => {
-    expect(isConfirmRequested(1)).toBe(true);
-    expect(isConfirmRequested("1")).toBe(true);
-    expect(isConfirmRequested(undefined)).toBe(false);
-    expect(isConfirmRequested("0")).toBe(false);
+  test("parseDangerSearch recognises the confirm param as parsed by the router", () => {
+    expect(parseDangerSearch({ confirm: 1 })).toEqual({ confirm: true });
+    expect(parseDangerSearch({ confirm: "1" })).toEqual({ confirm: true });
+  });
+
+  test("parseDangerSearch treats absent or junk values as not requested", () => {
+    expect(parseDangerSearch({})).toEqual({ confirm: false });
+    expect(parseDangerSearch({ confirm: "0" })).toEqual({ confirm: false });
+    expect(parseDangerSearch({ confirm: 2 })).toEqual({ confirm: false });
+    expect(parseDangerSearch({ confirm: ["1"] })).toEqual({ confirm: false });
   });
 });

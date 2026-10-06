@@ -523,3 +523,14 @@ Delivery (user decision 2026-10-06): S11b ships as two PRs in the `feature-branc
 Follow-ups for the web pass: mirror `LICHESS_DELETE_ERROR_CODES`; add an audit-log label for `user.delete_failed`; docs may list the new action.
 
 Verification: `bun test packages/api packages/auth apps/server` 504 pass, 0 fail, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: server and delete tests 45 pass.
+
+## S11 review follow-ups, web part (on feat/chess-lab-v1-s11b2), routed to react-staff
+
+- R2-isconfirmrequested-dead-duplicate: DONE. `parseDangerSearch` is the route's `validateSearch` (exported from the feature's public API) and is tested for `1`, `"1"`, absent, `"0"`, `2`, `["1"]`.
+- R2-delete-error-codes-inconsistent: DONE. `LICHESS_DELETE_ERROR_CODES` mirrored from the server; messages typed as `Record<LichessDeleteErrorCode, string>` so a missing code fails type checks.
+- R4-fallback-message-asserts-nothing-deleted: DONE. The fallback says the outcome could not be confirmed and to reload and check (true for network errors and both server 500 cases).
+- R3-lichess-card-interaction-unproved: DONE. Pure `lib/lichess-delete-state.ts` (`deleteCardView`, `errorCodeOf`, `initialFocusTarget`), 10 tests; the card only renders.
+- R3-flush-snapshot-fix-untested: DONE. Two tests with a racing two-game harness. "Appended during a pending flush are not counted as flushed" went RED with the snapshot reverted (`Expected length: 2, Received length: 1`). "Pending flush keeps the original game" is GREEN but cannot go RED through the public API (a non-empty flush only waits on an already resolved queue).
+- Audit log: `user.delete_failed` labelled "Account deletion failed".
+
+Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 941 pass; `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0.

@@ -360,5 +360,92 @@ describe("createAnalysisRun", () => {
       expect(await outcome).toBe("finished");
       expect(h.completed).toEqual(["g1"]);
     });
+
+    /**
+     * Two games; engine calls listed in `blockedCalls` wait for `releaseEngine(n)` and submits
+     * numbered in `heldSubmits` wait for `releaseSubmit(n)`. `submits` records a submit when it
+     * starts, so a held one is visible before it resolves.
+     */
+    const racingHarness = (blockedCalls: number[], heldSubmits: number[]) => {
+      const engineGates = new Map<number, (value: EngineResult) => void>();
+      const submitGates = new Map<number, () => void>();
+      let calls = 0;
+      let submitCalls = 0;
+      let served = 0;
+      const submits: Array<{ gameId: string; fromPly: number; evals: PlyEval[] }> = [];
+      const run = createAnalysisRun({
+        gate: createPauseGate(),
+        onEvent: () => {},
+        api: {
+          next: async () => {
+            served += 1;
+            return served <= 2 ? game({ gameId: `g${served}` }) : null;
+          },
+          submitEvals: async (input) => {
+            submitCalls += 1;
+            submits.push(input);
+            if (heldSubmits.includes(submitCalls)) {
+              await new Promise<void>((resolve) => submitGates.set(submitCalls, resolve));
+            }
+          },
+          complete: async () => {},
+        },
+        engine: {
+          analyse: () => {
+            calls += 1;
+            const call = calls;
+            return {
+              cancel: () => {},
+              result: blockedCalls.includes(call)
+                ? new Promise<EngineResult>((resolve) => engineGates.set(call, resolve))
+                : Promise.resolve(result(20, 10)),
+            };
+          },
+        },
+      });
+      return {
+        run,
+        submits,
+        reachEngineCall: async (n: number) => {
+          while (calls < n) await tick();
+        },
+        releaseEngine: (n: number) => engineGates.get(n)?.(result(20, 10)),
+        releaseSubmit: (n: number) => submitGates.get(n)?.(),
+      };
+    };
+
+    test("a flush still pending when the run moves to the next game submits the original game", async () => {
+      const h = racingHarness([4], [1]);
+      const outcome = h.run.start();
+      await h.reachEngineCall(4);
+      const flushing = h.run.flush(); // g1, three evaluations; its submit is held
+      while (h.submits.length < 1) await tick();
+      h.releaseEngine(4);
+      expect(await outcome).toBe("finished"); // the run moved on to g2 and finished
+      h.releaseSubmit(1);
+      await flushing;
+      expect(h.submits[0]).toMatchObject({ gameId: "g1", fromPly: 0 });
+      expect(h.submits[0]?.evals).toHaveLength(3);
+      expect(h.submits.slice(1).map((s) => s.gameId)).toEqual(["g1", "g2"]);
+    });
+
+    test("evaluations appended during a pending flush are not counted as flushed", async () => {
+      const h = racingHarness([4, 6], [1]);
+      const outcome = h.run.start();
+      await h.reachEngineCall(4);
+      const first = h.run.flush(); // three evaluations; its submit is held
+      while (h.submits.length < 1) await tick();
+      h.releaseEngine(4);
+      await h.reachEngineCall(6); // two more evaluations land in the same batch meanwhile
+      h.releaseSubmit(1);
+      await first;
+      await h.run.flush(); // must send all five, not be skipped as "already flushed"
+      expect(h.submits).toHaveLength(2);
+      expect(h.submits[0]?.evals).toHaveLength(3);
+      expect(h.submits[1]).toMatchObject({ gameId: "g1", fromPly: 0 });
+      expect(h.submits[1]?.evals).toHaveLength(5);
+      h.releaseEngine(6);
+      expect(await outcome).toBe("finished");
+    });
   });
 });

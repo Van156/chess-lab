@@ -31,6 +31,7 @@ const USER_ACTION_LABELS: Record<string, string> = {
   "user.password_reset": "Password reset",
   "user.session_revoked": "Session signed out",
   "user.deleted": "Account deleted",
+  "user.delete_failed": "Account deletion failed",
 };
 
 /** Label of a user-scoped (security log) action; unknown actions fall back to `formatAuditAction`. */
