@@ -504,3 +504,8 @@ Verification: `bun test packages/auth` 208 pass, 0 fail, 0 skip; `pnpm check-typ
   - Export: R4/R3 mid-stream failure silently truncates the download (WARNING: no `onError`, no log, no error marker); R4-export-continues-after-client-abort (WARNING: no `out.onAbort`/`aborted` check, no per-user limit); R3-export-impersonation-guard-unproved (WARNING: the `index.ts` wiring is untested); R2-jsonarray-keyfield-redundant.
   - Deletion: R4/R3 delete not atomic (WARNING: audit, session delete and user delete are separate writes; a failing `deleteUser` leaves an audit row and revoked sessions); R4-fallback-message-asserts-nothing-deleted (a network failure may hide a completed delete); R2-delete-error-codes-inconsistent (export all four codes); R2-isconfirmrequested-dead-duplicate (WARNING: route does not use the tested helper); R3-lichess-card-interaction-unproved.
   - Engine: R3-flush-snapshot-fix-untested (WARNING: no regression test for the 329c28a fix).
+
+Delivery (user decision 2026-10-06): S11b ships as two PRs in the `feature-branch-chain`.
+
+- PR 17 `feat/chess-lab-v1-s11b` (base `feat/chess-lab-v1-s11a2`): 5ddebab, S11b.1 and S11b.2 delete endpoint.
+- PR 17b `feat/chess-lab-v1-s11b2` (base `feat/chess-lab-v1-s11b`): d1e0530 S11b.3 delete flow, plus the review docs. Later work bases on `feat/chess-lab-v1-s11b2`.
