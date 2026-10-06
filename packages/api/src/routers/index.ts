@@ -1,6 +1,6 @@
 import type { RouterClient } from "@orpc/server";
 
-import { protectedProcedure, publicProcedure } from "../index";
+import { publicProcedure } from "../index";
 import { analysisRouter } from "./analysis";
 import { auditRouter } from "./audit";
 import { gamesRouter } from "./games";
@@ -14,12 +14,6 @@ import { todayRouter } from "./today";
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
-  }),
-  privateData: protectedProcedure.handler(({ context }) => {
-    return {
-      message: "This is private",
-      user: context.session?.user,
-    };
   }),
   // Platform-admin example demonstrating platformProcedure.
   platform: platformRouter,
