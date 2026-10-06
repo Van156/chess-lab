@@ -267,10 +267,10 @@ Verify: `bun test packages/api apps/web/src/features`; `pnpm --filter web check-
 
 Satisfies: data-control / Export all personal data; Deletion and export accessible; lichess-account / Token encrypted at rest and never sent to the browser (export excludes tokens); ADR-20.
 
-- [ ] S11a.1 [T] RED: `packages/api/src/services/export-service.test.ts` (real DB): `exportUserJson` contains every section (user, settings, lichessProfile without lease fields, games, analyses, mistakes, cards, reviewLogs), no token fields, keyset pages of 500 produce valid single JSON for more than 1000 rows, only the caller's rows; `exportUserPgn` streams all imported games separated by blank lines.
-- [ ] S11a.2 [T] RED: meta-test in the same file enumerating every table in `packages/db/src/schema` with a `user_id` column and asserting `exportUserJson` covers it (fails today for any missing table).
-- [ ] S11a.3 [T] GREEN: `packages/api/src/services/export-service.ts`.
-- [ ] S11a.4 [T] RED then GREEN: `apps/server/src/export-routes.test.ts` and `export-routes.ts`: 401 without session, `Content-Disposition: attachment`, `Cache-Control: no-store`, streaming via `hono/streaming`; modify `apps/server/src/index.ts` to mount /api/export.
+- [x] S11a.1 [T] RED: `packages/api/src/services/export-service.test.ts` (real DB): `exportUserJson` contains every section (user, settings, lichessProfile without lease fields, games, analyses, mistakes, cards, reviewLogs), no token fields, keyset pages of 500 produce valid single JSON for more than 1000 rows, only the caller's rows; `exportUserPgn` streams all imported games separated by blank lines.
+- [x] S11a.2 [T] RED: meta-test in the same file enumerating every table in `packages/db/src/schema` with a `user_id` column and asserting `exportUserJson` covers it (fails today for any missing table).
+- [x] S11a.3 [T] GREEN: `packages/api/src/services/export-service.ts`.
+- [x] S11a.4 [T] RED then GREEN: `apps/server/src/export-routes.test.ts` and `export-routes.ts`: 401 without session, `Content-Disposition: attachment`, `Cache-Control: no-store`, streaming via `hono/streaming`; modify `apps/server/src/index.ts` to mount /api/export.
 - [ ] S11a.5 [O] [react] `apps/web/src/features/data-control/**` export links (plain anchors to /api/export/data.json and /api/export/games.pgn), accessible labels; mount in `apps/web/src/features/account/components/danger-page.tsx` or a new data section.
 
 Verify: `bun test packages/api apps/server`; standard checks.

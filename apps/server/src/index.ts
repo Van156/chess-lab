@@ -1,3 +1,4 @@
+import { exportUserJson, exportUserPgn } from "@b2c-template/api/services/export-service";
 import { appRouter } from "@b2c-template/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -13,8 +14,9 @@ import { cors } from "hono/cors";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
+import { createExportRoutes } from "./export-routes";
 import { createPublicRoutes } from "./public-routes";
-import { auth, features, startBackgroundJobs } from "./services";
+import { auth, db, features, startBackgroundJobs } from "./services";
 
 initLogger({
   env: { service: "b2c-template-server" },
@@ -45,6 +47,18 @@ app.use(
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 app.route("/api/public", createPublicRoutes(ENV, features));
+app.route(
+  "/api/export",
+  createExportRoutes({
+    // An impersonated session never exports the impersonated user's data (same rule as deletion).
+    getUserId: async (headers) => {
+      const current = await auth.api.getSession({ headers });
+      return current && !current.session.impersonatedBy ? current.user.id : null;
+    },
+    exportJson: (userId) => exportUserJson(db, userId),
+    exportPgn: (userId) => exportUserPgn(db, userId),
+  }),
+);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

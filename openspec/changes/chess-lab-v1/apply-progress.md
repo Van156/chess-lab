@@ -462,3 +462,15 @@ Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boun
   - R3-mid-batch-null-can-stall-run (WARNING): an engine null for a NON-terminal position would stop the server resume point and make later batches BAD_REQUEST. This is accepted for now, because a position with legal moves always gets a score. Fix it if it shows up, by having the client restart a batch at the server's `nextPly`, or by submitting a non-terminal null as a hard failure.
   - R3-sync-error-sticky: the Sync now error persists after a later successful background sync.
   - R3-refresh-paged-list-unproved: `refreshPagedList` cache-shape wiring is untested.
+
+## S11a (export, branch feat/chess-lab-v1-s11a, base feat/chess-lab-v1-s10b)
+
+Mode: standard (strict_tdd false), runner `bun test` (test DB on :5437).
+
+- [x] S11a.1, S11a.2 RED: `export-service.test.ts` 0 pass, 1 fail, 1 error (`Cannot find module './export-service'`). S11a.3 GREEN: `services/export-service.ts` (async generators `exportUserJson`, `exportUserPgn`; keyset pages of `EXPORT_PAGE_SIZE` 500 scoped by user id; one valid JSON document, also when empty). Sections: `user` (explicit columns, plus `lichessUsername`), `settings`, `lichessProfile` (runner state `importLeaseUntil`, `importRetryAt`, `importState`, `importError` dropped), `games`, `analyses`, `mistakes`, `cards`, `reviewLogs`. Tests: every section, planted secrets absent, empty account, 1201 games over several chunks, only the caller's rows, PGN of 1001 games separated by single blank lines. Meta-test enumerates every drizzle table with a `user_id` column; each must be an export section or in `EXCLUDED_TABLES` with a reason (`account`: tokens and password hash; `session`: session tokens, IP, user agent). GREEN 6/6.
+- [x] S11a.4 RED: `Cannot find module './export-routes'`. GREEN: `apps/server/src/export-routes.ts` (`createExportRoutes` with injected deps; `/data.json`, `/games.pgn`; 401 without session; `Cache-Control: no-store` also on 401; `Content-Disposition: attachment`; streamed with `hono/streaming`), 4 tests; mounted at `/api/export` in `apps/server/src/index.ts`.
+- Parent addition: an impersonated session (`session.impersonatedBy`) gets 401 on export, matching the deletion rule (untested wiring in `index.ts`).
+
+Decision gaps: "lease fields" interpreted as all import runner state; `audit_log` (keyed by `actor_user_id`) is not exported; a mid-stream DB error truncates the download with no logging.
+
+Verification: `bun test packages/api apps/server` 288 pass, 0 fail, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: export tests 10 pass; types and check after the impersonation change exit 0.
