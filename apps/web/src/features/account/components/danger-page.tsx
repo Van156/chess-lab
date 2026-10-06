@@ -1,8 +1,12 @@
 import { authClient } from "@/app/auth-client";
+import { buildExportUrls, DataExportCard } from "@/features/data-control";
 import { betterAuthErrorMessage } from "@/features/auth";
+import { ENV } from "@/env.public";
 import Loader from "@/shared/components/feedback/loader";
 
 import DeleteAccountCard from "./delete-account-card";
+
+const EXPORT_URLS = buildExportUrls(ENV.VITE_SERVER_URL);
 
 /**
  * `/account/danger` (R6, container). With `sendDeleteAccountVerification` configured, `deleteUser`
@@ -28,5 +32,10 @@ export default function DangerPage() {
     }
   }
 
-  return <DeleteAccountCard email={session.user.email} onRequest={requestDeletion} />;
+  return (
+    <div className="flex flex-col gap-6">
+      <DataExportCard urls={EXPORT_URLS} />
+      <DeleteAccountCard email={session.user.email} onRequest={requestDeletion} />
+    </div>
+  );
 }

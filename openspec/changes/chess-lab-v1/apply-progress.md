@@ -474,3 +474,6 @@ Mode: standard (strict_tdd false), runner `bun test` (test DB on :5437).
 Decision gaps: "lease fields" interpreted as all import runner state; `audit_log` (keyed by `actor_user_id`) is not exported; a mid-stream DB error truncates the download with no logging.
 
 Verification: `bun test packages/api apps/server` 288 pass, 0 fail, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: export tests 10 pass; types and check after the impersonation change exit 0.
+
+- [x] S11a.5 `features/data-control/**`: pure `buildExportUrls(serverUrl)` (tested), presentational `DataExportCard` ("Your data", plain anchors "Download all your data (JSON)" and "Download your games (PGN)" to the server origin `VITE_SERVER_URL`, no `download` attribute since it is ignored cross-origin and the server sends `Content-Disposition: attachment`), story, SSR test, registry entry. Mounted on the danger page above deletion (the account area has no cheap section mechanism). Routed to `react-staff`. Not checked against a running server (cookie on top-level navigation).
+      Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 912 pass; parent re-run: `pnpm check-types` exit 0, `pnpm --filter web check-types` exit 0, data-control and story coverage 15 pass; `pnpm check` exit 0.

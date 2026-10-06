@@ -271,7 +271,7 @@ Satisfies: data-control / Export all personal data; Deletion and export accessib
 - [x] S11a.2 [T] RED: meta-test in the same file enumerating every table in `packages/db/src/schema` with a `user_id` column and asserting `exportUserJson` covers it (fails today for any missing table).
 - [x] S11a.3 [T] GREEN: `packages/api/src/services/export-service.ts`.
 - [x] S11a.4 [T] RED then GREEN: `apps/server/src/export-routes.test.ts` and `export-routes.ts`: 401 without session, `Content-Disposition: attachment`, `Cache-Control: no-store`, streaming via `hono/streaming`; modify `apps/server/src/index.ts` to mount /api/export.
-- [ ] S11a.5 [O] [react] `apps/web/src/features/data-control/**` export links (plain anchors to /api/export/data.json and /api/export/games.pgn), accessible labels; mount in `apps/web/src/features/account/components/danger-page.tsx` or a new data section.
+- [x] S11a.5 [O] [react] `apps/web/src/features/data-control/**` export links (plain anchors to /api/export/data.json and /api/export/games.pgn), accessible labels; mount in `apps/web/src/features/account/components/danger-page.tsx` or a new data section.
 
 Verify: `bun test packages/api apps/server`; standard checks.
 
