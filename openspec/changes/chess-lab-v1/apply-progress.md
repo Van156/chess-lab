@@ -373,3 +373,8 @@ Decision gaps: `PAUSE_HIDDEN_MS` = 5 min (design gives no value); analysis auto-
 Size: about 1,220 authored lines for the React part (about 520 tests), plus 938 for the API part (8c91c0e), against the 400 estimate.
 
 Verification: `bun test apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 127 pass, 0 fail (re-run by the parent); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0. Manual dev-server check (import a game, run analysis, mistakes and cards appear) pending until S10 mounts the UI.
+
+Delivery (user decision 2026-10-06): S9b ships as two PRs in the `feature-branch-chain`, split at the planned point after the API part.
+
+- PR 14 `feat/chess-lab-v1-s9b` (base `feat/chess-lab-v1-s9a`): 8c91c0e, API part S9b.1 to S9b.4.
+- PR 14b `feat/chess-lab-v1-s9b2` (base `feat/chess-lab-v1-s9b`): React part S9b.5, S9b.6. S10 now bases on `feat/chess-lab-v1-s9b2`.
