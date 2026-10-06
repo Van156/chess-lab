@@ -250,6 +250,75 @@ describe.skipIf(!reachable)("analysis service", () => {
       expect(row?.status).toBe("pending");
     });
 
+    test("rejects a screen batch that starts past the resume point and stores nothing", async () => {
+      const id = await seedGame("u1", "g-1");
+      expect(
+        await codeOf(
+          service().submitEvals("u1", {
+            gameId: id,
+            fromPly: 3,
+            evals: evals(10).slice(3),
+            phase: "screen",
+          }),
+        ),
+      ).toBe("BAD_REQUEST");
+      const [analysis] = await handle.db.select().from(gameAnalysis);
+      expect(analysis).toMatchObject({ nextPly: 0, status: "pending" });
+      expect(analysis?.evals).toBeNull();
+    });
+
+    test("an all-null screen batch does not advance the resume point", async () => {
+      const id = await seedGame("u1", "g-1");
+      const result = await service().submitEvals("u1", {
+        gameId: id,
+        fromPly: 0,
+        evals: [null, null, null],
+        phase: "screen",
+      });
+      expect(result.nextPly).toBe(0);
+      expect((await service().next("u1"))?.nextPly).toBe(0);
+    });
+
+    test("a null entry stops the resume point; a null terminal position still completes", async () => {
+      const id = await seedGame("u1", "g-1");
+      const gap = [...evals(10).slice(0, 2), null, ...evals(10).slice(3)];
+      expect(
+        (await service().submitEvals("u1", { gameId: id, fromPly: 0, evals: gap, phase: "screen" }))
+          .nextPly,
+      ).toBe(2);
+
+      const other = await seedGame("u1", "g-2", "2026-03-02T00:00:00.000Z");
+      const terminalNull = [...evals(10).slice(0, PLIES), null];
+      const result = await service().submitEvals("u1", {
+        gameId: other,
+        fromPly: 0,
+        evals: terminalNull,
+        phase: "screen",
+      });
+      expect(result.nextPly).toBe(PLIES);
+      expect(await service().complete("u1", { gameId: other })).toMatchObject({ gameId: other });
+    });
+
+    test("an unreadable game is marked failed on submit so next stops returning it", async () => {
+      const id = await seedGame("u1", "g-1");
+      await handle.db.update(game).set({ pgn: "not a pgn at all" }).where(eq(game.id, id));
+      expect(await codeOf(screenAll("u1", id))).toBe("BAD_REQUEST");
+      const [analysis] = await handle.db.select().from(gameAnalysis);
+      expect(analysis?.status).toBe("failed");
+      expect(await service().next("u1")).toBeNull();
+    });
+
+    test("rejects submissions to a failed analysis as CONFLICT", async () => {
+      const id = await seedGame("u1", "g-1");
+      await handle.db
+        .update(gameAnalysis)
+        .set({ status: "failed" })
+        .where(eq(gameAnalysis.gameId, id));
+      expect(await codeOf(screenAll("u1", id))).toBe("CONFLICT");
+      const [analysis] = await handle.db.select().from(gameAnalysis);
+      expect(analysis?.status).toBe("failed");
+    });
+
     test("rejects submissions to a completed analysis as CONFLICT", async () => {
       const id = await seedGame("u1", "g-1");
       await screenAll("u1", id);
@@ -310,19 +379,34 @@ describe.skipIf(!reachable)("analysis service", () => {
       expect(await handle.db.select().from(mistake)).toHaveLength(0);
     });
 
-    test("is all-or-nothing: a failing card insert rolls back mistakes and status", async () => {
+    test("is all-or-nothing: a failure after the mistake and card writes rolls everything back", async () => {
       const id = await seedGame("u1", "g-1");
       await screenAll("u1", id, 18);
-      const failing = createAnalysisService({
-        db: handle.db,
-        now: () => {
-          throw new Error("clock failed");
-        },
-      });
-      await expect(failing.complete("u1", { gameId: id })).rejects.toThrow("clock failed");
+      // Fail the final status update, which runs after every mistake upsert and card insert.
+      const failingDb = {
+        ...handle.db,
+        transaction: (fn: (tx: unknown) => Promise<unknown>) =>
+          handle.db.transaction((tx) =>
+            fn(
+              new Proxy(tx, {
+                get(target, prop, receiver) {
+                  if (prop === "update") {
+                    return () => {
+                      throw new Error("status update failed");
+                    };
+                  }
+                  return Reflect.get(target, prop, receiver);
+                },
+              }),
+            ),
+          ),
+      } as unknown as typeof handle.db;
+      const failing = createAnalysisService({ db: failingDb });
+      await expect(failing.complete("u1", { gameId: id })).rejects.toThrow("status update failed");
       expect(await handle.db.select().from(mistake)).toHaveLength(0);
+      expect(await handle.db.select().from(card)).toHaveLength(0);
       const [analysis] = await handle.db.select().from(gameAnalysis);
-      expect(analysis?.status).not.toBe("complete");
+      expect(analysis?.status).toBe("screening");
     });
 
     test("marks an unreadable game failed so it stops blocking next", async () => {

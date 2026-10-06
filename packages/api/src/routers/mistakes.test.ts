@@ -16,6 +16,8 @@ const reachable = await requireTestDatabaseOrSkip(TEST_DATABASE_URL, "mistakes r
 const PGN = "1. e4 e5 2. a3 Nc6 *";
 const FEN = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2";
 
+const cursorOf = (parts: unknown) => Buffer.from(JSON.stringify(parts)).toString("base64url");
+
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
   try {
     await promise;
@@ -147,6 +149,21 @@ describe.skipIf(!reachable)("mistakes router", () => {
     expect(new Set(seen)).toEqual(new Set(ids));
   });
 
+  test("list pages across a boundary inside one game, ordered by ply descending", async () => {
+    const g = await seedGame("u1", "g-1", 1);
+    const plies = [1, 3, 5, 7];
+    for (const ply of plies) await seedMistake("u1", g, ply);
+    const first = await call(mistakesRouter.list, { limit: 2 }, { context: context("u1") });
+    expect(first.items.map((m) => m.ply)).toEqual([7, 5]);
+    const second = await call(
+      mistakesRouter.list,
+      { limit: 2, cursor: first.nextCursor! },
+      { context: context("u1") },
+    );
+    expect(second.items.map((m) => m.ply)).toEqual([3, 1]);
+    expect(second.nextCursor).toBeNull();
+  });
+
   test("list can be narrowed to one of the user's games, and a foreign game yields nothing", async () => {
     const g1 = await seedGame("u1", "g-1", 1);
     const g2 = await seedGame("u1", "g-2", 2);
@@ -163,6 +180,22 @@ describe.skipIf(!reachable)("mistakes router", () => {
       { context: context("u1") },
     );
     expect(foreignPage.items).toEqual([]);
+  });
+
+  test.each([
+    ["too few parts", ["2026-03-01T00:00:00.000Z", "x"]],
+    ["too many parts", ["2026-03-01T00:00:00.000Z", "x", 3, 4]],
+    ["a string ply", ["2026-03-01T00:00:00.000Z", "x", "3"]],
+    ["a fractional ply", ["2026-03-01T00:00:00.000Z", "x", 3.5]],
+    ["a negative ply", ["2026-03-01T00:00:00.000Z", "x", -1]],
+    ["a bad timestamp", ["not a date", "x", 3]],
+    ["an impossible timestamp", ["2026-13-45T00:00:00.000Z", "x", 3]],
+  ])("list rejects a well-formed cursor with %s", async (_name, parts) => {
+    expect(
+      await codeOf(
+        call(mistakesRouter.list, { cursor: cursorOf(parts) }, { context: context("u1") }),
+      ),
+    ).toBe("BAD_REQUEST");
   });
 
   test.each([

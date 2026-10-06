@@ -36,12 +36,12 @@ export type AnalysisServiceDeps = { db: Database; now?: () => Date };
 const badRequest = (message: string) => new ORPCError("BAD_REQUEST", { message });
 const notFound = () => new ORPCError("NOT_FOUND", { message: "Game not found." });
 
-/** Plies of a stored game; an unreadable PGN is a bad request, not a server fault. */
-function plyCount(pgn: string): number {
+/** Plies of a stored game, or null when its PGN cannot be read. */
+function plyCount(pgn: string): number | null {
   try {
     return parseGame(pgn).plies.length;
   } catch {
-    throw badRequest("The game cannot be read.");
+    return null;
   }
 }
 
@@ -90,13 +90,20 @@ export function createAnalysisService({ db, now = () => new Date() }: AnalysisSe
     };
   }
 
+  async function markFailed(gameId: string, userId: string) {
+    await db
+      .update(gameAnalysis)
+      .set({ status: "failed" })
+      .where(and(eq(gameAnalysis.gameId, gameId), eq(gameAnalysis.userId, userId)));
+  }
+
   /** Merges a batch by ply index. Idempotent: a re-sent ply never replaces a deeper evaluation. */
   async function submitEvals(userId: string, input: SubmitEvalsInput): Promise<SubmitEvalsResult> {
     const parsed = submitEvalsSchema.safeParse(input);
     if (!parsed.success) throw badRequest("Invalid evaluations.");
     const { gameId, fromPly, evals, phase, engineId } = parsed.data;
 
-    return db.transaction(async (tx) => {
+    const outcome = await db.transaction(async (tx) => {
       const [row] = await tx
         .select({
           pgn: game.pgn,
@@ -111,12 +118,15 @@ export function createAnalysisService({ db, now = () => new Date() }: AnalysisSe
         .where(and(eq(gameAnalysis.gameId, gameId), eq(gameAnalysis.userId, userId)))
         .for("update", { of: gameAnalysis });
       if (!row) throw notFound();
-      if (row.status === "complete") {
-        throw new ORPCError("CONFLICT", { message: "Analysis already complete." });
+      if (row.status === "complete" || row.status === "failed") {
+        throw new ORPCError("CONFLICT", { message: `Analysis already ${row.status}.` });
       }
 
       // Evals index positions 0..plies (the position after `i` plies).
       const plies = plyCount(row.pgn);
+      if (plies === null) return { unreadable: true as const };
+      // A screen batch must continue from the resume point; skipping plies would fake progress.
+      if (phase === "screen" && fromPly > row.nextPly) throw badRequest("Plies out of order.");
       if (fromPly + evals.length - 1 > plies) throw badRequest("Plies out of range.");
 
       const merged = [...asEvals(row.stored)];
@@ -131,9 +141,14 @@ export function createAnalysisService({ db, now = () => new Date() }: AnalysisSe
       // Holes in the array would serialize as JSON null, which is the documented "no eval" value.
       for (let i = 0; i < merged.length; i++) merged[i] ??= null;
 
+      // The resume point only crosses evaluated plies. A null (the terminal position, or one the
+      // engine could not score) stops it; the last position may stay null and still complete.
+      const evaluated = evals.findIndex((e) => e === null);
       const nextPly =
-        phase === "screen" ? Math.max(row.nextPly, fromPly + evals.length) : row.nextPly;
-      const status =
+        phase === "screen"
+          ? Math.max(row.nextPly, fromPly + (evaluated === -1 ? evals.length : evaluated))
+          : row.nextPly;
+      const status: SubmitEvalsResult["status"] =
         phase === "confirm" || row.status === "confirming" ? "confirming" : "screening";
       await tx
         .update(gameAnalysis)
@@ -147,8 +162,15 @@ export function createAnalysisService({ db, now = () => new Date() }: AnalysisSe
           ...(engineId ? { engineId } : {}),
         })
         .where(and(eq(gameAnalysis.gameId, gameId), eq(gameAnalysis.userId, userId)));
-      return { status, nextPly };
+      return { unreadable: false as const, status, nextPly };
     });
+
+    if (outcome.unreadable) {
+      // Outside the rolled-back work: a game that cannot be parsed must stop blocking `next`.
+      await markFailed(gameId, userId);
+      throw badRequest("The game cannot be read.");
+    }
+    return { status: outcome.status, nextPly: outcome.nextPly };
   }
 
   /**
@@ -267,10 +289,7 @@ export function createAnalysisService({ db, now = () => new Date() }: AnalysisSe
 
     if (outcome.unreadable) {
       // Outside the rolled-back work: a game that cannot be parsed must stop blocking `next`.
-      await db
-        .update(gameAnalysis)
-        .set({ status: "failed" })
-        .where(and(eq(gameAnalysis.gameId, gameId), eq(gameAnalysis.userId, userId)));
+      await markFailed(gameId, userId);
       throw badRequest("The game cannot be read.");
     }
     return { gameId, mistakes: outcome.mistakes, cardsCreated: outcome.cardsCreated };

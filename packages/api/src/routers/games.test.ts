@@ -15,6 +15,8 @@ const reachable = await requireTestDatabaseOrSkip(TEST_DATABASE_URL, "games rout
 
 const PGN = "1. e4 e5 2. Nf3 Nc6 *";
 
+const cursorOf = (parts: unknown) => Buffer.from(JSON.stringify(parts)).toString("base64url");
+
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
   try {
     await promise;
@@ -114,6 +116,19 @@ describe.skipIf(!reachable)("games router", () => {
     }
     expect(seen).toHaveLength(6);
     expect(new Set(seen)).toEqual(new Set(ids));
+  });
+
+  test.each([
+    ["too few parts", ["2026-03-01T00:00:00.000Z"]],
+    ["too many parts", ["2026-03-01T00:00:00.000Z", "x", "y"]],
+    ["a numeric id", ["2026-03-01T00:00:00.000Z", 5]],
+    ["an empty id", ["2026-03-01T00:00:00.000Z", ""]],
+    ["a bad timestamp", ["not a date", "x"]],
+    ["an impossible timestamp", ["2026-13-45T00:00:00.000Z", "x"]],
+  ])("list rejects a well-formed cursor with %s", async (_name, parts) => {
+    expect(
+      await codeOf(call(gamesRouter.list, { cursor: cursorOf(parts) }, { context: context("u1") })),
+    ).toBe("BAD_REQUEST");
   });
 
   test.each([

@@ -5,7 +5,9 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
-import { decodeCursor, encodeCursor } from "../services/cursor";
+import { cursorId, cursorTimestamp, decodeCursor, encodeCursor } from "../services/cursor";
+
+const gamesCursor = z.tuple([cursorTimestamp, cursorId]);
 
 const listInput = z.object({
   cursor: z.string().min(1).max(512).optional(),
@@ -45,11 +47,8 @@ export const gamesRouter = {
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
       const limit = clampLimit(input.limit);
-      const after = input.cursor ? decodeCursor(input.cursor, 2) : null;
+      const after = input.cursor ? decodeCursor(input.cursor, gamesCursor) : null;
       const [playedAt, id] = after ?? [];
-      if (after && (typeof playedAt !== "string" || typeof id !== "string")) {
-        throw new ORPCError("BAD_REQUEST", { message: "Invalid cursor" });
-      }
       const rows = await context.db
         .select(listColumns)
         .from(game)

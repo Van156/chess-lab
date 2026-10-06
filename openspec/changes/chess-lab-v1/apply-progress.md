@@ -423,3 +423,13 @@ Delivery (user decision 2026-10-06): S10 ships as two PRs in the `feature-branch
 
 - PR 15 `feat/chess-lab-v1-s10` (base `feat/chess-lab-v1-s9b2`): df50591, S10.1 API.
 - PR 15b `feat/chess-lab-v1-s10b` (base `feat/chess-lab-v1-s10`): 82a9151 S10.2 and S10.3 web, plus the review docs. Later slices base on `feat/chess-lab-v1-s10b`.
+
+## Review follow-ups, API part (on feat/chess-lab-v1-s10b)
+
+- R3-complete-rollback-unproved: DONE. The all-or-nothing test now fails the final status update inside the transaction, after every mistake and card write, and asserts 0 mistakes, 0 cards, status unchanged. It passed on first run (the code already rolled back); it is meaningful because the failure can only happen after the writes.
+- R3-nextply-skips-gaps: DONE. A screen batch with `fromPly` past the stored `nextPly` is BAD_REQUEST (nothing stored); `nextPly` advances only through the batch's contiguous non-null prefix. A terminal null (mate or stalemate at the last position) still lets the game complete because `complete` needs `nextPly >= plies`. RED observed for past-resume-point, all-null and mid-batch null.
+- R3-unreadable-submit-not-failed: DONE. An unreadable PGN on submit marks the game `failed` (committed outside the rolled-back transaction, shared `markFailed` helper) and then throws BAD_REQUEST; `next` no longer returns it. RED observed.
+- R3-failed-status-revived: DONE. `submitEvals` to a failed game is CONFLICT. RED observed.
+- R3-cursor-value-validation and R3-cursor-test-gap: DONE. `decodeCursor(cursor, schema)` validates a zod tuple per router (ISO timestamp that parses, non-empty id, integer ply >= 0) and throws BAD_REQUEST before SQL. RED: 7 of the new cursor tests failed on the old code (wrong arity and wrong types were already rejected). Added a mistakes paging test whose boundary falls inside one game.
+
+Verification: `bun test packages/api` 263 pass, 0 fail, 0 skip (one earlier run hit a 5 s timeout in the unrelated import-service cap test; it passed on two reruns); `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: analysis service and routers 148 pass.
