@@ -477,3 +477,8 @@ Verification: `bun test packages/api apps/server` 288 pass, 0 fail, 0 skip; `pnp
 
 - [x] S11a.5 `features/data-control/**`: pure `buildExportUrls(serverUrl)` (tested), presentational `DataExportCard` ("Your data", plain anchors "Download all your data (JSON)" and "Download your games (PGN)" to the server origin `VITE_SERVER_URL`, no `download` attribute since it is ignored cross-origin and the server sends `Content-Disposition: attachment`), story, SSR test, registry entry. Mounted on the danger page above deletion (the account area has no cheap section mechanism). Routed to `react-staff`. Not checked against a running server (cookie on top-level navigation).
       Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 912 pass; parent re-run: `pnpm check-types` exit 0, `pnpm --filter web check-types` exit 0, data-control and story coverage 15 pass; `pnpm check` exit 0.
+
+Delivery (user decision 2026-10-06): S11a ships as two PRs in the `feature-branch-chain`.
+
+- PR 16 `feat/chess-lab-v1-s11a` (base `feat/chess-lab-v1-s10b`): 21ca856, S11a.1 to S11a.4 export service and routes.
+- PR 16b `feat/chess-lab-v1-s11a2` (base `feat/chess-lab-v1-s11a`): 848cf8c, S11a.5 export links. S11b bases on `feat/chess-lab-v1-s11a2`.
