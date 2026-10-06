@@ -27,7 +27,8 @@ export default function ProfileForm({
   onSave,
 }: {
   name: string;
-  email: string;
+  /** Omitted for Lichess-only accounts, whose synthetic email is never shown. */
+  email?: string;
   onSave: (name: string) => Promise<void>;
 }) {
   const form = useForm({
@@ -77,20 +78,22 @@ export default function ProfileForm({
                 </FormField>
               )}
             </form.Field>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="profile-email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="profile-email"
-                value={email}
-                readOnly
-                aria-describedby="profile-email-hint"
-              />
-              <p id="profile-email-hint" className="text-xs text-muted-foreground">
-                To change your email, go to Security.
-              </p>
-            </div>
+            {email === undefined ? null : (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="profile-email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="profile-email"
+                  value={email}
+                  readOnly
+                  aria-describedby="profile-email-hint"
+                />
+                <p id="profile-email-hint" className="text-xs text-muted-foreground">
+                  To change your email, go to Security.
+                </p>
+              </div>
+            )}
           </FieldGroup>
           <form.Subscribe
             selector={(state) => ({

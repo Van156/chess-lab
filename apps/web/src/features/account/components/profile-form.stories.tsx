@@ -33,3 +33,5 @@ export const SaveFails: Story = {
     },
   },
 };
+
+export const LichessOnlyHidesEmail: Story = { args: { email: undefined } };
