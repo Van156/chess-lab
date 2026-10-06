@@ -33,6 +33,8 @@ export const WithMistakes: Story = {};
 
 export const LoadingMore: Story = { args: { loadingMore: true } };
 
+export const LoadMoreFailed: Story = { args: { loadMoreFailed: true } };
+
 export const OneGame: Story = { args: { filteredByGame: true, hasMore: false } };
 
 export const Empty: Story = { args: { mistakes: [], hasMore: false } };

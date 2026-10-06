@@ -1,5 +1,5 @@
 import { MATE_CP, parseGame } from "@b2c-template/chess";
-import type { BoardArrow } from "@/shared/components/board";
+import { boardTheme, type BoardArrow } from "@/shared/components/board";
 
 import type { MistakeDetail, MistakeItem } from "./mistakes-types";
 
@@ -55,19 +55,28 @@ export function uciSquares(uci: string): { from: string; to: string } | null {
   return match?.[1] && match[2] ? { from: match[1], to: match[2] } : null;
 }
 
+/**
+ * Each arrow's colour sits next to the name the text alternative calls it by, so the drawn colour
+ * and the words cannot drift apart. The best arrow is the board theme's mint green, set explicitly
+ * rather than left to the board's default.
+ */
 export const PLAYED_ARROW_COLOR = "#ff6b6b";
 export const PLAYED_ARROW_NAME = "red";
+export const BEST_ARROW_COLOR = boardTheme.arrow;
 export const BEST_ARROW_NAME = "green";
 
 /**
  * Arrows for the position before the mistake: the move played (red) and the engine's best move
- * (the default green), best last so it draws on top. The same two moves are always written out
- * next to the board, so the colours are never the only carrier of meaning.
+ * (green), best last so it draws on top. The same two moves are always written out next to the
+ * board, so the colours are never the only carrier of meaning.
  */
 export function moveArrows(mistake: Pick<MistakeItem, "playedUci" | "bestUci">): BoardArrow[] {
   const played = uciSquares(mistake.playedUci);
   const best = uciSquares(mistake.bestUci);
-  return [...(played ? [{ ...played, color: PLAYED_ARROW_COLOR }] : []), ...(best ? [best] : [])];
+  return [
+    ...(played ? [{ ...played, color: PLAYED_ARROW_COLOR }] : []),
+    ...(best ? [{ ...best, color: BEST_ARROW_COLOR }] : []),
+  ];
 }
 
 /** Text alternative for the board arrows. */

@@ -16,3 +16,19 @@ export function initialCardTurn(turnKey: string): CardTurnState {
 export function nextCardTurnState(prev: CardTurnState, turnKey: string): CardTurnState {
   return prev.turnKey === turnKey ? prev : initialCardTurn(turnKey);
 }
+
+/**
+ * Functional-update helpers: each reads the latest state (never a render-time snapshot) and applies
+ * the turn reset first, so two events batched before a re-render both land.
+ */
+export function recordAttempt(
+  prev: CardTurnState,
+  turnKey: string,
+  attempt: Attempt,
+): CardTurnState {
+  return { ...nextCardTurnState(prev, turnKey), attempt };
+}
+
+export function revealAnswer(prev: CardTurnState, turnKey: string): CardTurnState {
+  return { ...nextCardTurnState(prev, turnKey), revealed: true };
+}

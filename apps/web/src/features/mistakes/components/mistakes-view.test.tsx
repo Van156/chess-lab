@@ -41,6 +41,14 @@ describe("MistakesView", () => {
     );
   });
 
+  test("a failed next page keeps the loaded mistakes, announces the error and offers a retry", async () => {
+    const html = await render({ hasMore: true, loadMoreFailed: true });
+    expect(html).toContain('aria-label="Mistakes"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("More mistakes could not be loaded.");
+    expect(html).toContain("Try again");
+  });
+
   test("empty state differs for a single-game filter, which also offers the full list", async () => {
     expect(await render({ mistakes: [] })).toContain("once your games have been analysed");
     const filtered = await render({ mistakes: [], filteredByGame: true });

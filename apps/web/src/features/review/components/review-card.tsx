@@ -2,7 +2,7 @@ import type { Grade } from "@b2c-template/study";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { gradeFromKey, matchesAnswer } from "../lib/answer";
-import { initialCardTurn, nextCardTurnState } from "../lib/card-turn";
+import { initialCardTurn, nextCardTurnState, recordAttempt, revealAnswer } from "../lib/card-turn";
 import type { QueueItem } from "../lib/review-types";
 import ReviewCardView from "./review-card-view";
 
@@ -71,12 +71,14 @@ export default function ReviewCard({
         rootRef={rootRef}
         goodRef={goodRef}
         onMove={(move) =>
-          setTurn({
-            ...nextTurn,
-            attempt: { ...move, correct: matchesAnswer(card.answers, move.san) },
-          })
+          setTurn((prev) =>
+            recordAttempt(prev, turnKey, {
+              ...move,
+              correct: matchesAnswer(card.answers, move.san),
+            }),
+          )
         }
-        onReveal={() => setTurn({ ...nextTurn, revealed: true })}
+        onReveal={() => setTurn((prev) => revealAnswer(prev, turnKey))}
         onGrade={onGrade}
       />
     </div>

@@ -3,7 +3,7 @@
  * running `background` job by sending `stop`; every job can be cancelled. The engine is reached
  * through an injected transport, so the queue is pure logic and testable without a worker.
  */
-import { ENGINE_SEARCH_BUDGET, ENGINE_STOP_TIMEOUT_MS } from "../config";
+import { ENGINE_SEARCH_SILENCE_MS, ENGINE_STOP_TIMEOUT_MS } from "../config";
 import {
   STOP,
   buildGo,
@@ -71,24 +71,12 @@ export interface EngineQueue {
   fail: (error: Error) => void;
 }
 
-export interface SearchBudget {
-  slackMs: number;
-  perDepthMs: number;
-  ceilingMs: number;
-}
-
-/** How long a search may stay silent before the engine counts as stalled. */
-export const searchTimeoutMs = (
-  limit: GoLimit,
-  budget: SearchBudget = ENGINE_SEARCH_BUDGET,
-): number => {
-  const expected = "depth" in limit ? limit.depth * budget.perDepthMs : limit.movetimeMs;
-  return Math.min(budget.slackMs + expected, budget.ceilingMs);
-};
-
 export interface EngineQueueOptions {
-  /** Watchdog duration for a search with this limit. */
-  searchTimeoutMs?: (limit: GoLimit) => number;
+  /**
+   * Silence watchdog: a running search that emits no output line for this long counts as stalled.
+   * Every line re-arms it, so a healthy search that keeps reporting is never cut short.
+   */
+  silenceMs?: number;
   /** Bounded wait for `bestmove` after `stop`. */
   stopTimeoutMs?: number;
   /** Injected timers (defaults to `setTimeout`/`clearTimeout`) so tests control the clock. */
@@ -110,7 +98,7 @@ type StopReason = "cancel" | "preempt";
 export const createEngineQueue = (
   transport: EngineTransport,
   {
-    searchTimeoutMs: timeoutFor = searchTimeoutMs,
+    silenceMs = ENGINE_SEARCH_SILENCE_MS,
     stopTimeoutMs = ENGINE_STOP_TIMEOUT_MS,
     setTimer = (run, ms) => setTimeout(run, ms),
     clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -137,6 +125,8 @@ export const createEngineQueue = (
     }, ms);
   };
 
+  const armSilence = () => arm(silenceMs, "Engine search went silent");
+
   const insertPending = (job: Job, atFront: boolean) => {
     if (atFront || job.request.priority === "interactive") {
       // Interactive jobs (and a pre-empted background job) go ahead of waiting background jobs.
@@ -152,7 +142,7 @@ export const createEngineQueue = (
     const job = pending.shift();
     if (!job) return;
     running = job;
-    arm(timeoutFor(job.request.limit), "Engine search timed out");
+    armSilence();
     const { fen, limit, strength } = job.request;
     for (const option of buildStrengthOptions(strength)) transport.send(option);
     transport.send(buildPosition(fen));
@@ -187,6 +177,8 @@ export const createEngineQueue = (
   transport.onLine((raw) => {
     const line = parseUciLine(raw);
     if (!running) return;
+    // Any output proves the engine is alive; while stopping, the bounded stop wait stays in charge.
+    if (stopReason === null && line.type !== "bestmove") armSilence();
     if (line.type === "info") {
       if (stopReason !== null || line.multipv !== 1) return;
       const info: EngineInfo = { depth: line.depth, score: line.score, pv: line.pv };

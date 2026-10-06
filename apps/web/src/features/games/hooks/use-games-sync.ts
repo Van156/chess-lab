@@ -19,6 +19,8 @@ export function useGamesSync() {
   const syncNow = useMutation({
     ...orpc.lichess.sync.mutationOptions(),
     onSuccess: (next) => queryClient.setQueryData(orpc.lichess.status.queryKey(), next),
+    // The request may have reached the server before it failed: show what the server says.
+    onError: () => void queryClient.invalidateQueries({ queryKey: orpc.lichess.status.queryKey() }),
   });
 
   const now = useNow();
@@ -37,5 +39,7 @@ export function useGamesSync() {
     now,
     syncNow: () => syncNow.mutate(undefined),
     syncPending: syncNow.isPending,
+    /** The last "Sync now" request failed; cleared by the next attempt. */
+    syncFailed: syncNow.isError,
   };
 }

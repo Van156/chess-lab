@@ -57,6 +57,8 @@ export const WithGames: Story = {};
 
 export const LoadingMore: Story = { args: { loadingMore: true } };
 
+export const LoadMoreFailed: Story = { args: { loadMoreFailed: true } };
+
 export const LastPage: Story = { args: { hasMore: false } };
 
 export const Empty: Story = { args: { games: [], hasMore: false, importedCount: 0 } };

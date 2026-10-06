@@ -10,6 +10,7 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "shared/components/layout/app-header.tsx",
   "shared/components/layout/page-header.tsx",
   "shared/components/feedback/empty-state.tsx",
+  "shared/components/feedback/load-more.tsx",
   "shared/components/layout/sidebar-user-menu.tsx",
   "shared/components/layout/app-breadcrumbs.tsx",
   "shared/components/layout/app-sidebar.tsx",

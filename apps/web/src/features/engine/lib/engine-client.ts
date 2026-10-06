@@ -32,7 +32,7 @@ export interface EngineClientOptions {
   createTransport: () => EngineClientTransport;
   handshakeTimeoutMs?: number;
   /** Search watchdog tuning and timers, forwarded to the queue (tests inject a manual clock). */
-  searchTimeoutMs?: EngineQueueOptions["searchTimeoutMs"];
+  silenceMs?: EngineQueueOptions["silenceMs"];
   stopTimeoutMs?: EngineQueueOptions["stopTimeoutMs"];
   setTimer?: EngineQueueOptions["setTimer"];
   clearTimer?: EngineQueueOptions["clearTimer"];

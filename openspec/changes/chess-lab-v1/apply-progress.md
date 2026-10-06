@@ -433,3 +433,23 @@ Delivery (user decision 2026-10-06): S10 ships as two PRs in the `feature-branch
 - R3-cursor-value-validation and R3-cursor-test-gap: DONE. `decodeCursor(cursor, schema)` validates a zod tuple per router (ISO timestamp that parses, non-empty id, integer ply >= 0) and throws BAD_REQUEST before SQL. RED: 7 of the new cursor tests failed on the old code (wrong arity and wrong types were already rejected). Added a mistakes paging test whose boundary falls inside one game.
 
 Verification: `bun test packages/api` 263 pass, 0 fail, 0 skip (one earlier run hit a 5 s timeout in the unrelated import-service cap test; it passed on two reruns); `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: analysis service and routers 148 pass.
+
+## Review follow-ups, web part (on feat/chess-lab-v1-s10b), routed to react-staff
+
+- R3-search-watchdog-is-total-budget-not-silence: DONE (parent decision: silence watchdog). Every engine output line re-arms the per-job timer; `ENGINE_SEARCH_SILENCE_MS` 30 s replaces the depth-derived budget; the stop wait is unchanged and output during a stop does not extend it. RED: the new long-reporting-job tests never settled on the old queue.
+- R3-reviewcard-non-functional-turn-update: DONE. Functional `setTurn` updaters via `recordAttempt` and `revealAnswer` in `lib/card-turn.ts` (pure tests).
+- R3-vacuous-failed-submit-assertion: DONE. The test asserts on the failing run's own `complete` calls.
+- R3-flush-failure-poisons-run: DONE. `flush` sends a copy of the pending batch, waits behind queued sends, swallows its own failure and leaves the batch and send queue untouched, so `fromPly` stays contiguous (the server now rejects batches past `nextPly`); the overlap resend is idempotent. RED: the run ended "failed" instead of "finished".
+- R3-hook-browser-behaviour-unproved: DONE. `lib/hidden-tab-policy.ts` with injected timers, 5 tests.
+- Sync now error (R3/R4): DONE. `syncFailed` plus `withSyncRequestError` show a retryable message in the existing status line; status refetched on error.
+- R4-load-more-error-silent: DONE. Shared `shared/components/feedback/load-more.tsx` (alert plus Try again) used by Games and Mistakes, with stories and tests.
+- NOT_FOUND retry (R3/R4): DONE. `shouldRetryMistake` skips NOT_FOUND.
+- R4-guard-latency-on-flag-outage and R3-requirefeature-untested: DONE. The guard calls `ensureQueryData` with `retry: false`; 4 tests (on, off, load error redirects fast, cached). RED: 3 of 4 failed on the old code.
+- R3-async-describe: DONE (render in `beforeAll`).
+- R2-001: DONE. `BEST_ARROW_COLOR` comes from the board theme; the legend uses the same constant; a test pins colour and name pairs.
+- R2-002 to R2-005: DONE. `shared/lib/game-display.ts` (`formatUtcDate`, `sideLabel`); one owner of page width (route); fixture PGN result consistent.
+- R4-infinite-refetch-fanout: DONE. `listRefetchType` marks deeply paged lists (more than 2 pages) stale instead of refetching every page.
+
+Decision gaps: `ENGINE_SEARCH_SILENCE_MS` 30 s and `LIVE_REFRESH_MAX_PAGES` 2 are tunable choices; the sync-triggered `games.list` invalidation has no page guard yet; the global query error toast still fires alongside the new inline alerts.
+
+Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 907 pass, 0 fail (parent re-run 907 pass); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0.

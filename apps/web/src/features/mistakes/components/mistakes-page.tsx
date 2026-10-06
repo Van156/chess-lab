@@ -20,6 +20,7 @@ export default function MistakesPage({ gameId }: { gameId?: string }) {
       filteredByGame={gameId !== undefined}
       hasMore={list.hasMore}
       loadingMore={list.loadingMore}
+      loadMoreFailed={list.loadMoreFailed}
       onLoadMore={list.loadMore}
     />
   );

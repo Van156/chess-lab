@@ -1,8 +1,8 @@
-import { Button } from "@b2c-template/ui/components/button";
 import { History } from "lucide-react";
 import type { ReactNode } from "react";
 
 import EmptyState from "@/shared/components/feedback/empty-state";
+import LoadMore from "@/shared/components/feedback/load-more";
 import PageHeader from "@/shared/components/layout/page-header";
 
 import type { GameItem } from "../lib/games-types";
@@ -16,22 +16,28 @@ export type GamesViewProps = {
   sync: ReactNode;
   hasMore: boolean;
   loadingMore: boolean;
+  /** Fetching the next page failed; the pages already loaded stay. */
+  loadMoreFailed?: boolean;
   onLoadMore: () => void;
   showMistakesLink: boolean;
 };
 
-/** Games screen (presentational): sync status, the imported games with their analysis state, paging. */
+/**
+ * Games screen (presentational): sync status, the imported games with their analysis state, paging.
+ * The route owns the page width, because it also lays out the analysis status beside this view.
+ */
 export default function GamesView({
   games,
   importedCount = null,
   sync,
   hasMore,
   loadingMore,
+  loadMoreFailed = false,
   onLoadMore,
   showMistakesLink,
 }: GamesViewProps) {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Games"
         description={
@@ -57,15 +63,12 @@ export default function GamesView({
             ))}
           </ul>
           {hasMore ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 self-center px-6"
-              disabled={loadingMore}
-              onClick={onLoadMore}
-            >
-              {loadingMore ? "Loading games" : "Load more games"}
-            </Button>
+            <LoadMore
+              noun="games"
+              loading={loadingMore}
+              failed={loadMoreFailed}
+              onLoadMore={onLoadMore}
+            />
           ) : null}
         </>
       )}

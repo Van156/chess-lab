@@ -2,6 +2,8 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { orpc } from "@/app/orpc";
 
+import { shouldRetryMistake } from "../lib/mistake-query";
+
 const PAGE_SIZE = 20;
 
 /** Mistakes newest game first, optionally for one game; "Load more" asks for the next cursor. */
@@ -18,6 +20,7 @@ export function useMistakes(gameId: string | undefined) {
     isPending: query.isPending,
     hasMore: query.hasNextPage,
     loadingMore: query.isFetchingNextPage,
+    loadMoreFailed: query.isFetchNextPageError,
     loadMore: () => void query.fetchNextPage(),
     retry: () => void query.refetch(),
   };
@@ -25,7 +28,10 @@ export function useMistakes(gameId: string | undefined) {
 
 /** One mistake with its game; the error is kept so the page can tell "not found" from a failure. */
 export function useMistake(id: string) {
-  const query = useQuery(orpc.mistakes.get.queryOptions({ input: { id } }));
+  const query = useQuery({
+    ...orpc.mistakes.get.queryOptions({ input: { id } }),
+    retry: shouldRetryMistake,
+  });
   return {
     mistake: query.data,
     error: query.error,

@@ -7,9 +7,11 @@ import type { ReactNode } from "react";
 
 import { ChessBoard, MoveList } from "@/shared/components/board";
 import PageHeader from "@/shared/components/layout/page-header";
+import { sideLabel } from "@/shared/lib/game-display";
 
 import {
   arrowDescription,
+  BEST_ARROW_COLOR,
   BEST_ARROW_NAME,
   formatClock,
   formatEval,
@@ -23,8 +25,6 @@ import {
   severityLabel,
 } from "../lib/mistake-format";
 import type { MistakeDetail } from "../lib/mistakes-types";
-
-const SIDE_LABEL = { white: "White", black: "Black" } as const;
 
 function Fact({ term, children }: { term: string; children: ReactNode }) {
   return (
@@ -47,7 +47,7 @@ export default function MistakeDetailView({
   mistake: MistakeDetail;
   moves: readonly string[];
 }) {
-  const side = SIDE_LABEL[mistake.game.userColor];
+  const side = sideLabel(mistake.game.userColor);
   const clock = formatClock(mistake.clockLeftMs);
   const played = moveLabel(mistake.ply, mistake.playedSan);
   return (
@@ -72,7 +72,7 @@ export default function MistakeDetailView({
               {PLAYED_ARROW_NAME} arrow: you played {mistake.playedSan}
             </span>
             <span>
-              <span aria-hidden className="text-primary">
+              <span aria-hidden style={{ color: BEST_ARROW_COLOR }}>
                 {"→"}
               </span>{" "}
               {BEST_ARROW_NAME} arrow: best move {mistake.bestSan}

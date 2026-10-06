@@ -1,6 +1,8 @@
 import { Card } from "@b2c-template/ui/components/card";
 import { Link } from "@tanstack/react-router";
 
+import { formatUtcDate } from "@/shared/lib/game-display";
+
 import { moveLabel, pawns, phaseLabel, severityLabel } from "../lib/mistake-format";
 import type { MistakeItem } from "../lib/mistakes-types";
 
@@ -27,9 +29,7 @@ export default function MistakeRow({ mistake }: { mistake: MistakeItem }) {
           {phaseLabel(mistake.phase)}
           {mistake.openingName ? `, ${mistake.openingName}` : ""}
           {" · "}
-          <time dateTime={mistake.playedAt.toISOString()}>
-            {mistake.playedAt.toISOString().slice(0, 10)}
-          </time>
+          <time dateTime={mistake.playedAt.toISOString()}>{formatUtcDate(mistake.playedAt)}</time>
         </p>
       </Card>
     </Link>

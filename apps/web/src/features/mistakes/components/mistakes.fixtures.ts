@@ -29,7 +29,7 @@ export const mistakeDetail: MistakeDetail = {
   game: {
     id: "g1",
     lichessGameId: "abcd1234",
-    pgn: '[Event "Rated Blitz game"]\n[Result "*"]\n\n1. e4 e5 2. a3 *',
+    pgn: '[Event "Rated Blitz game"]\n[Result "0-1"]\n\n1. e4 e5 2. a3 0-1',
     userColor: "white",
     result: "0-1",
     playedAt: new Date("2026-10-04T18:20:00Z"),

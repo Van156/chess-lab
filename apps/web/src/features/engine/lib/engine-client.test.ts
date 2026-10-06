@@ -197,7 +197,7 @@ describe("engine client", () => {
     let created = 0;
     const client = createEngineClient({
       createTransport: () => fakes[created++]!.transport,
-      searchTimeoutMs: () => 1_000,
+      silenceMs: 1_000,
       stopTimeoutMs: 100,
       setTimer: (run) => {
         const timer = { run, cleared: false };

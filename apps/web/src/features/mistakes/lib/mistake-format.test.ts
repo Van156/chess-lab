@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
+import { boardTheme } from "@/shared/components/board";
+
 import {
   arrowDescription,
+  BEST_ARROW_COLOR,
+  BEST_ARROW_NAME,
   formatClock,
   formatEval,
   isNotFound,
@@ -10,6 +14,7 @@ import {
   moveLabel,
   movesFromPgn,
   PLAYED_ARROW_COLOR,
+  PLAYED_ARROW_NAME,
   pawns,
   phaseLabel,
   severityLabel,
@@ -62,15 +67,24 @@ describe("arrows", () => {
     expect(uciSquares("nonsense")).toBeNull();
   });
 
-  test("draws the played move in red and the best move last in the default colour", () => {
+  test("draws the played move in red and the best move last in an explicit colour", () => {
     expect(moveArrows({ playedUci: "a2a3", bestUci: "g1f3" })).toEqual([
       { from: "a2", to: "a3", color: PLAYED_ARROW_COLOR },
-      { from: "g1", to: "f3" },
+      { from: "g1", to: "f3", color: BEST_ARROW_COLOR },
     ]);
   });
 
   test("skips a move that is not valid UCI instead of drawing a broken arrow", () => {
-    expect(moveArrows({ playedUci: "", bestUci: "g1f3" })).toEqual([{ from: "g1", to: "f3" }]);
+    expect(moveArrows({ playedUci: "", bestUci: "g1f3" })).toEqual([
+      { from: "g1", to: "f3", color: BEST_ARROW_COLOR },
+    ]);
+  });
+
+  test("the colour names in the text alternative are the ones the arrows are drawn in", () => {
+    // The best arrow is the board theme's mint green; the played arrow is a red.
+    expect(BEST_ARROW_COLOR).toBe(boardTheme.arrow);
+    expect(BEST_ARROW_NAME).toBe("green");
+    expect(PLAYED_ARROW_NAME).toBe("red");
   });
 
   test("the text alternative names both moves and their colours", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { renderWithRouter } from "@/shared/testing/render-with-router";
 
@@ -11,8 +11,11 @@ function render(mistake = mistakeDetail, list: readonly string[] = moves) {
   return renderWithRouter(<MistakeDetailView mistake={mistake} moves={list} />);
 }
 
-describe("MistakeDetailView", async () => {
-  const html = await render();
+describe("MistakeDetailView", () => {
+  let html = "";
+  beforeAll(async () => {
+    html = await render();
+  });
 
   test("describes the board position and both arrows for assistive technology", () => {
     expect(html).toContain("Chess position before your move. White to move.");

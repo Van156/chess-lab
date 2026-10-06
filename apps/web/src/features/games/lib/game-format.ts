@@ -36,11 +36,6 @@ export function gameOutcome(game: Pick<GameItem, "result" | "userColor">): GameO
   }
 }
 
-/** UTC calendar date as `YYYY-MM-DD`, so the text does not depend on the viewer's time zone. */
-export function formatPlayedDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** "Blitz, rated" / "Rapid, casual". */

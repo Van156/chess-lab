@@ -1,4 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useReducer, useRef, useState } from "react";
 
@@ -7,6 +12,8 @@ import { client, orpc } from "@/app/orpc";
 import { PAUSE_HIDDEN_MS } from "../config";
 import { createAnalysisRun, type AnalysisApi, type AnalysisRun } from "../lib/analysis-run";
 import { initialStatus, isReviewPath, reduceStatus } from "../lib/analysis-status";
+import { createHiddenTabPolicy } from "../lib/hidden-tab-policy";
+import { listRefetchType } from "../lib/list-refresh";
 import { createPauseGate } from "../lib/pause-gate";
 import { engine } from "../lib/shared-engine";
 
@@ -14,6 +21,14 @@ const api: AnalysisApi = {
   next: () => client.analysis.next(),
   submitEvals: (input) => client.analysis.submitEvals(input),
   complete: (input) => client.analysis.complete(input),
+};
+
+/** Refreshes a paged list without refetching every page of a deeply loaded one. */
+const refreshPagedList = (queryClient: QueryClient, queryKey: QueryKey) => {
+  const pages = queryClient
+    .getQueriesData<InfiniteData<unknown>>({ queryKey })
+    .map(([, data]) => data?.pages.length ?? 0);
+  void queryClient.invalidateQueries({ queryKey, refetchType: listRefetchType(pages) });
 };
 
 /**
@@ -51,8 +66,8 @@ export function useGameAnalysis({ enabled = true }: { enabled?: boolean } = {}) 
           // lists (analysis status, new mistakes) are out of date.
           void queryClient.invalidateQueries({ queryKey: orpc.review.queue.key() });
           void queryClient.invalidateQueries({ queryKey: orpc.today.summary.key() });
-          void queryClient.invalidateQueries({ queryKey: orpc.games.list.key() });
-          void queryClient.invalidateQueries({ queryKey: orpc.mistakes.list.key() });
+          refreshPagedList(queryClient, orpc.games.list.key());
+          refreshPagedList(queryClient, orpc.mistakes.list.key());
         }
       },
     });
@@ -71,20 +86,18 @@ export function useGameAnalysis({ enabled = true }: { enabled?: boolean } = {}) 
 
   useEffect(() => {
     if (!enabled) return;
-    let hiddenTimer: ReturnType<typeof setTimeout> | undefined;
-    const onVisibility = () => {
-      clearTimeout(hiddenTimer);
-      if (document.visibilityState === "hidden") {
-        void runRef.current?.flush();
-        hiddenTimer = setTimeout(() => runRef.current?.stop(), PAUSE_HIDDEN_MS);
-      }
-    };
-    const onPageHide = () => void runRef.current?.flush();
+    const policy = createHiddenTabPolicy({
+      flush: () => void runRef.current?.flush(),
+      stop: () => runRef.current?.stop(),
+      hiddenMs: PAUSE_HIDDEN_MS,
+    });
+    const onVisibility = () => policy.visibilityChanged(document.visibilityState);
+    const onPageHide = () => policy.pageHidden();
     onVisibility();
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
     return () => {
-      clearTimeout(hiddenTimer);
+      policy.dispose();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", onPageHide);
     };

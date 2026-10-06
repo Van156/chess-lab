@@ -56,7 +56,10 @@ export type RunOutcome = "finished" | "stopped" | "unavailable" | "failed";
 
 export interface AnalysisRun {
   start: () => Promise<RunOutcome>;
-  /** Sends the evaluations gathered so far (tab hidden or closing). Never rejects. */
+  /**
+   * Best-effort send of the evaluations gathered so far (tab hidden or closing). Never rejects and
+   * never changes the run: a failure leaves the evaluations pending for the regular submit.
+   */
   flush: () => Promise<void>;
   /** Ends the run: cancels the running search; `start` resolves `"stopped"`. */
   stop: () => void;
@@ -77,6 +80,9 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
   let batch: Batch = emptyBatch("screen");
   let gameId = "";
   let sendQueue: Promise<void> = Promise.resolve();
+  // Identifies the pending batch, and how many of its evaluations a flush already delivered.
+  let batchId = 0;
+  let flushed: { batchId: number; count: number } = { batchId: 0, count: 0 };
   let wake: (() => void) | null = null;
   const stopWaiter = new Promise<never>((_, reject) => {
     wake = () => reject(new StopSignal());
@@ -121,6 +127,7 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
   function sendBatch(): Promise<void> {
     const taken = batch;
     batch = emptyBatch(taken.phase);
+    batchId += 1;
     if (taken.evals.length === 0) return sendQueue;
     sendQueue = sendQueue.then(() =>
       api
@@ -145,6 +152,7 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
   async function analyseGame(game: AnalysisGame): Promise<void> {
     gameId = game.gameId;
     batch = emptyBatch("screen");
+    batchId += 1;
     const fens = positionFens(game.pgn);
     const evals = [...game.evals];
 
@@ -169,6 +177,36 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
     onEvent({ type: "gameCompleted" });
   }
 
+  /**
+   * Sends a copy of the pending batch and leaves the batch itself untouched, so a failed flush
+   * loses nothing: the regular submit resends the same plies from the same `fromPly` (the server
+   * stores them idempotently). Consuming the batch instead would leave a gap after a failure, and
+   * the server rejects a batch that starts past its resume point. The flush waits behind the
+   * queued regular sends so it never overtakes them, but it is not part of that queue: its
+   * failure is swallowed here and cannot reject the queue the run depends on.
+   */
+  async function flush(): Promise<void> {
+    const snapshot = batch;
+    const id = batchId;
+    if (snapshot.evals.length === 0) return;
+    if (flushed.batchId === id && flushed.count >= snapshot.evals.length) return;
+    try {
+      await sendQueue;
+      await api.submitEvals({
+        gameId,
+        fromPly: snapshot.fromPly,
+        evals: snapshot.evals,
+        phase: snapshot.phase,
+        engineId: ENGINE_ID,
+      });
+      if (flushed.batchId !== id || flushed.count < snapshot.evals.length) {
+        flushed = { batchId: id, count: snapshot.evals.length };
+      }
+    } catch {
+      // Best effort: the evaluations stay pending in the batch.
+    }
+  }
+
   async function start(): Promise<RunOutcome> {
     try {
       for (;;) {
@@ -185,7 +223,7 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
 
   return {
     start,
-    flush: () => sendBatch().catch(() => {}),
+    flush,
     stop() {
       stopped = true;
       active?.cancel();

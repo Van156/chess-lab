@@ -149,8 +149,8 @@ describe("createAnalysisRun", () => {
     expect(h.completed).toEqual([]);
   });
 
-  test("a failed submit ends the run as failed", async () => {
-    const h = setup([game()]);
+  test("a failed submit ends the run as failed and never completes the game", async () => {
+    const completed: string[] = [];
     const failing = createAnalysisRun({
       gate: createPauseGate(),
       onEvent: () => {},
@@ -159,12 +159,14 @@ describe("createAnalysisRun", () => {
         submitEvals: async () => {
           throw new Error("network");
         },
-        complete: async () => {},
+        complete: async ({ gameId }) => {
+          completed.push(gameId);
+        },
       },
       engine: { analyse: () => ({ cancel: () => {}, result: Promise.resolve(result(20, 10)) }) },
     });
     expect(await failing.start()).toBe("failed");
-    expect(h.completed).toEqual([]);
+    expect(completed).toEqual([]);
   });
 
   test("flush sends the evaluations gathered so far", async () => {
@@ -282,5 +284,81 @@ describe("createAnalysisRun", () => {
     }
     expect(await started).toBe("finished");
     expect(completed).toEqual(["g1"]);
+  });
+
+  describe("flush", () => {
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    /** Three positions are evaluated at once; the fourth waits until `resumeEngine` is called. */
+    const flushHarness = (submitFails: (call: number) => boolean) => {
+      let release: (value: EngineResult) => void = () => {};
+      let calls = 0;
+      let submitCalls = 0;
+      const submits: Array<{ fromPly: number; evals: PlyEval[] }> = [];
+      const completed: string[] = [];
+      const run = createAnalysisRun({
+        gate: createPauseGate(),
+        onEvent: () => {},
+        api: {
+          next: async () => (completed.length === 0 ? game() : null),
+          submitEvals: async (input) => {
+            submitCalls += 1;
+            if (submitFails(submitCalls)) throw new Error("network");
+            submits.push(input);
+          },
+          complete: async ({ gameId }) => {
+            completed.push(gameId);
+          },
+        },
+        engine: {
+          analyse: () => {
+            calls += 1;
+            return {
+              cancel: () => {},
+              result:
+                calls === 4
+                  ? new Promise<EngineResult>((resolve) => (release = resolve))
+                  : Promise.resolve(result(20, 10)),
+            };
+          },
+        },
+      });
+      return {
+        run,
+        submits,
+        completed,
+        started: async () => {
+          const outcome = run.start();
+          while (calls < 4) await tick();
+          return { outcome };
+        },
+        resumeEngine: () => release(result(20, 10)),
+      };
+    };
+
+    test("a failed flush neither poisons the run nor loses evaluations: the run still completes", async () => {
+      const h = flushHarness((call) => call === 1);
+      const { outcome } = await h.started();
+      await h.run.flush(); // rejected by the server: must be swallowed
+      h.resumeEngine();
+      expect(await outcome).toBe("finished");
+      expect(h.completed).toEqual(["g1"]);
+      // The unsent evaluations were not dropped: the next submit still starts at ply 0, so the
+      // server (which rejects a batch past its resume point) sees no gap.
+      expect(h.submits).toHaveLength(1);
+      expect(h.submits[0]?.fromPly).toBe(0);
+      expect(h.submits[0]?.evals).toHaveLength(8);
+    });
+
+    test("a flush that succeeded is not repeated while nothing new was evaluated", async () => {
+      const h = flushHarness(() => false);
+      const { outcome } = await h.started();
+      await h.run.flush();
+      await h.run.flush();
+      expect(h.submits).toHaveLength(1);
+      h.resumeEngine();
+      expect(await outcome).toBe("finished");
+      expect(h.completed).toEqual(["g1"]);
+    });
   });
 });

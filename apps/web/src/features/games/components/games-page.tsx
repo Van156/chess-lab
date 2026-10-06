@@ -5,6 +5,7 @@ import { SyncStatus, describeSync } from "@/features/today";
 
 import { useGames } from "../hooks/use-games";
 import { useGamesSync } from "../hooks/use-games-sync";
+import { withSyncRequestError } from "../lib/sync-error";
 import GamesView from "./games-view";
 
 /** `/games` (container): wires the games list and the Lichess sync status into `GamesView`. */
@@ -19,9 +20,12 @@ export default function GamesPage() {
   if (!games.games) {
     return <LoadError message="Your games could not be loaded." onRetry={games.retry} />;
   }
-  const description = sync.status
-    ? describeSync(sync.status, sync.now)
-    : { tone: "neutral" as const, message: "Sync status unavailable", canSync: true };
+  const description = withSyncRequestError(
+    sync.status
+      ? describeSync(sync.status, sync.now)
+      : { tone: "neutral" as const, message: "Sync status unavailable", canSync: true },
+    sync.syncFailed,
+  );
   return (
     <GamesView
       games={games.games}
@@ -31,6 +35,7 @@ export default function GamesPage() {
       }
       hasMore={games.hasMore}
       loadingMore={games.loadingMore}
+      loadMoreFailed={games.loadMoreFailed}
       onLoadMore={games.loadMore}
       showMistakesLink={mistakes}
     />

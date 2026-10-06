@@ -19,6 +19,7 @@ export function useGames() {
     isError: query.isError,
     hasMore: query.hasNextPage,
     loadingMore: query.isFetchingNextPage,
+    loadMoreFailed: query.isFetchNextPageError,
     loadMore: () => void query.fetchNextPage(),
     retry: () => void query.refetch(),
   };

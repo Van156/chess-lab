@@ -4,7 +4,6 @@ import {
   EngineJobCancelledError,
   EngineUnavailableError,
   createEngineQueue,
-  searchTimeoutMs,
   type EngineQueueOptions,
   type EngineTransport,
 } from "./engine-queue";
@@ -316,7 +315,7 @@ const createManualTimers = () => {
   };
 };
 
-describe("engine queue watchdog", () => {
+describe("engine queue silence watchdog", () => {
   const SEARCH_MS = 1_000;
   const STOP_MS = 200;
   const setup = () => {
@@ -325,7 +324,7 @@ describe("engine queue watchdog", () => {
     const stalls: Error[] = [];
     const queue = createEngineQueue(fake.transport, {
       ...clock.options,
-      searchTimeoutMs: () => SEARCH_MS,
+      silenceMs: SEARCH_MS,
       stopTimeoutMs: STOP_MS,
       onStall: (error) => stalls.push(error),
     });
@@ -360,6 +359,57 @@ describe("engine queue watchdog", () => {
     expect(clock.pendingCount()).toBe(0);
     clock.advance(SEARCH_MS * 5);
     expect(stalls).toHaveLength(0);
+  });
+
+  test("a job that keeps reporting is never failed, however long it runs", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 18 }, priority: "background" });
+    // 50 seconds of search against a one second silence window: a total-budget watchdog would fire.
+    for (let step = 0; step < 100; step += 1) {
+      clock.advance(SEARCH_MS - 500);
+      fake.emit(`info depth ${step + 1} multipv 1 score cp 20 pv e2e4`);
+    }
+    expect(stalls).toHaveLength(0);
+    fake.emit("bestmove e2e4");
+    const result = await job.result;
+    expect(result.depth).toBe(100);
+    expect(clock.pendingCount()).toBe(0);
+  });
+
+  test("output other than info (and secondary lines) also proves the engine is alive", () => {
+    const { fake, clock, queue, stalls } = setup();
+    queue.submit({ fen: FEN_A, limit: { depth: 10 }, priority: "background" });
+    clock.advance(SEARCH_MS - 1);
+    fake.emit("info depth 3 multipv 2 score cp 5 pv d2d4");
+    clock.advance(SEARCH_MS - 1);
+    fake.emit("info string NNUE evaluation using nn.nnue");
+    clock.advance(SEARCH_MS - 1);
+    expect(stalls).toHaveLength(0);
+  });
+
+  test("a job that reports and then goes silent still fails, one window after the last line", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 18 }, priority: "background" });
+    clock.advance(SEARCH_MS - 1);
+    fake.emit("info depth 5 multipv 1 score cp 20 pv e2e4");
+    clock.advance(SEARCH_MS - 1);
+    expect(stalls).toHaveLength(0);
+    clock.advance(1);
+    const outcome = await settle(job.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+    expect(stalls).toHaveLength(1);
+  });
+
+  test("output while stopping does not extend the bounded stop wait", async () => {
+    const { fake, clock, queue, stalls } = setup();
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 18 }, priority: "background" });
+    job.cancel();
+    clock.advance(STOP_MS - 1);
+    fake.emit("info depth 9 multipv 1 score cp 20 pv e2e4");
+    clock.advance(1);
+    const outcome = await settle(job.result);
+    expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
+    expect(stalls).toHaveLength(1);
   });
 
   test("each job gets a fresh watchdog", async () => {
@@ -421,15 +471,5 @@ describe("engine queue watchdog", () => {
     const late = queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "background" });
     const outcome = await settle(late.result);
     expect(outcome.status === "error" && outcome.error).toBeInstanceOf(EngineUnavailableError);
-  });
-});
-
-describe("searchTimeoutMs", () => {
-  test("movetime adds slack, depth scales per ply, both capped by the ceiling", () => {
-    const budget = { slackMs: 1_000, perDepthMs: 100, ceilingMs: 5_000 };
-    expect(searchTimeoutMs({ movetimeMs: 500 }, budget)).toBe(1_500);
-    expect(searchTimeoutMs({ depth: 10 }, budget)).toBe(2_000);
-    expect(searchTimeoutMs({ depth: 100 }, budget)).toBe(5_000);
-    expect(searchTimeoutMs({ movetimeMs: 60_000 }, budget)).toBe(5_000);
   });
 });

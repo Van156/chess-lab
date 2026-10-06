@@ -61,6 +61,14 @@ describe("GamesView", () => {
     );
   });
 
+  test("a failed next page keeps the loaded games, announces the error and offers a retry", () => {
+    const html = render({ hasMore: true, loadMoreFailed: true });
+    expect(html).toContain("Imported games");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("More games could not be loaded.");
+    expect(html).toContain("Try again");
+  });
+
   test("shows the empty state, still with the sync slot, when nothing was imported", () => {
     const html = render({ games: [], importedCount: 0 });
     expect(html).toContain("No games yet");

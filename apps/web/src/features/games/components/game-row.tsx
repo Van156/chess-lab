@@ -3,10 +3,11 @@ import { Card } from "@b2c-template/ui/components/card";
 import { cn } from "@b2c-template/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 
+import { formatUtcDate, sideLabel } from "@/shared/lib/game-display";
+
 import {
   describeAnalysis,
   describeFormat,
-  formatPlayedDate,
   gameOutcome,
   hasMistakesToShow,
   type AnalysisTone,
@@ -19,8 +20,6 @@ const TONE_CLASS: Record<AnalysisTone, string> = {
   success: "text-success",
   error: "text-destructive",
 };
-
-const SIDE_LABEL = { white: "White", black: "Black" } as const;
 
 /**
  * One imported game: outcome, how it was played and its analysis status. The status is text, so it
@@ -38,13 +37,13 @@ export default function GameRow({
     <Card className="flex flex-col gap-2 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-col gap-1">
         <p className="font-semibold">
-          {gameOutcome(game)} <span className="font-normal">as {SIDE_LABEL[game.userColor]}</span>
+          {gameOutcome(game)} <span className="font-normal">as {sideLabel(game.userColor)}</span>
         </p>
         <p className="text-sm text-muted-foreground">
           {describeFormat(game)}
           {game.openingName ? `, ${game.openingName}` : ""}
           {" · "}
-          <time dateTime={game.playedAt.toISOString()}>{formatPlayedDate(game.playedAt)}</time>
+          <time dateTime={game.playedAt.toISOString()}>{formatUtcDate(game.playedAt)}</time>
         </p>
         <p className={cn("text-sm", TONE_CLASS[analysis.tone])}>
           <span className="sr-only">Analysis: </span>
@@ -58,7 +57,7 @@ export default function GameRow({
           className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-11 px-4")}
         >
           View mistakes
-          <span className="sr-only"> from the game on {formatPlayedDate(game.playedAt)}</span>
+          <span className="sr-only"> from the game on {formatUtcDate(game.playedAt)}</span>
         </Link>
       ) : null}
     </Card>

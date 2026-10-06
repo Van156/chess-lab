@@ -1,9 +1,10 @@
-import { Button, buttonVariants } from "@b2c-template/ui/components/button";
+import { buttonVariants } from "@b2c-template/ui/components/button";
 import { cn } from "@b2c-template/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { Crosshair } from "lucide-react";
 
 import EmptyState from "@/shared/components/feedback/empty-state";
+import LoadMore from "@/shared/components/feedback/load-more";
 import PageHeader from "@/shared/components/layout/page-header";
 
 import type { MistakeItem } from "../lib/mistakes-types";
@@ -15,6 +16,8 @@ export type MistakesViewProps = {
   filteredByGame: boolean;
   hasMore: boolean;
   loadingMore: boolean;
+  /** Fetching the next page failed; the pages already loaded stay. */
+  loadMoreFailed?: boolean;
   onLoadMore: () => void;
 };
 
@@ -24,6 +27,7 @@ export default function MistakesView({
   filteredByGame,
   hasMore,
   loadingMore,
+  loadMoreFailed = false,
   onLoadMore,
 }: MistakesViewProps) {
   return (
@@ -62,15 +66,12 @@ export default function MistakesView({
             ))}
           </ul>
           {hasMore ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 self-center px-6"
-              disabled={loadingMore}
-              onClick={onLoadMore}
-            >
-              {loadingMore ? "Loading mistakes" : "Load more mistakes"}
-            </Button>
+            <LoadMore
+              noun="mistakes"
+              loading={loadingMore}
+              failed={loadMoreFailed}
+              onLoadMore={onLoadMore}
+            />
           ) : null}
         </>
       )}

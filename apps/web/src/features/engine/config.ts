@@ -32,14 +32,13 @@ export const ENGINE_THREADS = 1;
 export const ENGINE_HANDSHAKE_TIMEOUT_MS = 30_000;
 
 /**
- * Per-search watchdog: a search gets `slack + depth * perDepth` (or `slack + movetime`), never more
- * than the ceiling. A worker that stays silent past it is terminated and restarted.
+ * Search silence watchdog: a running search that emits no engine output line (`info` and so on)
+ * for this long is terminated and restarted. Each line re-arms it, so the window does not bound the
+ * total search time, only the gap between lines. A fixed window replaces the old depth-derived
+ * budget: a depth-18 search legitimately runs far longer than any per-depth estimate, while a
+ * healthy engine reports at least once per iteration, so only the gap matters.
  */
-export const ENGINE_SEARCH_BUDGET = {
-  slackMs: 10_000,
-  perDepthMs: 3_000,
-  ceilingMs: 120_000,
-} as const;
+export const ENGINE_SEARCH_SILENCE_MS = 30_000;
 /** After `stop`, the engine must answer `bestmove` within this time, otherwise it is stalled. */
 export const ENGINE_STOP_TIMEOUT_MS = 5_000;
 
