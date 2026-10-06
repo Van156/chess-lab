@@ -1,5 +1,7 @@
 # Spec: Dashboard Shell & Auth Pages — Adopt the `template-dashboard` Design
 
+> **Superseded in part (chess-lab-v1):** the `/dashboard` page, `/prototype/*` routes and the theme preference were removed; `/` redirects to `/today` and the admin area is reached from the user menu. See [web-app.md](../architecture/web-app.md).
+
 > **Superseded in part (2026-10-02):** the design-refresh feature (`odd/tasks/design-refresh.md`) replaced the split-card auth layout with an ink brand panel layout, removed the "Or continue with" divider, and turned the `/` home page into a redirect (`/dashboard` or `/sign-in`). Those parts of this spec are kept as history; see `docs/architecture/web-app.md` for the current behaviour.
 
 > **Tenancy removed (2026-10-03):** this template is B2C, so the organization switcher (§4.1.3, G2, R1.3), onboarding, accept-invitation and invitation sign-up (R5.5, R5.6 scenarios, G-rows, acceptance criteria 15 and 18, open question 1, and T5/T6 items that mention them) and org-driven navigation no longer exist. The header slot hosts the theme toggle and user menu only. The text below keeps those parts as design history, not as current behaviour.

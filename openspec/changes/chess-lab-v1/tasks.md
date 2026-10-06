@@ -292,8 +292,8 @@ Satisfies: app-shell / Midnight shell and pruned navigation; ADR-21, ADR-19 (rem
 
 - [x] S12.1 [O] [react] Delete `apps/web/src/routes/prototype/**` (including the S0 `board-spike.tsx`); update the route tree and any references.
 - [x] S12.2 [O] [react] Delete `apps/web/src/routes/_auth/dashboard.tsx`; remove the theme preference card (dark forced); move admin group out of the main navigation (still reachable for superadmins).
-- [ ] S12.3 [T] Remove the demo `privateData` procedure from `packages/api/src/routers/index.ts` and fix its tests (`bun test packages/api`).
-- [ ] S12.4 [O] Update docs: `docs/architecture/web-app.md` (read the file first) and README sections for new packages, flags (`CHESSLAB_FEATURES`), env (`LICHESS_CLIENT_ID`), engine asset copy.
+- [x] S12.3 [T] Remove the demo `privateData` procedure from `packages/api/src/routers/index.ts` and fix its tests (`bun test packages/api`).
+- [x] S12.4 [O] Update docs: `docs/architecture/web-app.md` (read the file first) and README sections for new packages, flags (`CHESSLAB_FEATURES`), env (`LICHESS_CLIENT_ID`), engine asset copy.
 - [ ] S12.5 [O] Final Phase 1 pass: `pnpm check-types`, `pnpm --filter web check-types`, `pnpm check`, `bun test`; manual NFR checks (Today load, 200 ms next card, contrast, keyboard).
 
 Verify: standard checks; dev server shows no /prototype/* routes.

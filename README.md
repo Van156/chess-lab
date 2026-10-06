@@ -1,6 +1,6 @@
 # b2c-template
 
-A full-stack starter for consumer (B2C) products: individual accounts, no organizations. Users sign up, verify their email and land on `/dashboard`; platform admins (superadmins) manage users from `/admin`. This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
+A full-stack starter for consumer (B2C) products: individual accounts, no organizations. Users sign in with Lichess (or email and password) and land on `/today`; platform admins (superadmins) manage users from `/admin`. This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
 
 Documentation (specs, architecture notes and the code comment policy) is indexed in [docs/README.md](docs/README.md).
 
@@ -53,7 +53,7 @@ The API is running at [http://localhost:3000](http://localhost:3000).
 ## Branding
 
 Edit `apps/web/src/app/brand.ts` (name, tagline, logo, PWA theme color) and `--brand-hue` in
-`packages/ui/src/styles/globals.css` (color palette). `/` redirects to `/dashboard` when signed in
+`packages/ui/src/styles/globals.css` (color palette). `/` redirects to `/today` when signed in
 and to `/sign-in` otherwise. Details: [docs/architecture/web-app.md](docs/architecture/web-app.md#branding).
 
 ## UI Customization
@@ -233,8 +233,11 @@ b2c-template/
 │   └── server/      # Backend API (Hono, ORPC)
 ├── packages/
 │   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
+│   ├── api/         # API layer / business logic (oRPC routers, feature flags)
+│   ├── auth/        # Authentication configuration & logic (incl. Lichess sign-in)
+│   ├── chess/       # Pure chess logic: PGN parsing, positions, mistake classification
+│   ├── lichess/     # Lichess API client (rate-limited, NDJSON)
+│   ├── study/       # Spaced-repetition scheduling (ts-fsrs) and review queue
 │   └── db/          # Database schema & queries
 ```
 
@@ -267,7 +270,7 @@ After changing auth plugins or schema options, run `pnpm run auth:generate` from
 
 This template ships individual-account auth on top of better-auth, an isolated platform-superadmin layer, and an append-only audit log. There are no organizations or tenants: every signed-in user acts on their own account. Requirements live in [`docs/specs/auth-and-platform-admin.md`](docs/specs/auth-and-platform-admin.md) and [`docs/specs/account-settings.md`](docs/specs/account-settings.md) — this section is a short map, not a replacement for them.
 
-- **Accounts** — email and password with required email verification (optional Google sign-in, see below). A verified user lands on `/dashboard`. Self-service lives under `/account/*`: profile, change email, change or set password, sessions, theme and account deletion. Wired in `packages/auth/src/index.ts` and `packages/auth/src/account-security.ts`.
+- **Accounts** — email and password with required email verification (optional Google sign-in, see below). A verified user lands on `/today`. Self-service lives under `/account/*`: profile, change email, change or set password, sessions, data export and account deletion. Wired in `packages/auth/src/index.ts` and `packages/auth/src/account-security.ts`.
 - **Platform superadmin** — a separate layer (better-auth's `admin` plugin, `packages/auth/src/permissions/platform.ts`) for operator actions across all users: list and search users, ban/unban and impersonate (`/admin/users`), and read the platform activity log (`/admin/activity`). Ordinary users hold no platform permission.
 - **Audit log** — platform actions (bans, impersonation, platform role changes) and each user's security events (email and password changes, session revocation, account deletion) are written through one `AuditLogger` port (`packages/auth/src/audit/`). A user reads their own log on `/account/security`, a superadmin reads any user's on `/admin/users/$id` and the platform log on `/admin/activity`, with a configurable retention job.
 
@@ -328,6 +331,17 @@ Each app owns its own `.env.schema` (see "Environment Configuration" above); the
 | `PLATFORM_ADMIN_EMAILS`    | optional                                    | unset                | Comma-separated emails promoted to `superadmin` by `pnpm db:seed:admins` (R6.1). Never read by the running server or exposed through any endpoint. |
 
 `apps/web/.env.schema` has no auth-specific variables beyond `VITE_SERVER_URL` (the API base URL, already documented above).
+
+Chess Lab variables, also in `apps/server/.env.schema` (both optional):
+
+| Variable            | Default    | Purpose                                                                                                                                                                      |
+| ------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LICHESS_CLIENT_ID` | unset      | Lichess OAuth client ID (public PKCE client, no secret). Set it to enable "Sign in with Lichess"; redirect URI `<BETTER_AUTH_URL>/api/auth/callback/lichess`.                |
+| `CHESSLAB_FEATURES` | `mistakes` | Comma list of `mistakes,repertoire,blindfold,progress,emailSignUp`. An explicit list replaces the default; unknown tokens are ignored. Served at `GET /api/public/features`. |
+
+### Stockfish engine assets
+
+`apps/web/scripts/copy-engine.ts` copies the pinned Stockfish lite single-thread build (`.js`, `.wasm`) and its GPL text from the `stockfish` devDependency into `apps/web/public/engine/`. It runs automatically from the web `start`, `dev:bare` (`pnpm dev:web`) and `build` scripts; the directory is git-ignored and the files are served as static assets and loaded in a Web Worker, never bundled.
 
 Integration tests use a separate variable, `TEST_DATABASE_URL` (not part of any `.env.schema` — read directly by `packages/db/src/testing.ts`, `DATABASE_URL` is deliberately ignored by tests). It defaults to `postgresql://postgres:password@localhost:5437/b2c_template_test` if unset; see "Local Development & Testing" below.
 

@@ -9,13 +9,13 @@ brand panel, document title, meta description and PWA manifest (`vite.config.ts`
 The color palette is driven by one knob, `--brand-hue`, in `packages/ui/src/styles/globals.css`.
 If you change the hue, update `themeColor` in `brand.ts` to match the light-mode `--sidebar` token.
 
-`/` has no page: it redirects to `/dashboard` for a signed-in user and to `/sign-in` otherwise (`loadHomeRedirect` / `resolveHomeRedirect`). A rejected session lookup is logged and forwarded to `/dashboard`, so the `_auth` guard owns the decision.
+`/` has no page: it redirects to `/today` for a signed-in user and to `/sign-in` otherwise (`loadHomeRedirect` / `resolveHomeRedirect`). A rejected session lookup is logged and forwarded to `/today`, so the `_auth` guard owns the decision.
 
 Auth screens render in `AuthLayout`: the form column (`AuthCard`) beside an ink brand panel fed by `brand.ts`. Inputs and buttons on these screens opt into the large size with `size="lg"`; terminal states use `AuthStatusNotice`, whose link actions pass `className="w-full"` on the wrapping `Link`.
 
 ## Signed-in layout
 
-`routes/_auth/route.tsx` guards every authenticated route on a session (no session redirects to `/sign-in`). Routes that set `staticData: { appShell: true }` (`dashboard`, `account`, `admin`) are wrapped once in `AuthenticatedShell`, so the sidebar stays mounted between them. There is no further guard: a signed-in user goes straight to `/dashboard`, with no onboarding step. Verifying an email also goes to `/dashboard`.
+`routes/_auth/route.tsx` guards every authenticated route on a session (no session redirects to `/sign-in`). Routes that set `staticData: { appShell: true }` (the Chess Lab pages, `account`, `admin`) are wrapped once in `AuthenticatedShell`, so the sidebar stays mounted between them. There is no further guard: a signed-in user goes straight to `/today`, with no onboarding step. Verifying an email also goes to `/today`. The shell is dark only (`ThemeProvider` in `routes/__root.tsx` sets `forcedTheme="dark"`); there is no theme toggle or preference page.
 
 Permission checks exist only for the platform layer (see [Admin area](#admin-area)). They are UX only: every underlying read and write is re-checked server-side regardless of what renders.
 
@@ -23,16 +23,32 @@ Permission checks exist only for the platform layer (see [Admin area](#admin-are
 
 `routes/_auth/account/route.tsx` is the personal area (account-settings R1). It sits under `_auth` and opts into the app shell with `staticData: { appShell: true }`. `/account` redirects to `/account/profile`.
 
-| Route                  | Page                                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `/account/profile`     | Name (email read-only).                                                                        |
-| `/account/security`    | Email change, change or set password, sessions, security log. Table state lives in the search. |
-| `/account/preferences` | Theme.                                                                                         |
-| `/account/danger`      | Delete account: confirm dialog, then an emailed link.                                          |
+| Route               | Page                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/account/profile`  | Name (email read-only).                                                                              |
+| `/account/security` | Email change, change or set password, sessions, security log. Table state lives in the search.       |
+| `/account/danger`   | Data export card and delete account: emailed link, or typed Lichess username for Lichess-only users. |
 
 Public routes `/forgot-password` and `/reset-password` live in `_public-auth`. The reset link lands on `/reset-password?token=...`; only an `INVALID_TOKEN` error switches to the invalid-link state, other failures stay inline and retryable. After the delete link is opened the server redirects to `/sign-in`.
 
-Navigation: `navGroups` in `app/navigation.ts` is the single source for the sidebar and the section tabs (`getSectionItems`). The Dashboard and `account` ("Personal") groups are always visible; the `admin` ("Platform") group is visible only to superadmins (`NavContext.isSuperadmin`). Visibility is UX only; the admin layout keeps its own check.
+Navigation: `navGroups` in `app/navigation.ts` is the single source for the sidebar and the section tabs (`getSectionItems`). The `chess-lab` and `account` ("Personal") groups are in the sidebar; pillar items carry `visible: pillarEnabled(...)` (see [Feature flags](#feature-flags)). The `admin` ("Platform") group is kept out of the main navigation (`adminNavGroup`): it is reached from the user menu, feeds the admin tabs and breadcrumbs, and is visible only to superadmins (`NavContext.isSuperadmin`). Visibility is UX only; the admin layout keeps its own check.
+
+## Chess Lab pages
+
+All under `_auth` with the app shell. Each feature lives in `apps/web/src/features/<name>` and exposes a public `index.ts`.
+
+| Route       | Page                                                              |
+| ----------- | ----------------------------------------------------------------- |
+| `/today`    | Home: due counts, new-card budget, streak, Lichess import status. |
+| `/review`   | Review queue and grading (pillar flag `mistakes`).                |
+| `/games`    | Imported games with analysis status.                              |
+| `/mistakes` | Mistake list and `/mistakes/$id` detail (pillar flag `mistakes`). |
+
+The `engine` feature runs Stockfish in a Web Worker. `apps/web/scripts/copy-engine.ts` copies the pinned lite single-thread build and its GPL text (`Copying.txt`) unmodified from the `stockfish` devDependency into `apps/web/public/engine/` (git-ignored); the `build`, `start` and `dev:bare` scripts run it first. The engine is never imported by app code, so it stays out of the bundle, and `vite.config.ts` keeps `engine/**` out of the PWA precache. The `data-control` and `account` features hold the export and account-deletion flows.
+
+## Feature flags
+
+The server parses `CHESSLAB_FEATURES` once (`packages/api/src/features.ts`) and serves the result at `GET /api/public/features`; the web gates pillar nav items with `pillarEnabled`, and the API enforces the same flags per pillar. Tokens: `mistakes`, `repertoire`, `blindfold`, `progress`, `emailSignUp`. Unset means `mistakes` only; an explicit list replaces that default; unknown tokens are ignored. Until the server answers, every flag is off in the web.
 
 ## Admin area
 

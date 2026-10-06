@@ -1,5 +1,7 @@
 # Spec: Account Settings
 
+> **Superseded in part (chess-lab-v1):** `/account/preferences` and the theme toggle were removed (the shell is dark only), and `/account/danger` also hosts data export and the Lichess typed-username deletion flow. See [web-app.md](../architecture/web-app.md#account-area-and-password-recovery).
+
 - **Status:** Approved (all decisions in §9 resolved)
 - **Date:** 2026-10-01
 - **Stack:** better-auth 1.7.5 (admin plugin), oRPC, Drizzle/Postgres, React 19, TanStack Router + Query, `@tanstack/react-form` + zod, `packages/ui`, Storybook, `bun:test`
@@ -60,7 +62,6 @@ routes/
 │   │   ├── route.tsx                 # account layout + SectionNav
 │   │   ├── profile.tsx               # name; initials avatar
 │   │   ├── security.tsx              # email, password, sessions, security log
-│   │   ├── preferences.tsx           # theme
 │   │   └── danger.tsx                # delete account
 │   └── admin/users.$id.tsx           # Activity tab (scope = user)
 ```
@@ -146,7 +147,7 @@ Templates share one style. Emails never contain secrets beyond the single-use li
 
 ### R5 — Preferences
 
-**R5.1 Theme** — `/account/preferences` exposes light/dark/system using the existing theme provider; stored client-side only.
+**R5.1 Theme** — Superseded (chess-lab-v1): the preferences page and theme toggle were removed and the shell is dark only. Originally `/account/preferences` exposed light/dark/system using the existing theme provider; stored client-side only.
 
 ### R6 — Account deletion
 
