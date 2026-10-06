@@ -20,13 +20,24 @@ const CALLBACK_PATH = "/callback/:id";
 /** ADR-08: how recent the session must be to delete a Lichess-only account. */
 export const DELETE_FRESH_WINDOW_MS = 10 * 60 * 1000;
 
-export const REAUTH_REQUIRED_CODE = "REAUTH_REQUIRED";
-export const USERNAME_MISMATCH_CODE = "USERNAME_MISMATCH";
+/** Error codes of `POST /lichess/delete-account`; the web client mirrors them. */
+export const LICHESS_DELETE_ERROR_CODES = {
+  IMPERSONATION_NOT_ALLOWED: "IMPERSONATION_NOT_ALLOWED",
+  LICHESS_ONLY_ACCOUNT_REQUIRED: "LICHESS_ONLY_ACCOUNT_REQUIRED",
+  REAUTH_REQUIRED: "REAUTH_REQUIRED",
+  USERNAME_MISMATCH: "USERNAME_MISMATCH",
+} as const;
+
+export const IMPERSONATION_NOT_ALLOWED_CODE = LICHESS_DELETE_ERROR_CODES.IMPERSONATION_NOT_ALLOWED;
+export const LICHESS_ONLY_ACCOUNT_REQUIRED_CODE =
+  LICHESS_DELETE_ERROR_CODES.LICHESS_ONLY_ACCOUNT_REQUIRED;
+export const REAUTH_REQUIRED_CODE = LICHESS_DELETE_ERROR_CODES.REAUTH_REQUIRED;
+export const USERNAME_MISMATCH_CODE = LICHESS_DELETE_ERROR_CODES.USERNAME_MISMATCH;
 
 export type LichessAccountOptions = LichessOAuthOptions & {
   db: Database;
   /** Audit seam shared with `deleteUser.beforeDelete`; a rejection aborts the deletion. */
-  events?: Pick<AccountSecurityEvents, "userDeleting">;
+  events?: Pick<AccountSecurityEvents, "userDeleting" | "userDeleteFailed">;
 };
 
 /**
@@ -64,14 +75,14 @@ export function createLichessAccount({ db, events = {}, ...oauth }: LichessAccou
           // Admin impersonation must never delete the impersonated person's account.
           if ((session as { impersonatedBy?: string | null }).impersonatedBy) {
             throw new APIError("FORBIDDEN", {
-              code: "IMPERSONATION_NOT_ALLOWED",
+              code: IMPERSONATION_NOT_ALLOWED_CODE,
               message: "Impersonated sessions cannot delete an account.",
             });
           }
           // Real-email users keep the emailed-link flow (`/delete-user`).
           if (!isSyntheticEmail(user.email)) {
             throw new APIError("FORBIDDEN", {
-              code: "LICHESS_ONLY_ACCOUNT_REQUIRED",
+              code: LICHESS_ONLY_ACCOUNT_REQUIRED_CODE,
               message: "Use the emailed confirmation link to delete this account.",
             });
           }
@@ -96,9 +107,21 @@ export function createLichessAccount({ db, events = {}, ...oauth }: LichessAccou
             });
           }
           // Fail closed: a rejected audit write aborts before anything is deleted.
-          await events.userDeleting?.({ userId: user.id, email: user.email, name: user.name });
-          await ctx.context.internalAdapter.deleteUserSessions(user.id);
-          await ctx.context.internalAdapter.deleteUser(user.id);
+          const deleting = { userId: user.id, email: user.email, name: user.name };
+          await events.userDeleting?.(deleting);
+          try {
+            // `deleteUser` removes the sessions and accounts first, then the user row (chess rows
+            // cascade from it). The cookie is only cleared once it succeeded.
+            await ctx.context.internalAdapter.deleteUser(user.id);
+          } catch (error) {
+            // The audit seam and better-auth's adapter cannot share a transaction, so a delete that
+            // fails after `user.deleted` was written is compensated with `user.delete_failed`
+            // (best-effort) and the request fails: the account is never reported as deleted.
+            await events.userDeleteFailed?.(deleting).catch((auditError: unknown) => {
+              console.error("[lichess-account] delete_failed audit write failed", auditError);
+            });
+            throw error;
+          }
           deleteSessionCookie(ctx);
           return ctx.json({ success: true });
         },

@@ -20,6 +20,7 @@ export const USER_AUDIT_ACTIONS = [
   "user.password_reset",
   "user.session_revoked",
   "user.deleted",
+  "user.delete_failed",
 ] as const;
 
 export type PlatformAuditAction = (typeof PLATFORM_AUDIT_ACTIONS)[number];

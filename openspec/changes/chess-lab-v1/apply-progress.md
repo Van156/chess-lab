@@ -509,3 +509,17 @@ Delivery (user decision 2026-10-06): S11b ships as two PRs in the `feature-branc
 
 - PR 17 `feat/chess-lab-v1-s11b` (base `feat/chess-lab-v1-s11a2`): 5ddebab, S11b.1 and S11b.2 delete endpoint.
 - PR 17b `feat/chess-lab-v1-s11b2` (base `feat/chess-lab-v1-s11b`): d1e0530 S11b.3 delete flow, plus the review docs. Later work bases on `feat/chess-lab-v1-s11b2`.
+
+## S11 review follow-ups, server and auth part (on feat/chess-lab-v1-s11b2)
+
+- Export mid-stream failure (R4/R3): DONE. A throw inside the stream calls the injected `onError` (wired to evlog `export.stream_failed` with the error name only) and appends `JSON_EXPORT_FAILED_MARKER` (`/* export failed, file incomplete */`, the truncated JSON stays unparseable) or `PGN_EXPORT_FAILED_MARKER` (`; export failed, file incomplete`). RED: missing exports.
+- Client abort (R4): DONE. The loop breaks on `out.aborted`, which runs the generator's `return()` and stops DB paging. RED observed by removing the check.
+- Impersonation guard (R3): DONE. `exportUserIdFromSession` in `export-routes.ts` with unit tests; `index.ts` wiring is one line.
+- `jsonArray` (R2): DONE. One `keyField`; the column comes from `getColumns(table)[keyField]`.
+- Delete atomicity (R4/R3): DONE as a compensating audit event, not a transaction (the audit writer and better-auth's `deleteUser` take no shared executor). The audit write stays first (fail closed); a failing `deleteUser` records `user.delete_failed` (new action in `audit/actions.ts`, `userDeleteFailed` seam) and returns 500 without clearing the cookie. The explicit `deleteUserSessions` call is removed (`deleteUser` already removes sessions and accounts). RED: no `user.delete_failed` event. GREEN with a real BEFORE DELETE trigger failure: user and chess rows intact, both audit rows present.
+  Residual: if better-auth fails at the user-row step it has already removed that user's sessions and accounts, so the person is signed out and the Lichess link row is gone (a later sign-in may not re-link to the existing user). Data is intact and the failure is audited.
+- Error codes (R2): DONE. `LICHESS_DELETE_ERROR_CODES` plus four named constants.
+
+Follow-ups for the web pass: mirror `LICHESS_DELETE_ERROR_CODES`; add an audit-log label for `user.delete_failed`; docs may list the new action.
+
+Verification: `bun test packages/api packages/auth apps/server` 504 pass, 0 fail, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: server and delete tests 45 pass.

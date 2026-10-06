@@ -37,17 +37,19 @@ const LICHESS_PROFILE_RUNNER_FIELDS = [
 type Row = Record<string, unknown>;
 
 /**
- * Streams one table in keyset pages ordered by `keyColumn`, scoped to `userId` in the WHERE clause.
+ * Streams one table in keyset pages ordered by `keyField` (one property name gives both the
+ * column and the row key), scoped to `userId` in the WHERE clause.
  * Yields a JSON array incrementally, one page per chunk.
  */
 async function* jsonArray(
   db: Database,
   table: PgTable,
-  keyColumn: PgColumn,
-  userColumn: PgColumn,
   keyField: string,
+  userColumn: PgColumn,
   userId: string,
 ): AsyncGenerator<string> {
+  const keyColumn = getColumns(table)[keyField];
+  if (!keyColumn) throw new Error(`export: unknown key field ${keyField}`);
   yield "[";
   let after: string | null = null;
   let first = true;
@@ -109,15 +111,15 @@ export async function* exportUserJson(db: Database, userId: string): AsyncGenera
   yield `,"lichessProfile":${JSON.stringify(profile ?? null)}`;
 
   yield `,"games":`;
-  yield* jsonArray(db, game, game.id, game.userId, "id", userId);
+  yield* jsonArray(db, game, "id", game.userId, userId);
   yield `,"analyses":`;
-  yield* jsonArray(db, gameAnalysis, gameAnalysis.gameId, gameAnalysis.userId, "gameId", userId);
+  yield* jsonArray(db, gameAnalysis, "gameId", gameAnalysis.userId, userId);
   yield `,"mistakes":`;
-  yield* jsonArray(db, mistake, mistake.id, mistake.userId, "id", userId);
+  yield* jsonArray(db, mistake, "id", mistake.userId, userId);
   yield `,"cards":`;
-  yield* jsonArray(db, card, card.id, card.userId, "id", userId);
+  yield* jsonArray(db, card, "id", card.userId, userId);
   yield `,"reviewLogs":`;
-  yield* jsonArray(db, reviewLog, reviewLog.id, reviewLog.userId, "id", userId);
+  yield* jsonArray(db, reviewLog, "id", reviewLog.userId, userId);
   yield "}";
 }
 

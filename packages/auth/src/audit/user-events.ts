@@ -54,5 +54,7 @@ export function createUserAuditEvents(auditLogger: AuditLogger): AccountSecurity
     },
     // Awaited BEFORE the delete: a rejection aborts the deletion (R6.4).
     userDeleting: ({ name, ...user }) => record("user.deleted", user, { userName: name }),
+    // Written when the delete failed after `user.deleted`: the account still exists.
+    userDeleteFailed: ({ name, ...user }) => record("user.delete_failed", user, { userName: name }),
   };
 }

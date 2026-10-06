@@ -8,7 +8,7 @@ import { getColumns, getTableName, isTable, sql } from "drizzle-orm";
 
 import type { AuthConfig } from "./index";
 import { createAuth } from "./index";
-import { DELETE_FRESH_WINDOW_MS } from "./lichess-account";
+import { DELETE_FRESH_WINDOW_MS, LICHESS_DELETE_ERROR_CODES } from "./lichess-account";
 import {
   cookieHeaderFromSetCookie,
   RecordingAuditLogger,
@@ -418,7 +418,9 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       await ageSessions(userId, DELETE_FRESH_WINDOW_MS + 60_000);
       const response = await deleteAccount(headers, "Thibault");
       expect(response.status).toBe(403);
-      expect(((await response.json()) as { code: string }).code).toBe("REAUTH_REQUIRED");
+      expect(((await response.json()) as { code: string }).code).toBe(
+        LICHESS_DELETE_ERROR_CODES.REAUTH_REQUIRED,
+      );
       expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
     });
 
@@ -433,7 +435,9 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       const { headers, userId } = await signInWithLichess();
       const response = await deleteAccount(headers, "NotThibault");
       expect(response.status).toBe(400);
-      expect(((await response.json()) as { code: string }).code).toBe("USERNAME_MISMATCH");
+      expect(((await response.json()) as { code: string }).code).toBe(
+        LICHESS_DELETE_ERROR_CODES.USERNAME_MISMATCH,
+      );
       expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
       expect(auditLogger.eventsFor("user.deleted")).toEqual([]);
     });
@@ -466,6 +470,48 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       expect(response.headers.get("set-cookie") ?? "").not.toContain("session_token=;");
       expect(await countsFor(userId)).toEqual(before);
       expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("a user delete that fails after the audit write is recorded, keeps the account and the cookie", async () => {
+      const { headers, userId } = await signInWithLichess();
+      await seedChess(userId);
+      const before = await countsFor(userId);
+      // A real database failure on the user row, after the audit write.
+      await handle.db.execute(sql`
+        CREATE OR REPLACE FUNCTION block_user_delete() RETURNS trigger AS $$
+        BEGIN RAISE EXCEPTION 'user delete blocked'; END; $$ LANGUAGE plpgsql`);
+      await handle.db.execute(
+        sql`CREATE TRIGGER block_user_delete BEFORE DELETE ON "user" FOR EACH ROW EXECUTE FUNCTION block_user_delete()`,
+      );
+      let response: Response;
+      try {
+        response = await deleteAccount(headers, "Thibault");
+      } finally {
+        await handle.db.execute(sql`DROP TRIGGER block_user_delete ON "user"`);
+        await handle.db.execute(sql`DROP FUNCTION block_user_delete()`);
+      }
+
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(response.headers.get("set-cookie") ?? "").not.toContain("session_token=;");
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+      const chessOnly = (counts: Record<string, number>) =>
+        Object.fromEntries(
+          Object.entries(counts).filter(([name]) => !["session", "account"].includes(name)),
+        );
+      expect(chessOnly(await countsFor(userId))).toEqual(chessOnly(before));
+      // The audit trail says the delete failed, so `user.deleted` is never the last word.
+      expect(auditLogger.eventsFor("user.deleted")).toHaveLength(1);
+      const [failed] = auditLogger.eventsFor("user.delete_failed");
+      expect(failed?.actorUserId).toBe(userId);
+    });
+
+    test("exports every delete error code as a named constant", () => {
+      expect(LICHESS_DELETE_ERROR_CODES).toEqual({
+        IMPERSONATION_NOT_ALLOWED: "IMPERSONATION_NOT_ALLOWED",
+        LICHESS_ONLY_ACCOUNT_REQUIRED: "LICHESS_ONLY_ACCOUNT_REQUIRED",
+        REAUTH_REQUIRED: "REAUTH_REQUIRED",
+        USERNAME_MISMATCH: "USERNAME_MISMATCH",
+      });
     });
 
     test("matches the username case-insensitively, then deletes everything and clears the cookie", async () => {

@@ -5,7 +5,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { initLogger } from "evlog";
+import { initLogger, log } from "evlog";
 import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
 import { createFsDrain } from "evlog/fs";
 import { evlog, type EvlogVariables } from "evlog/hono";
@@ -14,7 +14,7 @@ import { cors } from "hono/cors";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
-import { createExportRoutes } from "./export-routes";
+import { createExportRoutes, exportUserIdFromSession } from "./export-routes";
 import { createPublicRoutes } from "./public-routes";
 import { auth, db, features, startBackgroundJobs } from "./services";
 
@@ -50,11 +50,12 @@ app.route("/api/public", createPublicRoutes(ENV, features));
 app.route(
   "/api/export",
   createExportRoutes({
-    // An impersonated session never exports the impersonated user's data (same rule as deletion).
-    getUserId: async (headers) => {
-      const current = await auth.api.getSession({ headers });
-      return current && !current.session.impersonatedBy ? current.user.id : null;
-    },
+    getUserId: async (headers) => exportUserIdFromSession(await auth.api.getSession({ headers })),
+    onError: (error) =>
+      log.error({
+        action: "export.stream_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
     exportJson: (userId) => exportUserJson(db, userId),
     exportPgn: (userId) => exportUserPgn(db, userId),
   }),
