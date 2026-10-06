@@ -418,3 +418,8 @@ Non-blocking follow-ups (pending):
 - Analysis run: R3-vacuous-failed-submit-assertion (WARNING: asserts on an unused harness); R3-flush-failure-poisons-run (WARNING: a failed best-effort flush rejects the shared send queue and ends the run as failed); R3-hook-browser-behaviour-unproved.
 - Games/mistakes API: R3-cursor-value-validation (WARNING: a well-formed cursor with a bad timestamp gives a 500, a fractional ply is rounded); R3-cursor-test-gap.
 - Games/mistakes web: R3/R4 sync-mutation error silent (WARNING); R4-load-more-error-silent (WARNING); R3-mistake-notfound-retry / R4-not-found-retried (WARNING: NOT_FOUND is retried 3 times before "not found" shows); R4-guard-latency-on-flag-outage (WARNING: `requireFeature` waits for flag retries before redirecting); R3-async-describe (WARNING: an async `describe` in `mistake-detail-view.test.tsx`); R2-001 (WARNING, `BEST_ARROW_NAME`); R3-requirefeature-untested; R4-infinite-refetch-fanout; R2-002 to R2-005 (duplicated date and side-label helpers, nested page container, inconsistent fixture).
+
+Delivery (user decision 2026-10-06): S10 ships as two PRs in the `feature-branch-chain`.
+
+- PR 15 `feat/chess-lab-v1-s10` (base `feat/chess-lab-v1-s9b2`): df50591, S10.1 API.
+- PR 15b `feat/chess-lab-v1-s10b` (base `feat/chess-lab-v1-s10`): 82a9151 S10.2 and S10.3 web, plus the review docs. Later slices base on `feat/chess-lab-v1-s10b`.
