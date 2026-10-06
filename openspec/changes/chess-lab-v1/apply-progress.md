@@ -453,3 +453,12 @@ Verification: `bun test packages/api` 263 pass, 0 fail, 0 skip (one earlier run 
 Decision gaps: `ENGINE_SEARCH_SILENCE_MS` 30 s and `LIVE_REFRESH_MAX_PAGES` 2 are tunable choices; the sync-triggered `games.list` invalidation has no page guard yet; the global query error toast still fires alongside the new inline alerts.
 
 Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 907 pass, 0 fail (parent re-run 907 pass); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0.
+
+## Review follow-up fixes (base 82a9151 to 719ff10)
+
+- Medium risk, 1 lens (reliability), 1267 lines: APPROVED and acknowledged. Next review boundary: 719ff10.
+- R3-flush-reads-gameid-after-await (WARNING): DONE inline in the next commit; `flush` captures the game id and a copy of the evals before awaiting.
+- Pending, non-blocking:
+  - R3-mid-batch-null-can-stall-run (WARNING): an engine null for a NON-terminal position would stop the server resume point and make later batches BAD_REQUEST. This is accepted for now, because a position with legal moves always gets a score. Fix it if it shows up, by having the client restart a batch at the server's `nextPly`, or by submitting a non-terminal null as a hard failure.
+  - R3-sync-error-sticky: the Sync now error persists after a later successful background sync.
+  - R3-refresh-paged-list-unproved: `refreshPagedList` cache-shape wiring is untested.

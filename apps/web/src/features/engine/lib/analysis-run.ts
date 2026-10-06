@@ -186,21 +186,24 @@ export function createAnalysisRun({ api, engine, gate, onEvent }: AnalysisRunOpt
    * failure is swallowed here and cannot reject the queue the run depends on.
    */
   async function flush(): Promise<void> {
-    const snapshot = batch;
+    // Capture everything before awaiting: the run may move to another game meanwhile.
+    const snapshot = { ...batch, evals: [...batch.evals] };
     const id = batchId;
-    if (snapshot.evals.length === 0) return;
-    if (flushed.batchId === id && flushed.count >= snapshot.evals.length) return;
+    const snapshotGameId = gameId;
+    const count = snapshot.evals.length;
+    if (count === 0) return;
+    if (flushed.batchId === id && flushed.count >= count) return;
     try {
       await sendQueue;
       await api.submitEvals({
-        gameId,
+        gameId: snapshotGameId,
         fromPly: snapshot.fromPly,
         evals: snapshot.evals,
         phase: snapshot.phase,
         engineId: ENGINE_ID,
       });
-      if (flushed.batchId !== id || flushed.count < snapshot.evals.length) {
-        flushed = { batchId: id, count: snapshot.evals.length };
+      if (flushed.batchId !== id || flushed.count < count) {
+        flushed = { batchId: id, count };
       }
     } catch {
       // Best effort: the evaluations stay pending in the batch.
