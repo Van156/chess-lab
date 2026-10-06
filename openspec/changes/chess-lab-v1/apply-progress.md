@@ -398,3 +398,23 @@ Decision gaps: no in-app game page (mistake detail links to Lichess); the sync f
 Size: about 1,640 authored lines for S10.2 and S10.3 (mostly tests and stories) plus about 620 for S10.1.
 
 Verification: `bun test apps/web/src/features tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 442 pass; `bun test apps/web/src/app` 38 pass (parent re-run of both: 480 pass, 0 fail); `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0. S10.4 (keyboard-only, 375 px) is manual and not marked.
+
+## Review S9a follow-ups + S9b + S10 (base 0bace40 to 82a9151)
+
+The whole group (82 files, about 4,900 lines) stopped with `lens_context_budget_exceeded` before any authority was created, so it was reviewed one slice at a time (standing user consent granted each time). All five were APPROVED and acknowledged; no correction opened. Next review boundary: 82a9151.
+
+| Slice                  | Range            | Risk / lenses                                     | Lines |
+| ---------------------- | ---------------- | ------------------------------------------------- | ----- |
+| S9a follow-ups         | 0bace40..f15b883 | medium / reliability                              | 386   |
+| S9b API                | f15b883..8c91c0e | medium / reliability                              | 942   |
+| S9b React + split note | 8c91c0e..f4e5994 | medium / reliability                              | 1244  |
+| S10.1 API              | f4e5994..df50591 | medium / reliability                              | 635   |
+| S10.2, S10.3 web       | df50591..82a9151 | high / risk, resilience, readability, reliability | 1679  |
+
+Non-blocking follow-ups (pending):
+
+- Engine/review (S9a follow-ups): R3-search-watchdog-is-total-budget-not-silence (WARNING: the watchdog caps total search time, it does not detect silence; either re-arm on `info` or fix the comments and pin it with a test); R3-reviewcard-non-functional-turn-update (use a functional `setTurn` updater).
+- Analysis service: R3-complete-rollback-unproved (WARNING, deterministic: the rollback test fails before any insert); R3-nextply-skips-gaps (WARNING: a screen batch past the resume point or all nulls can advance `nextPly` over unevaluated plies); R3-unreadable-submit-not-failed (WARNING: an unreadable PGN on submit never marks the game failed, so `next` can stall on it); R3-failed-status-revived (a submit revives a failed game).
+- Analysis run: R3-vacuous-failed-submit-assertion (WARNING: asserts on an unused harness); R3-flush-failure-poisons-run (WARNING: a failed best-effort flush rejects the shared send queue and ends the run as failed); R3-hook-browser-behaviour-unproved.
+- Games/mistakes API: R3-cursor-value-validation (WARNING: a well-formed cursor with a bad timestamp gives a 500, a fractional ply is rounded); R3-cursor-test-gap.
+- Games/mistakes web: R3/R4 sync-mutation error silent (WARNING); R4-load-more-error-silent (WARNING); R3-mistake-notfound-retry / R4-not-found-retried (WARNING: NOT_FOUND is retried 3 times before "not found" shows); R4-guard-latency-on-flag-outage (WARNING: `requireFeature` waits for flag retries before redirecting); R3-async-describe (WARNING: an async `describe` in `mistake-detail-view.test.tsx`); R2-001 (WARNING, `BEST_ARROW_NAME`); R3-requirefeature-untested; R4-infinite-refetch-fanout; R2-002 to R2-005 (duplicated date and side-label helpers, nested page container, inconsistent fixture).
