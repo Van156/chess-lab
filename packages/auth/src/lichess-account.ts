@@ -1,16 +1,33 @@
-import { createAuthMiddleware } from "@better-auth/core/api";
+import { createAuthEndpoint, createAuthMiddleware } from "@better-auth/core/api";
 import type { Database } from "@b2c-template/db";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
+import { APIError } from "better-auth";
 import type { BetterAuthPlugin } from "better-auth";
+import { sessionMiddleware } from "better-auth/api";
+import { deleteSessionCookie } from "better-auth/cookies";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 
+import type { AccountSecurityEvents } from "./account-security";
 import { buildLichessOAuthConfig, LICHESS_PROVIDER_ID } from "./lichess-provider";
 import type { LichessAccount, LichessOAuthOptions } from "./lichess-provider";
+import { isSyntheticEmail } from "./synthetic-email";
 
 // better-auth 1.7.5 serves generic-oauth providers through the social routes (no `/oauth2/*`);
 // the matcher sees the route template, so the provider id is checked from the params.
 const CALLBACK_PATH = "/callback/:id";
 
-export type LichessAccountOptions = LichessOAuthOptions & { db: Database };
+/** ADR-08: how recent the session must be to delete a Lichess-only account. */
+export const DELETE_FRESH_WINDOW_MS = 10 * 60 * 1000;
+
+export const REAUTH_REQUIRED_CODE = "REAUTH_REQUIRED";
+export const USERNAME_MISMATCH_CODE = "USERNAME_MISMATCH";
+
+export type LichessAccountOptions = LichessOAuthOptions & {
+  db: Database;
+  /** Audit seam shared with `deleteUser.beforeDelete`; a rejection aborts the deletion. */
+  events?: Pick<AccountSecurityEvents, "userDeleting">;
+};
 
 /**
  * Wires Lichess sign-in (ADR-07): the `generic-oauth` provider config plus a plugin that upserts
@@ -20,7 +37,7 @@ export type LichessAccountOptions = LichessOAuthOptions & { db: Database };
  * The provider's `getUserInfo` already fetched `/api/account` during the callback, so the account
  * is parked by Lichess id and consumed by the hook instead of calling Lichess a second time.
  */
-export function createLichessAccount({ db, ...oauth }: LichessAccountOptions) {
+export function createLichessAccount({ db, events = {}, ...oauth }: LichessAccountOptions) {
   const pending = new Map<string, LichessAccount>();
   const fetchImpl = oauth.fetch;
 
@@ -32,6 +49,61 @@ export function createLichessAccount({ db, ...oauth }: LichessAccountOptions) {
 
   const plugin = {
     id: "lichess-account",
+    endpoints: {
+      // ADR-08: account deletion for users with a synthetic (non-deliverable) email, who cannot
+      // use the emailed-link flow. Needs a fresh, non-impersonated session and the typed username.
+      lichessDeleteAccount: createAuthEndpoint(
+        "/lichess/delete-account",
+        {
+          method: "POST",
+          body: z.object({ confirmUsername: z.string() }),
+          use: [sessionMiddleware],
+        },
+        async (ctx) => {
+          const { session, user } = ctx.context.session;
+          // Admin impersonation must never delete the impersonated person's account.
+          if ((session as { impersonatedBy?: string | null }).impersonatedBy) {
+            throw new APIError("FORBIDDEN", {
+              code: "IMPERSONATION_NOT_ALLOWED",
+              message: "Impersonated sessions cannot delete an account.",
+            });
+          }
+          // Real-email users keep the emailed-link flow (`/delete-user`).
+          if (!isSyntheticEmail(user.email)) {
+            throw new APIError("FORBIDDEN", {
+              code: "LICHESS_ONLY_ACCOUNT_REQUIRED",
+              message: "Use the emailed confirmation link to delete this account.",
+            });
+          }
+          if (Date.now() - new Date(session.createdAt).getTime() >= DELETE_FRESH_WINDOW_MS) {
+            throw new APIError("FORBIDDEN", {
+              code: REAUTH_REQUIRED_CODE,
+              message: "Sign in with Lichess again to confirm the deletion.",
+            });
+          }
+          const [profile] = await db
+            .select({ username: lichessProfile.username })
+            .from(lichessProfile)
+            .where(eq(lichessProfile.userId, user.id))
+            .limit(1);
+          if (
+            !profile ||
+            profile.username.toLowerCase() !== ctx.body.confirmUsername.trim().toLowerCase()
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: USERNAME_MISMATCH_CODE,
+              message: "The typed username does not match this account.",
+            });
+          }
+          // Fail closed: a rejected audit write aborts before anything is deleted.
+          await events.userDeleting?.({ userId: user.id, email: user.email, name: user.name });
+          await ctx.context.internalAdapter.deleteUserSessions(user.id);
+          await ctx.context.internalAdapter.deleteUser(user.id);
+          deleteSessionCookie(ctx);
+          return ctx.json({ success: true });
+        },
+      ),
+    },
     hooks: {
       after: [
         {

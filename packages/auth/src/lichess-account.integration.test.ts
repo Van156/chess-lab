@@ -1,11 +1,16 @@
 import { createTestDatabase, requireTestDatabaseOrSkip } from "@b2c-template/db/testing";
 import type { TestDatabaseHandle } from "@b2c-template/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { sql } from "drizzle-orm";
+import * as schema from "@b2c-template/db/schema";
+import { testUtils } from "better-auth/plugins";
+import type { TestHelpers } from "better-auth/plugins";
+import { getColumns, getTableName, isTable, sql } from "drizzle-orm";
 
 import type { AuthConfig } from "./index";
 import { createAuth } from "./index";
+import { DELETE_FRESH_WINDOW_MS } from "./lichess-account";
 import {
+  cookieHeaderFromSetCookie,
   RecordingAuditLogger,
   RecordingEmailSender,
   resolveTestDatabaseUrl,
@@ -34,6 +39,8 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
   let emailSender: RecordingEmailSender;
   let authConfig: AuthConfig;
   let auth: ReturnType<typeof createAuth>;
+  let auditLogger: RecordingAuditLogger;
+  let testHelpers: TestHelpers;
   const realFetch = globalThis.fetch;
   let lichessAccount: FakeAccount = { id: "thibault", username: "Thibault", rating: 1850 };
   let tokenRequestBodies: string[] = [];
@@ -47,7 +54,11 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       CORS_ORIGIN: WEB_ORIGIN,
       LICHESS_CLIENT_ID: "chess-lab-test",
     };
-    auth = createAuth(authConfig, handle.db, emailSender, new RecordingAuditLogger());
+    auditLogger = new RecordingAuditLogger();
+    auth = createAuth(authConfig, handle.db, emailSender, auditLogger, {
+      extraPlugins: [testUtils()],
+    });
+    testHelpers = ((await auth.$context) as unknown as { test: TestHelpers }).test;
   });
 
   afterAll(async () => {
@@ -56,6 +67,7 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
 
   beforeEach(async () => {
     emailSender.reset();
+    auditLogger.reset();
     tokenRequestBodies = [];
     lichessAccount = { id: "thibault", username: "Thibault", rating: 1850 };
     await truncateAllTables(handle.db);
@@ -260,5 +272,231 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       }),
     );
     expect(response.status).toBeGreaterThanOrEqual(400);
+  });
+
+  describe("POST /api/auth/lichess/delete-account (ADR-08)", () => {
+    const DELETE_URL = `${BASE_URL}/api/auth/lichess/delete-account`;
+
+    /** Signs in with Lichess and returns the session cookie plus the new user id. */
+    async function signInWithLichess() {
+      const { setCookie } = await lichessRoundTrip();
+      const headers = cookieHeaderFromSetCookie(setCookie);
+      const [user] = await rows<{ id: string }>(
+        sql`SELECT id FROM "user" WHERE email = ${`${lichessAccount.id}@lichess.invalid`}`,
+      );
+      return { headers, userId: user!.id };
+    }
+
+    function deleteAccount(
+      headers: Headers | null,
+      confirmUsername: unknown,
+      instance: ReturnType<typeof createAuth> = auth,
+    ) {
+      const request = new Headers({ "content-type": "application/json", origin: WEB_ORIGIN });
+      const cookie = headers?.get("cookie");
+      if (cookie) {
+        request.set("cookie", cookie);
+      }
+      return instance.handler(
+        new Request(DELETE_URL, {
+          method: "POST",
+          headers: request,
+          body: JSON.stringify({ confirmUsername }),
+        }),
+      );
+    }
+
+    async function ageSessions(userId: string, ms: number) {
+      await handle.db.execute(
+        sql`UPDATE session SET created_at = created_at - ${`${ms} milliseconds`}::interval WHERE user_id = ${userId}`,
+      );
+    }
+
+    /** Every table that owns rows through a `user_id` column, derived so new tables are covered. */
+    const userOwnedTables = (Object.values(schema) as unknown[])
+      .filter(isTable)
+      .filter((table) =>
+        Object.values(getColumns(table)).some((column) => column.name === "user_id"),
+      )
+      .map((table) => getTableName(table));
+
+    async function countsFor(userId: string) {
+      const counts: Record<string, number> = {};
+      for (const name of userOwnedTables) {
+        const [row] = await rows<{ n: number }>(
+          sql`SELECT count(*)::int AS n FROM ${sql.identifier(name)} WHERE user_id = ${userId}`,
+        );
+        counts[name] = row?.n ?? 0;
+      }
+      return counts;
+    }
+
+    /** One row in every Phase 1 chess table for `userId` (settings and profile are 1:1). */
+    async function seedChess(userId: string) {
+      const [g] = await handle.db
+        .insert(schema.game)
+        .values({
+          userId,
+          lichessGameId: `${userId}-game`,
+          pgn: "1. e4 e5 *",
+          userColor: "white",
+          speed: "blitz",
+          rated: true,
+          result: "*",
+          playedAt: new Date("2026-01-01T00:00:00.000Z"),
+        })
+        .returning({ id: schema.game.id });
+      await handle.db
+        .insert(schema.gameAnalysis)
+        .values({ gameId: g!.id, userId, status: "complete" });
+      const [m] = await handle.db
+        .insert(schema.mistake)
+        .values({
+          userId,
+          gameId: g!.id,
+          ply: 3,
+          fenBefore: "fen",
+          positionKey: "key",
+          playedSan: "h3",
+          playedUci: "h2h3",
+          bestSan: "Nf3",
+          bestUci: "g1f3",
+          evalBeforeCp: 30,
+          evalAfterCp: -400,
+          evalLossCp: 430,
+          severity: "blunder",
+          phase: "opening",
+        })
+        .returning({ id: schema.mistake.id });
+      const [c] = await handle.db
+        .insert(schema.card)
+        .values({ userId, mistakeId: m!.id, due: new Date("2026-03-11T00:00:00.000Z") })
+        .returning({ id: schema.card.id });
+      await handle.db.insert(schema.reviewLog).values({
+        id: `${userId}-log`,
+        userId,
+        cardId: c!.id,
+        grade: 3,
+        reviewedAt: new Date("2026-03-10T00:00:00.000Z"),
+        elapsedMs: 1200,
+        stateBefore: { state: 0 },
+        stateAfter: { state: 1 },
+      });
+      await handle.db.insert(schema.userSettings).values({ userId, timeZone: "Europe/Madrid" });
+    }
+
+    test("exposes a 10 minute fresh window (ADR-08)", () => {
+      expect(DELETE_FRESH_WINDOW_MS).toBe(10 * 60 * 1000);
+    });
+
+    test("rejects a request without a session", async () => {
+      const { userId } = await signInWithLichess();
+      const response = await deleteAccount(null, "Thibault");
+      expect(response.status).toBe(401);
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("rejects an impersonated session", async () => {
+      const { userId } = await signInWithLichess();
+      const admin = testHelpers.createUser({ role: "superadmin" });
+      await testHelpers.saveUser(admin);
+      const { headers: adminHeaders } = await testHelpers.login({ userId: admin.id });
+      const impersonation = await auth.api.impersonateUser({
+        body: { userId },
+        headers: adminHeaders,
+        asResponse: true,
+      });
+      const impersonated = cookieHeaderFromSetCookie(impersonation.headers.get("set-cookie"));
+
+      const response = await deleteAccount(impersonated, "Thibault");
+      expect(response.status).toBe(403);
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("a session older than the fresh window gets 403 REAUTH_REQUIRED", async () => {
+      const { headers, userId } = await signInWithLichess();
+      await ageSessions(userId, DELETE_FRESH_WINDOW_MS + 60_000);
+      const response = await deleteAccount(headers, "Thibault");
+      expect(response.status).toBe(403);
+      expect(((await response.json()) as { code: string }).code).toBe("REAUTH_REQUIRED");
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("a session just inside the fresh window is accepted", async () => {
+      const { headers, userId } = await signInWithLichess();
+      await ageSessions(userId, DELETE_FRESH_WINDOW_MS - 60_000);
+      const response = await deleteAccount(headers, "Thibault");
+      expect(response.status).toBe(200);
+    });
+
+    test("a wrong username gets 400 USERNAME_MISMATCH and deletes nothing", async () => {
+      const { headers, userId } = await signInWithLichess();
+      const response = await deleteAccount(headers, "NotThibault");
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { code: string }).code).toBe("USERNAME_MISMATCH");
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+      expect(auditLogger.eventsFor("user.deleted")).toEqual([]);
+    });
+
+    test("an email-account user cannot use the Lichess-only endpoint", async () => {
+      const { headers, userId } = await sharedSignUpAndVerify(
+        auth,
+        emailSender,
+        "someone@example.com",
+        "Someone",
+      );
+      const response = await deleteAccount(headers, "Someone");
+      expect(response.status).toBe(403);
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("fails closed when the audit write fails: nothing is deleted", async () => {
+      const { headers, userId } = await signInWithLichess();
+      await seedChess(userId);
+      const failing = createAuth(authConfig, handle.db, emailSender, new RecordingAuditLogger(), {
+        accountSecurityEvents: {
+          userDeleting: () => Promise.reject(new Error("audit store down")),
+        },
+      });
+      const before = await countsFor(userId);
+
+      const response = await deleteAccount(headers, "Thibault", failing);
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.headers.get("set-cookie") ?? "").not.toContain("session_token=;");
+      expect(await countsFor(userId)).toEqual(before);
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toHaveLength(1);
+    });
+
+    test("matches the username case-insensitively, then deletes everything and clears the cookie", async () => {
+      const { headers, userId } = await signInWithLichess();
+      await seedChess(userId);
+      // Another user's rows must survive.
+      lichessAccount = { id: "other", username: "Other", rating: 1200 };
+      const other = await signInWithLichess();
+      await seedChess(other.userId);
+
+      // The derived list covers every table the seed fills, so a new owned table fails here.
+      const before = await countsFor(userId);
+      expect(Object.keys(before).length).toBeGreaterThan(5);
+      expect(Object.values(before).every((n) => n >= 1)).toBe(true);
+      const otherBefore = await countsFor(other.userId);
+
+      const response = await deleteAccount(headers, "tHiBaUlT");
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie") ?? "").toMatch(/session_token=;/);
+      expect(await rows(sql`SELECT 1 FROM "user" WHERE id = ${userId}`)).toEqual([]);
+      expect(await countsFor(userId)).toEqual(
+        Object.fromEntries(userOwnedTables.map((name) => [name, 0])),
+      );
+      expect(await countsFor(other.userId)).toEqual(otherBefore);
+      const [event] = auditLogger.eventsFor("user.deleted");
+      expect(event?.actorUserId).toBe(userId);
+
+      // The old cookie no longer authenticates.
+      const replay = await deleteAccount(headers, "Thibault");
+      expect(replay.status).toBe(401);
+    });
   });
 });

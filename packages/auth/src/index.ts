@@ -57,7 +57,11 @@ export function createAuth(
 
   // ADR-07: registered only when LICHESS_CLIENT_ID is set (public PKCE client, no secret).
   const lichess = env.LICHESS_CLIENT_ID
-    ? createLichessAccount({ clientId: env.LICHESS_CLIENT_ID, db: database })
+    ? createLichessAccount({
+        clientId: env.LICHESS_CLIENT_ID,
+        db: database,
+        events: accountSecurityEvents,
+      })
     : null;
 
   // R2, R3, R4, R6: change email, reset/change password, sessions, delete account.

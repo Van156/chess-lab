@@ -482,3 +482,13 @@ Delivery (user decision 2026-10-06): S11a ships as two PRs in the `feature-branc
 
 - PR 16 `feat/chess-lab-v1-s11a` (base `feat/chess-lab-v1-s10b`): 21ca856, S11a.1 to S11a.4 export service and routes.
 - PR 16b `feat/chess-lab-v1-s11a2` (base `feat/chess-lab-v1-s11a`): 848cf8c, S11a.5 export links. S11b bases on `feat/chess-lab-v1-s11a2`.
+
+## S11b (Lichess-only account deletion, branch feat/chess-lab-v1-s11b, base feat/chess-lab-v1-s11a2)
+
+Mode: standard (strict_tdd false), runner `bun test` (test DB on :5437).
+
+- [x] S11b.1 RED: `lichess-account.integration.test.ts` failed at import (`Export named 'DELETE_FRESH_WINDOW_MS' not found`), 0 pass, 1 fail, 1 error.
+- [x] S11b.2 GREEN: `POST /api/auth/lichess/delete-account` (`lichessDeleteAccount`, `createAuthEndpoint` plus `sessionMiddleware`), body `{ confirmUsername }`. Order: no session 401; impersonated 403 `IMPERSONATION_NOT_ALLOWED`; non-synthetic email 403 `LICHESS_ONLY_ACCOUNT_REQUIRED`; session older than `DELETE_FRESH_WINDOW_MS` (10 min, ADR-08) 403 `REAUTH_REQUIRED`; username mismatch (trimmed, case-insensitive, against `lichess_profile.username`) 400 `USERNAME_MISMATCH`; then `events.userDeleting` (the shared account-security seam, wired in `index.ts`), `deleteUserSessions`, `deleteUser`, `deleteSessionCookie`; 200 `{ success: true }`. Tests: every table with a `user_id` column derived from the schema, each seeded before (count at least 1) and empty after, a second user untouched, audit event recorded, old cookie then 401; plus no session, real impersonation, stale and just-fresh sessions, wrong username, email-account user, and audit failure (nothing deleted, cookie kept). GREEN 18 pass.
+- Deviations: `deleteUserSessions(userId)` instead of ADR-08's `deleteSessions` (it takes tokens in better-auth 1.7.5); added the `LICHESS_ONLY_ACCOUNT_REQUIRED` guard so email users keep the emailed-link flow; fail closed by ordering (audit before delete), the same limit as the existing `beforeDelete`.
+
+Verification: `bun test packages/auth` 208 pass, 0 fail, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0. Parent re-run: 18 pass.

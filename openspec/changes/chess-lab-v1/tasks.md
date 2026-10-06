@@ -279,8 +279,8 @@ Verify: `bun test packages/api apps/server`; standard checks.
 
 Satisfies: data-control / Account deletion without email; Deletion removes all user data; Deletion and export accessible; lichess-account / Synthetic non-deliverable email (account UI hides email flows); ADR-08.
 
-- [ ] S11b.1 [T] RED: extend `packages/auth/src/lichess-account.integration.test.ts` for `POST /api/auth/lichess/delete-account`: no session rejected; impersonated session rejected; session older than `DELETE_FRESH_WINDOW_MS` returns 403 `REAUTH_REQUIRED`; wrong username returns 400 `USERNAME_MISMATCH` (case-insensitive match otherwise); audit failure aborts the delete (fail closed); success deletes sessions and user, clears cookie, and cascades every chess row (assert row counts in all Phase 1 tables).
-- [ ] S11b.2 [T] GREEN: add the endpoint and `DELETE_FRESH_WINDOW_MS` to `packages/auth/src/lichess-account.ts` using the existing `events.userDeleting` seam.
+- [x] S11b.1 [T] RED: extend `packages/auth/src/lichess-account.integration.test.ts` for `POST /api/auth/lichess/delete-account`: no session rejected; impersonated session rejected; session older than `DELETE_FRESH_WINDOW_MS` returns 403 `REAUTH_REQUIRED`; wrong username returns 400 `USERNAME_MISMATCH` (case-insensitive match otherwise); audit failure aborts the delete (fail closed); success deletes sessions and user, clears cookie, and cascades every chess row (assert row counts in all Phase 1 tables).
+- [x] S11b.2 [T] GREEN: add the endpoint and `DELETE_FRESH_WINDOW_MS` to `packages/auth/src/lichess-account.ts` using the existing `events.userDeleting` seam.
 - [ ] S11b.3 [O] [react] Modify `apps/web/src/features/account/components/{danger-page,security-page,profile-page}.tsx`: for synthetic-email users hide email/password/verification flows, show the typed-username delete flow with re-auth via `authClient.signIn.social({ provider: "lichess", callbackURL: "/account/danger?confirm=1" })` on `REAUTH_REQUIRED`; real-email users keep the emailed-link flow.
 - [ ] S11b.4 [O] Manual: keyboard-only and screen-reader labels on the delete flow.
 
