@@ -61,4 +61,8 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/mistakes/components/mistakes-view.tsx",
   "features/mistakes/components/mistake-row.tsx",
   "features/mistakes/components/mistake-detail-view.tsx",
+  "features/repertoire/components/repertoire-list-view.tsx",
+  "features/repertoire/components/repertoire-row.tsx",
+  "features/repertoire/components/create-repertoire-form.tsx",
+  "features/repertoire/components/repertoire-name-field.tsx",
 ];

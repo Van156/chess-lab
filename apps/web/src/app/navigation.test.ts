@@ -69,6 +69,7 @@ describe("navGroups visibility", () => {
       "/review",
       "/games",
       "/mistakes",
+      "/repertoire",
     ]);
   });
 
@@ -84,6 +85,15 @@ describe("navGroups visibility", () => {
       "Games",
       "Mistakes",
     ]);
+  });
+
+  test("Repertoire follows the repertoire pillar flag", () => {
+    const labels = (features: NavContext["features"]) =>
+      filterNavGroups(navGroups, { ...member, features })
+        .find((group) => group.id === "chess-lab")
+        ?.items.map((item) => item.label);
+    expect(labels(NO_FEATURES)).not.toContain("Repertoire");
+    expect(labels({ ...NO_FEATURES, repertoire: true })).toEqual(["Today", "Games", "Repertoire"]);
   });
 
   test("breadcrumbs resolve through the real config", () => {
