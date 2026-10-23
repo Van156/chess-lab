@@ -20,3 +20,11 @@ export {
   TIME_PRESSURE_RATIO,
 } from "./config";
 export type { Severity, Thresholds } from "./config";
+export { START_FEN, addMove, createGraph } from "./repertoire-graph";
+export type {
+  AddMoveResult,
+  GraphMove,
+  GraphPosition,
+  RepertoireColor,
+  RepertoireGraph,
+} from "./repertoire-graph";
