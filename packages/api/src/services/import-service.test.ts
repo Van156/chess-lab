@@ -112,8 +112,8 @@ describe.skipIf(!reachable)("import service", () => {
       .values({ userId: "u1", lichessId: "alice", username: "Alice" });
   });
 
-  function service(source: GamesSource, now = NOW) {
-    return createImportService({ db: handle.db, source, now: () => now, batchSize: 2 });
+  function service(source: GamesSource, now = NOW, batchSize = 2) {
+    return createImportService({ db: handle.db, source, now: () => now, batchSize });
   }
 
   async function profile() {
@@ -343,9 +343,22 @@ describe.skipIf(!reachable)("import service", () => {
   });
 
   test("two simultaneous triggers run the source once", async () => {
-    const source = fakeSource([lichessGame(1), lichessGame(2)]);
+    // The source stays open until both triggers have tried to take the lease, so "simultaneous"
+    // holds regardless of scheduler speed (a trigger arriving after a finished run is a new sync).
+    const gate = deferred();
+    const inner = fakeSource([lichessGame(1), lichessGame(2)]);
+    const source: FakeSource = {
+      calls: inner.calls,
+      async *exportGames(args) {
+        await gate.promise;
+        yield* inner.exportGames(args);
+      },
+    };
     const svc = service(source);
-    await Promise.all([svc.requestSync("u1", signal), svc.requestSync("u1", signal)]);
+    const first = await svc.startSync("u1", signal);
+    const second = await svc.startSync("u1", signal);
+    gate.resolve();
+    await Promise.all([first.done, second.done]);
     expect(source.calls).toHaveLength(1);
     expect(await gameCount()).toBe(2);
   });
@@ -417,7 +430,9 @@ describe.skipIf(!reachable)("import service", () => {
     const games = Array.from({ length: FIRST_IMPORT_MAX_GAMES + 5 }, (_, n) =>
       lichessGame(n + 1, { createdAt: NOW - 20 * DAY + n * 1000 }),
     );
-    const status = await service(fakeSource(games)).requestSync("u1", signal);
+    // A batch of 100 keeps this to ~10 transactions instead of 500, so the test measures the cap
+    // and not database round-trip latency (which blew the 5s timeout on a loaded machine).
+    const status = await service(fakeSource(games), NOW, 100).requestSync("u1", signal);
     expect(status.gamesImported).toBe(FIRST_IMPORT_MAX_GAMES);
   });
 
