@@ -23,6 +23,10 @@ const EXCLUDED_TABLES: Record<string, string> = {
   session: "Session tokens, IP addresses and user agents are credentials, not the user's data.",
   account:
     "Holds the encrypted Lichess token, refresh and id tokens and password hashes; the username is exported through lichessProfile.",
+  repertoire: "Repertoire data is exported in P2-e.",
+  repertoire_position: "Repertoire data is exported in P2-e.",
+  repertoire_move: "Repertoire data is exported in P2-e.",
+  idea_note: "Repertoire data is exported in P2-e.",
 };
 
 const PGN = "1. e4 e5 2. Nf3 Nc6 *";

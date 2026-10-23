@@ -13,6 +13,7 @@ import {
 
 import { user } from "./auth";
 import { mistake } from "./games";
+import { repertoirePosition } from "./repertoire";
 
 const userId = () =>
   text("user_id")
@@ -21,7 +22,7 @@ const userId = () =>
 
 /**
  * One review card (ADR-04). Each source has its own nullable unique FK; the CHECK keeps exactly
- * one set. Phase 2 and 3 widen the CHECK when they add their sources. FSRS columns mirror the
+ * one set. Phase 3 widens the CHECK when it adds the drill source. FSRS columns mirror the
  * ts-fsrs `Card`; `state` is 0 New, 1 Learning, 2 Review, 3 Relearning.
  */
 export const card = pgTable(
@@ -34,6 +35,9 @@ export const card = pgTable(
     mistakeId: text("mistake_id")
       .unique()
       .references(() => mistake.id, { onDelete: "cascade" }),
+    repertoirePositionId: text("repertoire_position_id")
+      .unique()
+      .references(() => repertoirePosition.id, { onDelete: "cascade" }),
     due: timestamp("due", { withTimezone: true }).notNull(),
     stability: real("stability"),
     difficulty: real("difficulty"),
@@ -51,7 +55,10 @@ export const card = pgTable(
       .notNull(),
   },
   (table) => [
-    check("card_exactly_one_source", sql`num_nonnulls(${table.mistakeId}) = 1`),
+    check(
+      "card_exactly_one_source",
+      sql`num_nonnulls(${table.mistakeId}, ${table.repertoirePositionId}) = 1`,
+    ),
     index("card_userId_due_idx").on(table.userId, table.due),
     index("card_userId_state_idx").on(table.userId, table.state),
   ],

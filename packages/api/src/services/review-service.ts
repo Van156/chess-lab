@@ -233,7 +233,8 @@ export function createReviewService({ db, now = () => new Date() }: ReviewServic
       return [
         {
           cardId: c.cardId,
-          pillar: cardPillar(r),
+          // This join only hydrates mistake cards; repertoire card hydration lands with P2-c.
+          pillar: cardPillar({ mistakeId: r.mistakeId, repertoirePositionId: null }),
           state: c.state,
           due: c.due,
           prompt: { fen: r.fen, orientation: r.color },

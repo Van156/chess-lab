@@ -331,7 +331,7 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
       return counts;
     }
 
-    /** One row in every Phase 1 chess table for `userId` (settings and profile are 1:1). */
+    /** One row in every chess table for `userId` (settings and profile are 1:1). */
     async function seedChess(userId: string) {
       const [g] = await handle.db
         .insert(schema.game)
@@ -383,6 +383,30 @@ describe.skipIf(!reachable)("lichess sign-in", () => {
         stateAfter: { state: 1 },
       });
       await handle.db.insert(schema.userSettings).values({ userId, timeZone: "Europe/Madrid" });
+
+      // Repertoire graph: one repertoire, two positions, one move and one idea note.
+      const [rep] = await handle.db
+        .insert(schema.repertoire)
+        .values({ userId, color: "white", name: "Main" })
+        .returning({ id: schema.repertoire.id });
+      const [from, to] = await handle.db
+        .insert(schema.repertoirePosition)
+        .values([
+          { userId, repertoireId: rep!.id, positionKey: "start", fen: "start", sideToMove: "w" },
+          { userId, repertoireId: rep!.id, positionKey: "e4", fen: "e4", sideToMove: "b" },
+        ])
+        .returning({ id: schema.repertoirePosition.id });
+      await handle.db.insert(schema.repertoireMove).values({
+        userId,
+        repertoireId: rep!.id,
+        fromPositionId: from!.id,
+        toPositionId: to!.id,
+        san: "e4",
+        uci: "e2e4",
+      });
+      await handle.db
+        .insert(schema.ideaNote)
+        .values({ repertoirePositionId: from!.id, userId, plan: "Take the centre" });
     }
 
     test("exposes a 10 minute fresh window (ADR-08)", () => {
