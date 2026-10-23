@@ -551,3 +551,21 @@ Verification: `bun test apps/web tests/ui-story-coverage.test.ts tests/lint-boun
 - [x] S12.4 Docs: `docs/architecture/web-app.md` (`/today` landing, Chess Lab routes and feature modules, dark-only shell, data and deletion on `/account/danger`, admin via the user menu, engine asset copy and precache exclusion, `CHESSLAB_FEATURES` and `GET /api/public/features`); `README.md` (`/today`, new packages, `LICHESS_CLIENT_ID` and `CHESSLAB_FEATURES`, Stockfish assets); `docs/architecture/audit-log.md` (`user.delete_failed` and the compensating event); superseded banners and route fixes in `docs/specs/{account-settings,dashboard-shell-and-auth-ui,auth-and-platform-admin,frontend-foundation}.md`. Each claim checked against the code.
       Verification: `bun test packages/api apps/server` 294 pass, 0 skip; `pnpm check-types` exit 0; `pnpm check` exit 0.
 - [ ] S12.5 Automated part DONE (2026-10-06): `pnpm check-types` exit 0; `pnpm --filter web check-types` exit 0; `pnpm check` exit 0; `bun test` 1734 pass, 0 fail (test DB up). NOT marked: the manual NFR checks (Today load, 200 ms next card, contrast, keyboard) and the earlier manual checks S0.6, S7.8, S8.5, S9a.6, S10.4, S11b.4 need a browser or device.
+
+## Review S12 (base ce1de6b to 5dcafb8)
+
+The S12.1+S12.2 group (3733 lines) stopped with `lens_context_budget_exceeded` (no authority created), so it was reviewed one task at a time.
+
+- S12.1 plus the d15e182 fallback fix (ce1de6b to 41574b0), high risk, 1 lens: APPROVED and acknowledged.
+- S12.2 (41574b0 to 2089a7b), high risk, 4 lenses: APPROVED and acknowledged.
+- S12.3+S12.4 (2089a7b to 5dcafb8), 4 lenses: APPROVED and acknowledged. Next review boundary: 5dcafb8.
+- Non-blocking suggestions (pending):
+  - R3-fallback-message-wording-unpinned: no test pins `DELETE_FALLBACK_MESSAGE` to "does not claim deletion, points to support".
+  - R4-001: no redirect from the removed `/dashboard` and `/account/preferences` URLs (old bookmarks and `redirect=/dashboard` search params hit not-found).
+  - R2 fixture labels: "Preferences" and "Dashboard" labels in `shared/lib/navigation.test.ts`, `app/navigation.test.ts` and `shared/storybook/app-shell-fixtures.tsx` now point at unrelated routes.
+  - R2-section-items-doc-stale: `getSectionItems` docstring still says tabs come from the sidebar config; they come from `allNavGroups`.
+  - R2-generic-user-menu-links-hardcoded-admin: `getUserMenuLinks` is typed and rendered as admin-only; rename or carry the icon in the data.
+  - R3-admin-menu-wiring-untested: no render test that the sidebar user menu shows "Platform admin" to superadmins.
+  - R3-usermenu-header-ignores-extra-items: `extraItems` is dropped by the header variant without a type error.
+  - R2-001: README Accounts bullet omits Lichess sign-in.
+  - R2-002: older "Tenancy removed" banner in `docs/specs/dashboard-shell-and-auth-ui.md` still mentions the theme toggle.
