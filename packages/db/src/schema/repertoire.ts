@@ -1,4 +1,14 @@
-import { index, jsonb, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 import { userColor } from "./games";
@@ -28,7 +38,11 @@ export const repertoire = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("repertoire_userId_idx").on(table.userId)],
+  (table) => [
+    index("repertoire_userId_idx").on(table.userId),
+    // Target of the composite foreign keys that tie child rows to the repertoire's owner.
+    unique("repertoire_id_userId_uq").on(table.id, table.userId),
+  ],
 );
 
 /**
@@ -41,9 +55,7 @@ export const repertoirePosition = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    repertoireId: text("repertoire_id")
-      .notNull()
-      .references(() => repertoire.id, { onDelete: "cascade" }),
+    repertoireId: text("repertoire_id").notNull(),
     userId: userId(),
     positionKey: text("position_key").notNull(),
     fen: text("fen").notNull(),
@@ -57,26 +69,37 @@ export const repertoirePosition = pgTable(
       table.positionKey,
     ),
     index("repertoirePosition_userId_idx").on(table.userId),
+    // Targets of the composite foreign keys of moves, idea notes and cards.
+    unique("repertoirePosition_id_repertoireId_userId_uq").on(
+      table.id,
+      table.repertoireId,
+      table.userId,
+    ),
+    unique("repertoirePosition_id_userId_uq").on(table.id, table.userId),
+    foreignKey({
+      name: "repertoirePosition_repertoire_owner_fk",
+      columns: [table.repertoireId, table.userId],
+      foreignColumns: [repertoire.id, repertoire.userId],
+    }).onDelete("cascade"),
+    check("repertoire_position_side_to_move_check", sql`${table.sideToMove} in ('w', 'b')`),
   ],
 );
 
-/** A move edge between two positions of the same repertoire. Cycles are rejected in `packages/chess`. */
+/**
+ * A move edge between two positions. The database enforces that the repertoire, both positions and
+ * the move all belong to the same repertoire and user (composite foreign keys). It does not reject
+ * cycles: that lives in `addMove` of `packages/chess`, which the router must apply before inserting.
+ */
 export const repertoireMove = pgTable(
   "repertoire_move",
   {
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    repertoireId: text("repertoire_id")
-      .notNull()
-      .references(() => repertoire.id, { onDelete: "cascade" }),
+    repertoireId: text("repertoire_id").notNull(),
     userId: userId(),
-    fromPositionId: text("from_position_id")
-      .notNull()
-      .references(() => repertoirePosition.id, { onDelete: "cascade" }),
-    toPositionId: text("to_position_id")
-      .notNull()
-      .references(() => repertoirePosition.id, { onDelete: "cascade" }),
+    fromPositionId: text("from_position_id").notNull(),
+    toPositionId: text("to_position_id").notNull(),
     san: text("san").notNull(),
     uci: text("uci").notNull(),
     createdAt: createdAt(),
@@ -87,6 +110,29 @@ export const repertoireMove = pgTable(
     index("repertoireMove_repertoireId_idx").on(table.repertoireId),
     index("repertoireMove_toPositionId_idx").on(table.toPositionId),
     index("repertoireMove_userId_idx").on(table.userId),
+    foreignKey({
+      name: "repertoireMove_repertoire_owner_fk",
+      columns: [table.repertoireId, table.userId],
+      foreignColumns: [repertoire.id, repertoire.userId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "repertoireMove_from_position_fk",
+      columns: [table.fromPositionId, table.repertoireId, table.userId],
+      foreignColumns: [
+        repertoirePosition.id,
+        repertoirePosition.repertoireId,
+        repertoirePosition.userId,
+      ],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "repertoireMove_to_position_fk",
+      columns: [table.toPositionId, table.repertoireId, table.userId],
+      foreignColumns: [
+        repertoirePosition.id,
+        repertoirePosition.repertoireId,
+        repertoirePosition.userId,
+      ],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -97,9 +143,7 @@ export const repertoireMove = pgTable(
 export const ideaNote = pgTable(
   "idea_note",
   {
-    repertoirePositionId: text("repertoire_position_id")
-      .primaryKey()
-      .references(() => repertoirePosition.id, { onDelete: "cascade" }),
+    repertoirePositionId: text("repertoire_position_id").primaryKey(),
     userId: userId(),
     arrows: jsonb("arrows"),
     highlights: jsonb("highlights"),
@@ -107,5 +151,12 @@ export const ideaNote = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("ideaNote_userId_idx").on(table.userId)],
+  (table) => [
+    index("ideaNote_userId_idx").on(table.userId),
+    foreignKey({
+      name: "ideaNote_position_owner_fk",
+      columns: [table.repertoirePositionId, table.userId],
+      foreignColumns: [repertoirePosition.id, repertoirePosition.userId],
+    }).onDelete("cascade"),
+  ],
 );

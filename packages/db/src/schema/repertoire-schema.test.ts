@@ -212,4 +212,136 @@ describe.skipIf(!reachable)("repertoire schema", () => {
     ]);
     expect(counts.map((rows) => rows.length)).toEqual([0, 0, 0, 0, 0]);
   });
+  describe("ownership integrity", () => {
+    test("accepts consistently owned rows", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      const from = await createPosition(userId, rep.id);
+      const to = await createPosition(userId, rep.id, "after e4");
+      await handle.db
+        .insert(schema.repertoireMove)
+        .values(moveValues(userId, rep.id, from.id, to.id));
+      await handle.db.insert(schema.ideaNote).values({ repertoirePositionId: from.id, userId });
+      await handle.db
+        .insert(schema.card)
+        .values(cardValues(userId, { repertoirePositionId: from.id }));
+    });
+
+    test("rejects a position whose user differs from its repertoire's user", async () => {
+      const owner = await createUser("u1");
+      const other = await createUser("u2");
+      const rep = await createRepertoire(owner);
+      await expect(createPosition(other, rep.id)).rejects.toThrow();
+    });
+
+    test("rejects a move linking a position of another repertoire", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      const otherRep = await createRepertoire(userId);
+      const from = await createPosition(userId, rep.id);
+      const foreignTo = await createPosition(userId, otherRep.id, "after e4");
+      await expect(
+        run(() =>
+          handle.db
+            .insert(schema.repertoireMove)
+            .values(moveValues(userId, rep.id, from.id, foreignTo.id)),
+        ),
+      ).rejects.toThrow();
+      await expect(
+        run(() =>
+          handle.db
+            .insert(schema.repertoireMove)
+            .values(moveValues(userId, rep.id, foreignTo.id, from.id)),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("rejects a move whose user differs from its repertoire's user", async () => {
+      const owner = await createUser("u1");
+      const other = await createUser("u2");
+      const rep = await createRepertoire(owner);
+      const from = await createPosition(owner, rep.id);
+      const to = await createPosition(owner, rep.id, "after e4");
+      await expect(
+        run(() =>
+          handle.db.insert(schema.repertoireMove).values(moveValues(other, rep.id, from.id, to.id)),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("rejects an idea note whose user differs from its position's user", async () => {
+      const owner = await createUser("u1");
+      const other = await createUser("u2");
+      const rep = await createRepertoire(owner);
+      const position = await createPosition(owner, rep.id);
+      await expect(
+        run(() =>
+          handle.db
+            .insert(schema.ideaNote)
+            .values({ repertoirePositionId: position.id, userId: other }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("rejects a repertoire card whose user differs from its position's user", async () => {
+      const owner = await createUser("u1");
+      const other = await createUser("u2");
+      const rep = await createRepertoire(owner);
+      const position = await createPosition(owner, rep.id);
+      await expect(
+        run(() =>
+          handle.db
+            .insert(schema.card)
+            .values(cardValues(other, { repertoirePositionId: position.id })),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("rejects a side_to_move other than w or b", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      await expect(
+        run(() =>
+          handle.db.insert(schema.repertoirePosition).values({
+            userId,
+            repertoireId: rep.id,
+            positionKey: START_KEY,
+            fen: START_FEN,
+            sideToMove: "x" as "w",
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("deleting a repertoire cascades to its graph and leaves its siblings alone", async () => {
+      const userId = await createUser("u1");
+      const doomed = await createRepertoire(userId);
+      const kept = await createRepertoire(userId);
+      const seed = async (repertoireId: string) => {
+        const from = await createPosition(userId, repertoireId);
+        const to = await createPosition(userId, repertoireId, "after e4");
+        await handle.db
+          .insert(schema.repertoireMove)
+          .values(moveValues(userId, repertoireId, from.id, to.id));
+        await handle.db.insert(schema.ideaNote).values({ repertoirePositionId: from.id, userId });
+        await handle.db
+          .insert(schema.card)
+          .values(cardValues(userId, { repertoirePositionId: from.id }));
+      };
+      await seed(doomed.id);
+      await seed(kept.id);
+
+      await handle.db.delete(schema.repertoire).where(eq(schema.repertoire.id, doomed.id));
+
+      const rows = await Promise.all([
+        handle.db.select().from(schema.repertoire),
+        handle.db.select().from(schema.repertoirePosition),
+        handle.db.select().from(schema.repertoireMove),
+        handle.db.select().from(schema.ideaNote),
+        handle.db.select().from(schema.card),
+      ]);
+      expect(rows.map((r) => r.length)).toEqual([1, 2, 1, 1, 1]);
+      expect(rows[0]![0]!.id).toBe(kept.id);
+    });
+  });
 });

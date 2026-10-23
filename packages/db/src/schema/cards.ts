@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -35,9 +36,7 @@ export const card = pgTable(
     mistakeId: text("mistake_id")
       .unique()
       .references(() => mistake.id, { onDelete: "cascade" }),
-    repertoirePositionId: text("repertoire_position_id")
-      .unique()
-      .references(() => repertoirePosition.id, { onDelete: "cascade" }),
+    repertoirePositionId: text("repertoire_position_id").unique(),
     due: timestamp("due", { withTimezone: true }).notNull(),
     stability: real("stability"),
     difficulty: real("difficulty"),
@@ -59,6 +58,12 @@ export const card = pgTable(
       "card_exactly_one_source",
       sql`num_nonnulls(${table.mistakeId}, ${table.repertoirePositionId}) = 1`,
     ),
+    // MATCH SIMPLE: a null repertoire_position_id (mistake cards) skips this check.
+    foreignKey({
+      name: "card_repertoirePosition_owner_fk",
+      columns: [table.repertoirePositionId, table.userId],
+      foreignColumns: [repertoirePosition.id, repertoirePosition.userId],
+    }).onDelete("cascade"),
     index("card_userId_due_idx").on(table.userId, table.due),
     index("card_userId_state_idx").on(table.userId, table.state),
   ],
