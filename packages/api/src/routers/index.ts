@@ -7,6 +7,7 @@ import { gamesRouter } from "./games";
 import { lichessRouter } from "./lichess";
 import { mistakesRouter } from "./mistakes";
 import { platformRouter } from "./platform";
+import { repertoireRouter } from "./repertoire";
 import { reviewRouter } from "./review";
 import { settingsRouter } from "./settings";
 import { todayRouter } from "./today";
@@ -27,6 +28,8 @@ export const appRouter = {
   games: gamesRouter,
   // Classified mistakes: cursor list and detail with the game.
   mistakes: mistakesRouter,
+  // Opening repertoires: per-colour move graphs with idea notes (flag: repertoire).
+  repertoire: repertoireRouter,
   // Review queue and idempotent grading.
   review: reviewRouter,
   // Per-user settings (daily new-card limit, time zone).
