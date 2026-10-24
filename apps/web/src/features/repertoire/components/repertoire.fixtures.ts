@@ -88,7 +88,7 @@ export const centreNote: IdeaNote = {
 };
 
 const speeds: ExplorerData["speeds"] = ["blitz", "rapid", "classical"];
-const explorerBase = { band: 1600, offset: 0, speeds };
+const explorerBase = { band: 1600, ownBand: 1600, offset: 0, speeds };
 
 /** Explorer answer for the position after 1. e4: e5 is in the repertoire, c5 and e6 are not. */
 export const explorerOk = {
@@ -124,3 +124,10 @@ export const explorerEmpty = {
 
 export const explorerUnavailable = (reason: ExplorerUnavailableReason) =>
   ({ ...explorerBase, result: { status: "unavailable", reason } }) satisfies ExplorerData;
+
+/** The same answer one band above the user's own, as after choosing "1 above". */
+export const explorerOneBandAbove = {
+  ...explorerOk,
+  band: 1800,
+  offset: 1,
+} satisfies ExplorerData;

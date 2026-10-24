@@ -52,10 +52,15 @@ export function describeExplorerMove(move: Tally & { san: string }): string {
   return `${move.san}: ${formatGames(move.games)} ${noun}. White ${share.white}%, draws ${share.draws}%, Black ${share.black}%.`;
 }
 
-/** The rating range of a bucket: up to just below the next bucket, with open ends at both sides. */
+/**
+ * The rating range of a bucket: up to just below the next bucket, with open ends at both sides.
+ * A number that is not a bucket has no known range, so it is shown as is.
+ */
 export function bandLabel(band: number): string {
   const buckets: readonly number[] = EXPLORER_RATING_BUCKETS;
-  const next = buckets[buckets.indexOf(band) + 1];
+  const index = buckets.indexOf(band);
+  if (index === -1) return String(band);
+  const next = buckets[index + 1];
   if (band === buckets[0]) return `Under ${next}`;
   if (next === undefined) return `${band}+`;
   return `${band}–${next - 1}`;

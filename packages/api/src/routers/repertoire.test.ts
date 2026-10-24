@@ -413,8 +413,16 @@ describe.skipIf(!reachable)("repertoire router", () => {
 
       const result = await explorer(id, startId);
 
-      expect(result).toMatchObject({ band: 1800, offset: 1 });
+      expect(result).toMatchObject({ band: 1800, offset: 1, ownBand: 1600 });
       expect(explorerCalls[0]!.query.band).toBe(1800);
+    });
+
+    test("reports the own band unshifted even when the offset is clamped at the list end", async () => {
+      await setSnapshot({ rapid: { rating: 2600, games: 300 } });
+      await handle.db.insert(userSettings).values({ userId: "u1", explorerBandOffset: 2 });
+      const { id, startId } = await newRepertoire("u1");
+
+      expect(await explorer(id, startId)).toMatchObject({ band: 2500, offset: 2, ownBand: 2500 });
     });
 
     test("does not create a settings row", async () => {
@@ -425,7 +433,7 @@ describe.skipIf(!reachable)("repertoire router", () => {
 
     test("uses the fallback band without a Lichess profile", async () => {
       const { id, startId } = await newRepertoire("u1");
-      expect(await explorer(id, startId)).toMatchObject({ band: 1600, offset: 0 });
+      expect(await explorer(id, startId)).toMatchObject({ band: 1600, offset: 0, ownBand: 1600 });
     });
 
     test("uses the fallback band for a null or malformed snapshot", async () => {

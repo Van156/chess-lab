@@ -92,9 +92,11 @@ export const repertoireRouter = {
         input.positionId,
       );
       const band = ratingBandFor(perfs, offset);
+      // Unshifted, so the client can label every offset even when `band` was clamped at an end.
+      const ownBand = ratingBandFor(perfs, 0);
       const speeds = [...EXPLORER_BAND_SPEEDS];
       const result = await context.lichess.explorer(userId, { positionKey, fen, band, speeds });
-      return { band, offset, speeds, result: explorerView(result) };
+      return { band, ownBand, offset, speeds, result: explorerView(result) };
     }),
   /** Plays a SAN or UCI move; a repeat returns the existing move with `status: "duplicate"`. */
   addMove: repertoireProcedure

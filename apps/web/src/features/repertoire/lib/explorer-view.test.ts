@@ -63,6 +63,12 @@ describe("bandLabel", () => {
     expect(bandLabel(0)).toBe("Under 1000");
     expect(bandLabel(2500)).toBe("2500+");
   });
+
+  test("falls back to the bare number for a band that is not a bucket", () => {
+    expect(bandLabel(1500)).toBe("1500");
+    expect(bandLabel(-100)).toBe("-100");
+    expect(bandLabel(3000)).toBe("3000");
+  });
 });
 
 describe("inRepertoire", () => {
