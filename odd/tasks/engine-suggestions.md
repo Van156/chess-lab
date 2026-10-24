@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T1-T4 reviewed; review follow-ups and in-browser check pending
+# Feature: Engine suggestions in the repertoire builder — T5 next; in-browser check pending
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit. T3 is split across `p3` and `p3b`, so T4 branches from `feat/engine-suggestions3b`.
@@ -81,6 +81,11 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Update builder view stories and tests, and the engine section of `docs/architecture/web-app.md`.
   - Manual check in the local dev app (web on port 4000): lines deepen, the arrow follows line 1, Add works, the toggle is remembered, and game analysis resumes afterwards. This session has no browser automation, so the writer runs `pnpm --filter web build` and confirms the worker is not in the main bundle. The in-browser check goes to the user.
   - From T3: pass `maxDepth: SUGGESTION_DEPTH` and `maxPlies: SUGGESTION_PV_PLIES` into `toEngineView` from the container. The constants come from `@/features/engine` in the container, not in a `lib/` module.
+
+- [ ] **T5 — Review follow-ups (hook, toggle and bar tests)** [T]: Branch `feat/engine-suggestions5`. Route: delegated `react-staff`. Added after the T3+T4 review at the user's request; it is reviewed alone. Forecast is about 250 lines.
+  - R3-suggestion-hook-unproved: move the search logic of `useEngineSuggestions` into a pure controller in `lib/` with injected engine and frame functions, the same pattern as `createAnalysisRun` and `useGameAnalysis`. Test cancel on a FEN change, toggle-off and close; the ignored `EngineJobCancelledError`; other errors leading to `failed`; one dispatch per frame; and the pending frame dropped on finish or close. The hook becomes a thin binding.
+  - R3-toggle-fallback-unproved: move the toggle store (snapshot, subscribe, fallback, notify) into a testable unit with an injected storage. Test that the choice is kept when writes fail and that subscribers are notified.
+  - R3-evalbar-nonfinite: guard `clampPercent` with `Number.isFinite`, falling back to 50, and test it.
 
 ## Acceptance criteria
 
@@ -180,3 +185,4 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
     - R3-toggle-fallback-unproved (SUGGESTION): the toggle's in-memory fallback when storage refuses writes, and the subscriber notification on `setEnabled`, are untested.
     - R3-evalbar-nonfinite (SUGGESTION): `clampPercent` passes `NaN` through as `height: NaN%`. Guard it with `Number.isFinite`, falling back to 50.
   - Asked the user whether to fix these now as T5.
+  - User, 2026-10-24: "Fix now as T5".
