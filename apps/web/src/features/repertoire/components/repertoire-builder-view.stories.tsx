@@ -10,6 +10,8 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  engineOffView,
+  engineOnView,
   explorerOk,
   startPosition,
   whiteRepertoire,
@@ -29,12 +31,15 @@ const meta = {
     path: [e4Move],
     childMoves: [e5Move, c5Move],
     explorer: { kind: "loaded", data: explorerOk },
+    engine: engineOnView,
     note: emptyNote,
     noteDirty: false,
     saving: false,
     bandSaving: false,
     onPlayMove: () => {},
     onChangeBandOffset: () => {},
+    onToggleEngine: () => {},
+    onRetryEngine: () => {},
     onSelectPly: () => {},
     onSelectChild: () => {},
     onRequestDelete: () => {},
@@ -68,3 +73,28 @@ export const PlayingBlack: Story = {
 };
 
 export const ExplorerUnavailable: Story = { args: { explorer: { kind: "failed" } } };
+
+export const EngineOff: Story = { args: { engine: engineOffView } };
+
+export const EngineAnalysing: Story = {
+  args: {
+    engine: {
+      panel: {
+        kind: "analysing",
+        depth: 9,
+        maxDepth: 18,
+        lines: engineOnView.panel.kind === "done" ? engineOnView.panel.lines : [],
+      },
+      whitePercent: 52,
+      arrow: { from: "e2", to: "e4" },
+    },
+  },
+};
+
+export const EngineUnavailable: Story = {
+  args: { engine: { panel: { kind: "unavailable" }, whitePercent: null, arrow: null } },
+};
+
+export const EngineWithIdeaNote: Story = {
+  args: { position: startPosition, path: [], childMoves: [e4Move], note: centreNote },
+};

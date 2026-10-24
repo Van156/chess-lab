@@ -10,6 +10,8 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  engineOffView,
+  engineOnView,
   explorerOk,
   explorerOneBandAbove,
   startPosition,
@@ -25,12 +27,15 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       path={[e4Move]}
       childMoves={[e5Move, c5Move]}
       explorer={{ kind: "loaded", data: explorerOk }}
+      engine={engineOnView}
       note={emptyNote}
       noteDirty={false}
       saving={false}
       bandSaving={false}
       onPlayMove={() => {}}
       onChangeBandOffset={() => {}}
+      onToggleEngine={() => {}}
+      onRetryEngine={() => {}}
       onSelectPly={() => {}}
       onSelectChild={() => {}}
       onRequestDelete={() => {}}
@@ -106,5 +111,33 @@ describe("RepertoireBuilderView", () => {
     expect(await render({ explorer: { kind: "failed" } })).not.toContain(
       "Compare with rating band",
     );
+  });
+
+  test("shows the engine panel above the explorer, with the eval bar beside the board", async () => {
+    const html = await render();
+    expect(html).toContain('data-slot="engine-panel"');
+    expect(html).toContain("Depth 18/18");
+    expect(html).toContain('data-slot="eval-bar"');
+    expect(html.indexOf('data-slot="engine-panel"')).toBeLessThan(html.indexOf(">Explorer</h2>"));
+    expect(html.indexOf('data-slot="engine-panel"')).toBeLessThan(html.indexOf("Current line"));
+  });
+
+  test("describes the engine arrow next to the idea-note arrows", async () => {
+    const html = await render({ note: centreNote });
+    expect(html).toContain("Engine best move: e2 to e4.");
+    expect(html).toContain("Arrows: g1 to f3, f1 to c4.");
+  });
+
+  test("hides the bar and the engine arrow while the engine is off", async () => {
+    const html = await render({ engine: engineOffView, note: centreNote });
+    expect(html).toContain('data-slot="engine-off"');
+    expect(html).not.toContain('data-slot="eval-bar"');
+    expect(html).not.toContain("Engine best move");
+  });
+
+  test("offers Add on engine lines, disabled while a write is saving", async () => {
+    expect(await render()).toContain("Add d4");
+    const html = await render({ saving: true });
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add d4<\/button>/);
   });
 });

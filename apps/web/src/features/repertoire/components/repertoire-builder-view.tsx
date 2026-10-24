@@ -4,6 +4,7 @@ import { Card } from "@b2c-template/ui/components/card";
 import { ChessBoard, MoveList, SanInput } from "@/shared/components/board";
 import PageHeader from "@/shared/components/layout/page-header";
 
+import { mergeBoardArrows } from "../lib/board-arrows";
 import { inRepertoire } from "../lib/explorer-view";
 import { describeNote } from "../lib/idea-note";
 import { formatLine } from "../lib/repertoire-tree";
@@ -13,10 +14,13 @@ import type {
   RepertoireMove,
   RepertoirePosition,
 } from "../lib/repertoire-types";
+import EnginePanel from "./engine-panel";
+import EvalBar from "./eval-bar";
 import ExplorerBandSelect from "./explorer-band-select";
 import ExplorerPanel, { type ExplorerPanelState } from "./explorer-panel";
 import IdeaNoteEditor from "./idea-note-editor";
 import LineNavigator from "./line-navigator";
+import type { EngineView } from "../lib/suggestion-state";
 
 export type RepertoireBuilderViewProps = {
   repertoire: RepertoireData["repertoire"];
@@ -25,6 +29,8 @@ export type RepertoireBuilderViewProps = {
   childMoves: readonly RepertoireMove[];
   /** Explorer stats for this position; whatever it holds, the rest of the builder works. */
   explorer: ExplorerPanelState;
+  /** Stockfish suggestions for this position: the panel, the eval bar share and the best-move arrow. */
+  engine: EngineView;
   /** The note being edited; the board and the text below it show this one. */
   note: IdeaNote;
   noteDirty: boolean;
@@ -35,6 +41,9 @@ export type RepertoireBuilderViewProps = {
   onPlayMove: (san: string) => void;
   /** An explorer band offset from -2 to 2; the caller saves it. */
   onChangeBandOffset: (offset: number) => void;
+  /** The engine switch; the caller remembers the choice. */
+  onToggleEngine: (on: boolean) => void;
+  onRetryEngine: () => void;
   onSelectPly: (ply: number) => void;
   onSelectChild: (move: RepertoireMove) => void;
   onRequestDelete: (move: RepertoireMove) => void;
@@ -47,6 +56,10 @@ export type RepertoireBuilderViewProps = {
  * Repertoire builder (presentational): the board for the current position with its idea note,
  * a typed-move field beside it, the line so far, the moves that continue it and the note editor.
  * One column at 375 px; board and controls side by side from the large breakpoint.
+ *
+ * The eval bar sits beside the board and is hidden while the engine is off, the same state the
+ * panel shows as off. The engine panel comes first in the side column (engine lines are the primary
+ * suggestion), above the explorer; its best-move arrow is drawn over the idea-note arrows.
  */
 export default function RepertoireBuilderView({
   repertoire,
@@ -54,12 +67,15 @@ export default function RepertoireBuilderView({
   path,
   childMoves,
   explorer,
+  engine,
   note,
   noteDirty,
   saving,
   bandSaving,
   onPlayMove,
   onChangeBandOffset,
+  onToggleEngine,
+  onRetryEngine,
   onSelectPly,
   onSelectChild,
   onRequestDelete,
@@ -70,6 +86,10 @@ export default function RepertoireBuilderView({
   const side = position.sideToMove === "w" ? "White" : "Black";
   const lastMove = path[path.length - 1];
   const colour = repertoire.color === "white" ? "White" : "Black";
+  // The blue arrow is also written out, so its meaning never rests on colour alone.
+  const engineArrowText = engine.arrow
+    ? ` Engine best move: ${engine.arrow.from} to ${engine.arrow.to}.`
+    : "";
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <PageHeader
@@ -79,23 +99,30 @@ export default function RepertoireBuilderView({
       />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <Card className="flex flex-col gap-3 rounded-2xl p-4">
-          <ChessBoard
-            fen={position.fen}
-            orientation={repertoire.color}
-            onMove={(move) => {
-              onPlayMove(move.san);
-              // The board stays on the current position; it jumps once the tree has the move.
-              return false;
-            }}
-            arrows={note.arrows}
-            highlights={note.highlights}
-            lastMove={
-              lastMove
-                ? { from: lastMove.uci.slice(0, 2), to: lastMove.uci.slice(2, 4) }
-                : undefined
-            }
-            label={`Chess position, line: ${formatLine(path)}. ${side} to move. ${describeNote(note)}`}
-          />
+          <div className="flex items-stretch gap-2">
+            {engine.panel.kind === "off" ? null : (
+              <EvalBar whitePercent={engine.whitePercent} orientation={repertoire.color} />
+            )}
+            <div className="min-w-0 flex-1">
+              <ChessBoard
+                fen={position.fen}
+                orientation={repertoire.color}
+                onMove={(move) => {
+                  onPlayMove(move.san);
+                  // The board stays on the current position; it jumps once the tree has the move.
+                  return false;
+                }}
+                arrows={mergeBoardArrows(note.arrows, engine.arrow)}
+                highlights={note.highlights}
+                lastMove={
+                  lastMove
+                    ? { from: lastMove.uci.slice(0, 2), to: lastMove.uci.slice(2, 4) }
+                    : undefined
+                }
+                label={`Chess position, line: ${formatLine(path)}. ${side} to move. ${describeNote(note)}${engineArrowText}`}
+              />
+            </div>
+          </div>
           <SanInput fen={position.fen} onMove={onPlayMove} label="Type a move to add it" />
           <p className="text-sm" data-slot="note-text-alternative">
             <span className="font-medium">Idea note:</span> {describeNote(note)}
@@ -103,6 +130,15 @@ export default function RepertoireBuilderView({
         </Card>
 
         <div className="flex flex-col gap-6">
+          <Card className="rounded-2xl p-4 md:p-6">
+            <EnginePanel
+              state={engine.panel}
+              addPending={saving}
+              onToggle={onToggleEngine}
+              onAdd={onPlayMove}
+              onRetry={onRetryEngine}
+            />
+          </Card>
           <Card className="flex flex-col gap-4 rounded-2xl p-4 md:p-6">
             <h2 className="text-xl font-semibold">Current line</h2>
             <MoveList

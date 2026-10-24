@@ -5,17 +5,21 @@ import { BookMarked } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SUGGESTION_DEPTH, SUGGESTION_PV_PLIES } from "@/features/engine";
 import ConfirmDialog from "@/shared/components/overlays/confirm-dialog";
 import EmptyState from "@/shared/components/feedback/empty-state";
 import LoadError from "@/shared/components/feedback/load-error";
 import Loader from "@/shared/components/feedback/loader";
 
 import { useExplorer } from "../hooks/use-explorer";
+import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
+import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
 import { useRepertoire } from "../hooks/use-repertoire";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
 import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
+import { toEngineView } from "../lib/suggestion-state";
 import { isNotFound } from "../lib/repertoire-query";
 import { childMoves, pathTo, removalPreview } from "../lib/repertoire-tree";
 import type { IdeaNote, RepertoireMove } from "../lib/repertoire-types";
@@ -46,6 +50,11 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   const currentId = repertoire ? resolvePosition(repertoire, where.positionId) : "";
   const explorer = useExplorer(id, currentId);
   const explorerBand = useExplorerBand();
+  // The engine hooks also run before the early returns. Until the position resolves the FEN is
+  // empty and the search is disabled, so the engine is never asked about an invalid position.
+  const [engineOn, setEngineOn] = useEngineToggle();
+  const currentFen = repertoire?.positions.find((candidate) => candidate.id === currentId)?.fen;
+  const suggestions = useEngineSuggestions(currentFen ?? "", engineOn && currentFen !== undefined);
 
   if (isPending) {
     return <Loader />;
@@ -129,6 +138,16 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     go(next, []);
   };
 
+  const children = childMoves(repertoire, positionId);
+  const engine = toEngineView({
+    state: suggestions.state,
+    fen: position.fen,
+    enabled: engineOn,
+    childMoves: children,
+    maxDepth: SUGGESTION_DEPTH,
+    maxPlies: SUGGESTION_PV_PLIES,
+  });
+
   const removal = deleting ? removalPreview(repertoire, deleting.id) : null;
 
   return (
@@ -137,13 +156,16 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         repertoire={repertoire.repertoire}
         position={position}
         path={path}
-        childMoves={childMoves(repertoire, positionId)}
+        childMoves={children}
+        engine={engine}
         explorer={explorer}
         note={note}
         noteDirty={!notesEqual(note, savedNote)}
         saving={isSaving}
         bandSaving={explorerBand.isPending}
         onPlayMove={(san) => void playMove(san)}
+        onToggleEngine={setEngineOn}
+        onRetryEngine={suggestions.retry}
         onChangeBandOffset={(offset) => void changeBandOffset(offset)}
         onSelectPly={(ply) => {
           const walked = path.slice(0, ply);

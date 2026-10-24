@@ -9,6 +9,8 @@ export const boardTheme = {
   highlight: "rgba(255,214,102,.55)",
   lastMove: "rgba(62,230,176,.45)",
   arrow: "#3ee6b0",
+  /** Engine best-move arrow: blue, clearly apart from the mint idea-note arrows. */
+  engineArrow: "#4da3ff",
 } as const;
 
 /** CSS variables set on the board root; square styles read them so a theme swap stays in CSS. */

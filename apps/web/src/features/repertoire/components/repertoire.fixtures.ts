@@ -7,6 +7,7 @@ import type {
   RepertoirePosition,
   RepertoireSummary,
 } from "../lib/repertoire-types";
+import type { EngineView } from "../lib/suggestion-state";
 
 export const whiteRepertoire = {
   id: "r1",
@@ -165,3 +166,17 @@ export const engineLines = [
   suggestion(2, "+0.28", "White is better by 0.28 pawns", "d4", "d2d4", "1. d4 d5 2. c4 e6"),
   suggestion(3, "+0.20", "White is better by 0.20 pawns", "Nf3", "g1f3", "1. Nf3 d5 2. g3 Nf6"),
 ];
+
+/** The builder's engine view with a finished search: three lines, a bar share and line 1's arrow. */
+export const engineOnView: EngineView = {
+  panel: { kind: "done", depth: 18, maxDepth: 18, lines: engineLines },
+  whitePercent: 53,
+  arrow: { from: "e2", to: "e4" },
+};
+
+/** The builder's engine view with the switch off: no bar share and no arrow. */
+export const engineOffView: EngineView = {
+  panel: { kind: "off" },
+  whitePercent: null,
+  arrow: null,
+};
