@@ -7,9 +7,11 @@
 /** A string every generated book contains and ordinary app code does not. */
 export const OPENING_BOOK_MARKER = "Scotch Game";
 
-/** The `url` of every entry in the Workbox precache manifest inside `sw.js`. */
+/** The `url` of every entry in the Workbox precache manifest inside `sw.js`, bare or quoted key. */
 export function parsePrecachedUrls(swSource: string): string[] {
-  return [...swSource.matchAll(/\burl:\s*["']([^"']+)["']/g)].map((match) => match[1]);
+  return [...swSource.matchAll(/(?:\burl|"url"|'url')\s*:\s*["']([^"']+)["']/g)].map(
+    (match) => match[1],
+  );
 }
 
 export type PlacementResult = { ok: true; bookFiles: string[] } | { ok: false; error: string };
@@ -19,6 +21,11 @@ export function checkOpeningBookPlacement(files: {
   precached: Record<string, string>;
   lazy: Record<string, string>;
 }): PlacementResult {
+  // The app bundle is always precached, so an empty set means the manifest was not read: fail
+  // rather than pass having checked nothing.
+  if (Object.keys(files.precached).length === 0) {
+    return { ok: false, error: "no precached JS found; the precache manifest could not be read" };
+  }
   const holdsBook = (group: Record<string, string>) =>
     Object.keys(group).filter((file) => group[file].includes(OPENING_BOOK_MARKER));
   const precachedBook = holdsBook(files.precached);

@@ -10,6 +10,11 @@ describe("parsePrecachedUrls", () => {
     expect(parsePrecachedUrls(sw)).toEqual(["registerSW.js", "assets/index-Bx12.js", "index.html"]);
   });
 
+  test("reads urls whose keys are quoted, as JSON-serialised manifests write them", () => {
+    const sw = `precacheAndRoute([{"url":"assets/index-Bx12.js","revision":null},{'url':'index.html'}])`;
+    expect(parsePrecachedUrls(sw)).toEqual(["assets/index-Bx12.js", "index.html"]);
+  });
+
   test("returns nothing when the worker has no manifest", () => {
     expect(parsePrecachedUrls("self.skipWaiting()")).toEqual([]);
   });
@@ -31,6 +36,15 @@ describe("checkOpeningBookPlacement", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error).toContain("assets/index-1.js");
+  });
+
+  test("fails when no precached JS was found, instead of passing on nothing checked", () => {
+    const result = checkOpeningBookPlacement({
+      precached: {},
+      lazy: { "assets/opening-book-2.js": BOOK },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toContain("no precached JS");
   });
 
   test("fails when no non-precached asset holds the book", () => {
