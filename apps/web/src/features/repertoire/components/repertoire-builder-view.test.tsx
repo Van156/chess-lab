@@ -10,6 +10,10 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  midLineArrowText,
+  midLineArrows,
+  openGameStartTree,
+  openGameTree,
   engineOffView,
   engineOnView,
   explorerOk,
@@ -26,8 +30,14 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       position={afterE4}
       path={[e4Move]}
       childMoves={[e5Move, c5Move]}
+      tree={openGameTree}
+      startPositionId="p0"
       explorer={{ kind: "loaded", data: explorerOk }}
       engine={engineOnView}
+      boardArrows={midLineArrows}
+      boardArrowText={midLineArrowText}
+      lineCount={3}
+      showRepertoireArrows
       note={emptyNote}
       noteDirty={false}
       saving={false}
@@ -37,7 +47,10 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       onToggleEngine={() => {}}
       onRetryEngine={() => {}}
       onSelectPly={() => {}}
-      onSelectChild={() => {}}
+      onChangeLineCount={() => {}}
+      onToggleRepertoireArrows={() => {}}
+      onSelectNode={() => {}}
+      onDeleteNode={() => {}}
       onRequestDelete={() => {}}
       onNoteChange={() => {}}
       onSaveNote={() => {}}
@@ -48,13 +61,12 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
 }
 
 describe("RepertoireBuilderView", () => {
-  test("shows the repertoire, a typed-move field and the current line as a move list", async () => {
+  test("shows the repertoire, a typed-move field and the path to the position", async () => {
     const html = await render();
     expect(html).toContain("Open games");
     expect(html).toContain("Playing White");
     expect(html).toContain(">Type a move to add it</label>");
-    expect(html).toContain('aria-label="Moves"');
-    expect(html).toContain('aria-current="step"');
+    expect(html).toContain('aria-label="Path to this position"');
     expect(html).toContain('href="/repertoire"');
   });
 
@@ -70,11 +82,26 @@ describe("RepertoireBuilderView", () => {
     expect(await render()).toContain("No idea note.");
   });
 
-  test("shows the start position with its first moves", async () => {
-    const html = await render({ position: startPosition, path: [], childMoves: [e4Move] });
-    expect(html).toContain("Start position");
-    expect(html).toContain("No moves yet");
-    expect(html).toContain("1. e4");
+  test("lays out the board column and a rail of four tabs", async () => {
+    const html = await render();
+    expect(html).toContain('aria-label="Board"');
+    for (const tab of ["Tree", "Engine", "Explorer", "Notes"]) {
+      expect(html).toMatch(new RegExp(`role="tab"[^>]*>${tab}</button>`));
+    }
+    expect(html.indexOf('data-slot="board-toolbar"')).toBeLessThan(html.indexOf("chess-board"));
+  });
+
+  test("shows the whole repertoire as a tree, with the start position as its root", async () => {
+    const html = await render({ position: startPosition, path: [], tree: openGameStartTree });
+    expect(html).toContain('aria-label="Variation tree"');
+    expect(html).toMatch(/aria-current="location"[^>]*>Start position</);
+    expect(html).toContain('aria-label="1... c5, opponent reply, alternative to 1... e5"');
+  });
+
+  test("shows the toolbar with the saved line count and the repertoire arrows switch", async () => {
+    const html = await render({ lineCount: 5 });
+    expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="5 lines on the board"/);
+    expect(html).toContain("Repertoire arrows");
   });
 
   test("names the colour being played", async () => {
@@ -86,7 +113,7 @@ describe("RepertoireBuilderView", () => {
     const html = await render({ explorer: { kind: "failed" } });
     expect(html).toContain("unavailable right now");
     expect(html).toContain(">Type a move to add it</label>");
-    expect(html).toContain("Current line");
+    expect(html).toContain('aria-label="Variation tree"');
   });
 
   test("offers Add only on explorer moves that are not in the repertoire yet", async () => {
@@ -119,20 +146,24 @@ describe("RepertoireBuilderView", () => {
     expect(html).toContain("Depth 18/18");
     expect(html).toContain('data-slot="eval-bar"');
     expect(html.indexOf('data-slot="engine-panel"')).toBeLessThan(html.indexOf(">Explorer</h2>"));
-    expect(html.indexOf('data-slot="engine-panel"')).toBeLessThan(html.indexOf("Current line"));
   });
 
-  test("describes the engine arrow next to the idea-note arrows", async () => {
+  test("describes the engine lines and repertoire moves next to the idea-note arrows", async () => {
     const html = await render({ note: centreNote });
-    expect(html).toContain("Engine best move: e2 to e4.");
+    expect(html).toContain("Engine lines, best first: e4, d4, Nf3.");
+    expect(html).toContain("Repertoire moves: e5, c5.");
     expect(html).toContain("Arrows: g1 to f3, f1 to c4.");
   });
 
-  test("hides the bar and the engine arrow while the engine is off", async () => {
-    const html = await render({ engine: engineOffView, note: centreNote });
+  test("hides the bar while the engine is off", async () => {
+    const html = await render({ engine: engineOffView, boardArrowText: "" });
     expect(html).toContain('data-slot="engine-off"');
     expect(html).not.toContain('data-slot="eval-bar"');
-    expect(html).not.toContain("Engine best move");
+    expect(html).not.toContain("Engine lines, best first");
+  });
+
+  test("stretches the eval bar to the board's height", async () => {
+    expect(await render()).toMatch(/data-slot="eval-bar"[^>]*class="[^"]*self-stretch/);
   });
 
   test("offers Add on engine lines, disabled while a write is saving", async () => {

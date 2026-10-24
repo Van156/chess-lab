@@ -7,8 +7,10 @@ import type {
   RepertoirePosition,
   RepertoireSummary,
 } from "../lib/repertoire-types";
+import { buildBoardArrows, describeBoardLines } from "../lib/board-lines";
 import type { RepertoireGraph } from "../lib/repertoire-tree";
 import type { EngineView } from "../lib/suggestion-state";
+import { buildVariationTree } from "../lib/variation-tree";
 
 export const whiteRepertoire = {
   id: "r1",
@@ -204,3 +206,30 @@ export const engineOffView: EngineView = {
   whitePercent: null,
   arrow: null,
 };
+
+/** The outline of `openGameGraph` with the line 1. e4 shown. */
+export const openGameTree = buildVariationTree(openGameGraph, [e4Move]);
+
+/** The same outline with the start position shown. */
+export const openGameStartTree = buildVariationTree(openGameGraph, []);
+
+/** The same outline with 1. e4 e5 shown. */
+export const openGameE5Tree = buildVariationTree(openGameGraph, [e4Move, e5Move]);
+
+const boardLines = {
+  engineLines,
+  lineCount: 3,
+  repertoireMoves: [e5Move, c5Move],
+  showRepertoire: true,
+};
+
+/** What the board draws after 1. e4 with three engine lines and the repertoire's replies. */
+export const midLineArrows = buildBoardArrows({ noteArrows: [], ...boardLines });
+
+/** `midLineArrows` in words. */
+export const midLineArrowText = describeBoardLines(
+  boardLines.engineLines,
+  boardLines.lineCount,
+  boardLines.repertoireMoves,
+  boardLines.showRepertoire,
+);

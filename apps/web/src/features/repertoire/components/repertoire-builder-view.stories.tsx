@@ -10,6 +10,11 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  midLineArrowText,
+  midLineArrows,
+  openGameE5Tree,
+  openGameStartTree,
+  openGameTree,
   engineOffView,
   engineOnView,
   explorerOk,
@@ -30,8 +35,14 @@ const meta = {
     position: afterE4,
     path: [e4Move],
     childMoves: [e5Move, c5Move],
+    tree: openGameTree,
+    startPositionId: "p0",
     explorer: { kind: "loaded", data: explorerOk },
     engine: engineOnView,
+    boardArrows: midLineArrows,
+    boardArrowText: midLineArrowText,
+    lineCount: 3,
+    showRepertoireArrows: true,
     note: emptyNote,
     noteDirty: false,
     saving: false,
@@ -41,7 +52,10 @@ const meta = {
     onToggleEngine: () => {},
     onRetryEngine: () => {},
     onSelectPly: () => {},
-    onSelectChild: () => {},
+    onChangeLineCount: () => {},
+    onToggleRepertoireArrows: () => {},
+    onSelectNode: () => {},
+    onDeleteNode: () => {},
     onRequestDelete: () => {},
     onNoteChange: () => {},
     onSaveNote: () => {},
@@ -55,7 +69,7 @@ type Story = StoryObj<typeof meta>;
 export const MidLine: Story = {};
 
 export const StartPosition: Story = {
-  args: { position: startPosition, path: [], childMoves: [e4Move] },
+  args: { position: startPosition, path: [], childMoves: [e4Move], tree: openGameStartTree },
 };
 
 export const WithIdeaNote: Story = {
@@ -63,13 +77,20 @@ export const WithIdeaNote: Story = {
     position: afterE5,
     path: [e4Move, e5Move],
     childMoves: [],
+    tree: openGameE5Tree,
     note: centreNote,
     noteDirty: true,
   },
 };
 
 export const PlayingBlack: Story = {
-  args: { repertoire: blackRepertoire, position: startPosition, path: [], childMoves: [e4Move] },
+  args: {
+    repertoire: blackRepertoire,
+    position: startPosition,
+    path: [],
+    childMoves: [e4Move],
+    tree: openGameStartTree,
+  },
 };
 
 export const ExplorerUnavailable: Story = { args: { explorer: { kind: "failed" } } };
@@ -91,10 +112,28 @@ export const EngineAnalysing: Story = {
   },
 };
 
+export const OneEngineLine: Story = {
+  args: {
+    lineCount: 1,
+    boardArrows: midLineArrows.slice(-3),
+    boardArrowText: "Engine lines, best first: e4.",
+  },
+};
+
+export const RepertoireArrowsOff: Story = {
+  args: { showRepertoireArrows: false, boardArrowText: "Engine lines, best first: e4, d4, Nf3." },
+};
+
 export const EngineUnavailable: Story = {
   args: { engine: { panel: { kind: "unavailable" }, whitePercent: null, arrow: null } },
 };
 
 export const EngineWithIdeaNote: Story = {
-  args: { position: startPosition, path: [], childMoves: [e4Move], note: centreNote },
+  args: {
+    position: startPosition,
+    path: [],
+    childMoves: [e4Move],
+    tree: openGameStartTree,
+    note: centreNote,
+  },
 };

@@ -28,7 +28,7 @@ function announcement(state: EnginePanelState): string {
 
 /**
  * Stockfish suggestions for the current position (presentational): an on/off switch, the search
- * depth and up to three lines with their scores as text. A line's first move can be added to the
+ * depth and the engine lines (one to five, as chosen on the board toolbar) with their scores as text. A line's first move can be added to the
  * repertoire, or is marked when it is already there. The builder works whatever state this shows.
  */
 export default function EnginePanel({

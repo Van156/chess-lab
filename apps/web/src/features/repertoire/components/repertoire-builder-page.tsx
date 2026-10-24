@@ -2,7 +2,7 @@ import { buttonVariants } from "@b2c-template/ui/components/button";
 import { cn } from "@b2c-template/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { BookMarked } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { SUGGESTION_DEPTH, SUGGESTION_PV_PLIES } from "@/features/engine";
@@ -15,7 +15,9 @@ import { useExplorer } from "../hooks/use-explorer";
 import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
 import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
+import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
 import { useRepertoire } from "../hooks/use-repertoire";
+import { buildBoardArrows, describeBoardLines } from "../lib/board-lines";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
 import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
@@ -23,6 +25,7 @@ import { toEngineView } from "../lib/suggestion-state";
 import { isNotFound } from "../lib/repertoire-query";
 import { childMoves, pathTo, removalPreview } from "../lib/repertoire-tree";
 import type { IdeaNote, RepertoireMove } from "../lib/repertoire-types";
+import { buildVariationTree } from "../lib/variation-tree";
 import RepertoireBuilderView from "./repertoire-builder-view";
 
 const NO_NOTE: IdeaNote = { arrows: [], highlights: [], plan: "" };
@@ -54,7 +57,34 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   // empty and the search is disabled, so the engine is never asked about an invalid position.
   const [engineOn, setEngineOn] = useEngineToggle();
   const currentFen = repertoire?.positions.find((candidate) => candidate.id === currentId)?.fen;
-  const suggestions = useEngineSuggestions(currentFen ?? "", engineOn && currentFen !== undefined);
+  const [lineCount, setLineCount] = useLineCount();
+  const [showRepertoireArrows, setShowRepertoireArrows] = useRepertoireArrows();
+  const suggestions = useEngineSuggestions(
+    currentFen ?? "",
+    engineOn && currentFen !== undefined,
+    lineCount,
+  );
+  // The outline depends on the graph and the shown line only, so it is rebuilt on those two and
+  // never on an engine frame; the callbacks below are stable for the same reason (the tree is memoised).
+  const path = useMemo(
+    () => (repertoire ? pathTo(repertoire, currentId, where.route) : null),
+    [repertoire, currentId, where.route],
+  );
+  const tree = useMemo(
+    () => (repertoire && path ? buildVariationTree(repertoire, path) : null),
+    [repertoire, path],
+  );
+  const go = useCallback(
+    (positionId: string, route: string[]) => setWhere({ positionId, route }),
+    [],
+  );
+  const requestDeleteById = useCallback(
+    (moveId: string) => {
+      const move = repertoire?.moves.find((candidate) => candidate.id === moveId);
+      if (move) setDeleting(move);
+    },
+    [repertoire],
+  );
 
   if (isPending) {
     return <Loader />;
@@ -79,16 +109,13 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
 
   const positionId = currentId;
   const position = repertoire.positions.find((candidate) => candidate.id === positionId);
-  const path = pathTo(repertoire, positionId, where.route);
-  if (!position || !path) {
+  if (!position || !path || !tree) {
     return <LoadError message="This position could not be shown." onRetry={retry} />;
   }
 
   const savedNote = repertoire.notes[positionId] ?? NO_NOTE;
   const note = draft?.positionId === positionId ? draft.note : savedNote;
   const routeTo = (moves: readonly RepertoireMove[]) => moves.map((move) => move.id);
-
-  const go = (target: string, route: string[]) => setWhere({ positionId: target, route });
 
   const playMove = async (san: string) => {
     try {
@@ -148,6 +175,17 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     maxPlies: SUGGESTION_PV_PLIES,
   });
 
+  const engineLines =
+    engine.panel.kind === "analysing" || engine.panel.kind === "done" ? engine.panel.lines : [];
+  const boardArrows = buildBoardArrows({
+    noteArrows: note.arrows,
+    engineLines,
+    lineCount,
+    repertoireMoves: children,
+    showRepertoire: showRepertoireArrows,
+  });
+  const boardArrowText = describeBoardLines(engineLines, lineCount, children, showRepertoireArrows);
+
   const removal = deleting ? removalPreview(repertoire, deleting.id) : null;
 
   return (
@@ -157,7 +195,13 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         position={position}
         path={path}
         childMoves={children}
+        tree={tree}
+        startPositionId={repertoire.startPositionId}
         engine={engine}
+        boardArrows={boardArrows}
+        boardArrowText={boardArrowText}
+        lineCount={lineCount}
+        showRepertoireArrows={showRepertoireArrows}
         explorer={explorer}
         note={note}
         noteDirty={!notesEqual(note, savedNote)}
@@ -166,6 +210,8 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         onPlayMove={(san) => void playMove(san)}
         onToggleEngine={setEngineOn}
         onRetryEngine={suggestions.retry}
+        onChangeLineCount={setLineCount}
+        onToggleRepertoireArrows={setShowRepertoireArrows}
         onChangeBandOffset={(offset) => void changeBandOffset(offset)}
         onSelectPly={(ply) => {
           const walked = path.slice(0, ply);
@@ -174,7 +220,8 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
             routeTo(walked),
           );
         }}
-        onSelectChild={(move) => go(move.toPositionId, [...routeTo(path), move.id])}
+        onSelectNode={go}
+        onDeleteNode={requestDeleteById}
         onRequestDelete={setDeleting}
         onNoteChange={(next) => setDraft({ positionId, note: next })}
         onSaveNote={() => void saveNote(note, note)}

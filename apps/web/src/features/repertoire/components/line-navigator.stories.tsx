@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { c5Move, e4Move, e5Move } from "./repertoire.fixtures";
+import { e4Move, e5Move } from "./repertoire.fixtures";
 import LineNavigator from "./line-navigator";
 
 const meta = {
@@ -10,9 +10,7 @@ const meta = {
   parameters: { layout: "padded" },
   args: {
     path: [e4Move],
-    childMoves: [e5Move, c5Move],
     onSelectPly: () => {},
-    onSelectChild: () => {},
     onDelete: () => {},
   },
 } satisfies Meta<typeof LineNavigator>;
@@ -20,8 +18,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const WithReplies: Story = {};
+export const MidLine: Story = {};
 
-export const AtStart: Story = { args: { path: [], childMoves: [e4Move] } };
+export const AtStart: Story = { args: { path: [] } };
 
-export const EndOfLine: Story = { args: { path: [e4Move, e5Move], childMoves: [] } };
+export const EndOfLine: Story = { args: { path: [e4Move, e5Move] } };
