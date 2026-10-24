@@ -1,4 +1,4 @@
-# Feature: Opening explorer (chess-lab-v1 P2-d)
+# Feature: Opening explorer (chess-lab-v1 P2-d) — DONE, T1-T7 reviewed
 
 - **Source:** user request 2026-10-24, "start with the next one" after P2-e. Slice P2-d of `openspec/changes/chess-lab-v1/tasks.md` (line 310). Spec: `openspec/changes/chess-lab-v1/specs/opening-explorer/spec.md` (L9-77). Design: `design.md` ADR-09 (L232-253, S0.7 amendment L247, cache L249), the ADR-18 constants (L463-469), `user_settings.explorer_band_offset` (L139), `repertoire.explorer` (L492), `LichessPort.explorer` (L496). S0.7 facts: `openspec/changes/chess-lab-v1/notes/s0-verification.md` L25-31.
 - **Branch:** T1 on `feat/chess-lab-v1-p2d`, branched from `feat/chess-lab-v1-p2e` at `bbc9228`. Each later task Tn gets `feat/chess-lab-v1-p2d<n>`, branched from the previous task's last commit. T3 is split across `p2d3` and `p2d3b`, and T5 across `p2d5` and `p2d5b`; the next task branches from the `b` branch.
@@ -241,3 +241,21 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `ExplorerBandSelect` takes `offset` (the saved offset) as its value, so "your band" always resets.
   - New story `ClampedSavedOffset`.
   - Commit `a12345f` (97 authored lines). Review: T7 alone (base 3411659).
+- 2026-10-24 Review T7 (3411659 to 0532f72, lineage review-c8df7b7fb724e3b4), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 0532f72. Feature P2-d complete.
+  - Pending warning R3-select-value-unclamped:
+    - The select value is the raw saved offset while the options use the clamped one, so they disagree for an out-of-range or non-integer offset, or for an off-bucket `ownBand` with a nonzero offset.
+    - The API cannot produce these inputs today: `settings.update` validates -2..2 integers and `ratingBandFor` returns buckets. A direct DB write could, because the column has no CHECK.
+    - Fix sketch: clamp the offset once with the same rule and use it for the value and the options, or return the effective offset from `repertoire.explorer`. Add SSR tests for both cases.
+  - Pending suggestions: R3-band-change-wiring-untested, R3-microtask-flush-ordering.
+  - Open product note: Add navigates to the new position (same as typed SAN), so the row never visibly flips to "In repertoire".
+- Not verified (needs a browser): 375 px layout, keyboard and focus, screen reader, the live Lichess explorer with a real token.
+- PRs: none pushed. Branch order:
+  - `p2d` (T1)
+  - `p2d2` (T2)
+  - `p2d3` and `p2d3b` (T3; `size:exception` recommended for `p2d3b`)
+  - `p2d4` (T4)
+  - `p2d4b` (T4b)
+  - `p2d5` and `p2d5b` (T5; `size:exception` recommended for `p2d5b`)
+  - `p2d6` and `p2d6b` (T6)
+  - `p2d7` (T7)
+- Next: user decision on the next slice (P2-c is blocked on the deviation design refresh).
