@@ -1,0 +1,102 @@
+# Feature: Engine suggestions in the repertoire builder — T1 next
+
+- **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
+- **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit.
+- **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b and P2-d), one PR per task. Forecast is about 1,250 authored changed lines: T1 about 250, T2 about 300, T3 about 400, T4 about 300.
+- **TDD:** source is `openspec/config.yaml` (`strict_tdd: false`; TDD for server/API and pure logic).
+  - TDD is on for T1 and T2.
+  - T3 and T4 use TDD for pure `lib/` helpers and ordinary checks for components.
+  - Runner: `bun test`.
+- **Review (RDD):** user policy is groups of two with auto-consent.
+  - Groups: T1+T2 (base `0a7c9bf`), then T3+T4.
+  - Untracked `.codegraph/` needs `--untracked-scope=exclude --expected-untracked-inventory=<sha from status>`.
+
+## Objective
+
+While building a repertoire, show Stockfish suggestions for the current position, the way the Lichess and chess.com analysis boards do. That means an on/off toggle, an eval bar beside the board, the top engine lines with score and depth, and a best-move arrow on the board. Any suggested first move can be added to the repertoire. Stockfish runs in the browser, and the builder keeps working when the engine is off or unavailable.
+
+## Problem and why
+
+The explorer shows what people play, not what is sound. Lichess and chess.com pair the explorer with a live engine, so a player can check a candidate move before committing it to a repertoire. Chess Lab already runs Stockfish in the browser for game analysis (NFR-01), so the builder can reuse it at no server cost.
+
+## Decisions
+
+- **User, 2026-10-24: engine panel only.** Local Stockfish only, so there is no Lichess cloud eval, no Masters database and no per-move engine eval in the explorer table. Those stay possible follow-ups.
+- **Defaults, all reversible:**
+  - The panel is on by default. The toggle is remembered per browser in `localStorage`, with every access wrapped in try/catch; it is a per-viewer convenience, not a setting.
+  - It shows 3 lines (`SUGGESTION_LINES`) and searches to depth 18 (`SUGGESTION_DEPTH`). Progress is shown live as the depth grows, like both sites.
+  - Suggestion jobs use `interactive` priority, so they pre-empt the background game analysis on the shared worker. That analysis resumes once the suggestion search ends.
+  - Each line is shown in SAN with move numbers, truncated to 8 plies (`SUGGESTION_PV_PLIES`).
+  - Scores are shown from White's side, like both sites: `+0.34`, `-1.20`, `#3`, `#-2`.
+  - The eval bar uses the Lichess win-chance curve, `50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)`. A mate counts as 100 or 0, and the bar follows the board orientation.
+  - The best-move arrow is the first move of line 1, drawn in a colour distinct from idea-note arrows.
+  - The repertoire pillar flag already gates the builder; there is no new flag.
+
+## Scope
+
+- **In:**
+  - `apps/web/src/features/engine/**`: MultiPV in the queue and job request, config constants, and public API exports.
+  - `apps/web/src/features/repertoire/**`: engine view helpers, the suggestion state, the `useEngineSuggestions` hook, the presentational `EnginePanel` and `EvalBar`, the builder wiring, stories, `tests/lib/app-story-registry.ts` entries and tests.
+  - Docs: `docs/architecture/web-app.md`, engine section.
+- **Out:**
+  - Lichess cloud eval
+  - Masters or player databases
+  - Engine evals inside the explorer table
+  - Threat mode
+  - Infinite analysis
+  - Server or API changes
+  - DB migrations
+
+## Constraints
+
+- The engine stays an unmodified, separate, lazy-loaded worker (NFR-08, ADR-11). Nothing new loads it before the panel asks for a suggestion.
+- Game analysis must behave exactly as before. Every job sends `MultiPV`, and jobs without `multiPv` reset it to 1, the same way strength options are reset.
+- The web app follows container/presentational. Every presentational component has a story and a registry entry.
+- Features import each other only through their public API (`@/features/engine`); `.oxlintrc.json` enforces this.
+- Scores and lines are text, never colour alone. The eval bar is decorative (`aria-hidden`) because the same score is in the text. Depth updates do not flood screen readers. Keyboard use works, and the layout works at 375 px.
+- About 400 authored lines per task is a planning heuristic, not a cap.
+
+## Tasks
+
+- [ ] **T1 — MultiPV in the engine runtime** [T]: Branch `feat/engine-suggestions`. Route: delegated writer (`engine-queue.ts` and its tests, plus `uci.ts` and `index.ts`; 2+ non-trivial files).
+  - `EngineJobRequest.multiPv?: number`. The queue sends `setoption name MultiPV value <multiPv ?? 1>` before every job, next to the strength options.
+  - `EngineInfo` and `EngineResult` gain `lines: EngineLine[]` (`{ multipv, depth, score, pv }`): the latest info per index, sorted by index. `depth`, `score` and `pv` still come from line 1, so existing callers are unchanged.
+  - `onProgress` fires on every info line with the updated snapshot. Secondary lines no longer get dropped, but they still never replace line 1's score.
+  - Export `EngineLine` and `EngineInfo` from `@/features/engine`.
+  - Tests: MultiPV is sent and reset; lines are collected per index; line 1 drives `score`; game-analysis command sequences are unchanged apart from the MultiPV reset.
+- [ ] **T2 — Engine view helpers** [T]: Branch `feat/engine-suggestions2`. Route: delegated writer (pure `lib/` module and tests).
+  - In `apps/web/src/features/repertoire/lib/engine-view.ts`: White-side score from the FEN's side to move, `formatScore`, an accessible `describeScore`, `winPercent` (Lichess curve, mate clamps), `pvToSan` (move-numbered SAN via `parseMove` from `@b2c-template/chess`; stops at the first illegal move; plies limit), `bestMoveArrow` and an `inRepertoire` mark for each line's first move.
+  - Engine constants `SUGGESTION_LINES`, `SUGGESTION_DEPTH` and `SUGGESTION_PV_PLIES` live in the engine `config.ts` and are exported from its public API.
+  - Reuse `moveLabel` and `formatEval` ideas from `features/mistakes/lib/mistake-format.ts` only through copying the pattern, never through a cross-feature internal import.
+- [ ] **T3 — Suggestion hook and engine panel** [T lib, O UI]: Branch `feat/engine-suggestions3`. Route: delegated `react-staff`.
+  - A pure reducer for the suggestion state (`off | starting | analysing{depth, lines} | done{depth, lines} | unavailable | terminal`), with tests.
+  - `useEngineSuggestions(fen, enabled)` calls `engine.analyse({ fen, limit: { depth: SUGGESTION_DEPTH }, priority: "interactive", multiPv: SUGGESTION_LINES, onProgress })`. It cancels on a position change, when toggled off and on unmount, and ignores `EngineJobCancelledError`.
+  - A `useEngineToggle` preference, backed by `localStorage` inside try/catch and defaulting to on.
+  - Presentational `EnginePanel`: the toggle, depth as text, lines with score and SAN, an Add button for a first move not yet in the repertoire (an "In repertoire" badge otherwise), unavailable with Retry, and a "no legal moves" state.
+  - Presentational `EvalBar`, plus stories, registry entries and SSR tests.
+- [ ] **T4 — Builder wiring** [T lib, O UI]: Branch `feat/engine-suggestions4`. Route: delegated `react-staff`.
+  - Mount the eval bar beside the board and the panel in the builder view. The best-move arrow is merged with the idea-note arrows.
+  - Add a suggested move through the existing `playMove` and `addMove` flow.
+  - Update builder view stories and tests, and the engine section of `docs/architecture/web-app.md`.
+  - Manual check in the local dev app (web on port 4000): lines deepen, the arrow follows line 1, Add works, the toggle is remembered, and game analysis resumes afterwards.
+
+## Acceptance criteria
+
+- On a builder position with the panel on, up to 3 lines appear and deepen to depth 18, with White-side scores and SAN. The eval bar and the best-move arrow follow line 1.
+- Add on a suggested first move adds it to the repertoire and moves to the new position. A first move already in the repertoire is marked instead.
+- Turning the panel off stops the search, hides the bar and the arrow, and is remembered after a reload.
+- When the engine is unavailable, the panel says so and offers Retry; the rest of the builder works.
+- Game analysis commands are unchanged apart from the explicit `MultiPV 1`. Background analysis still completes.
+- All standard checks pass.
+
+## Checks
+
+- **Focused:**
+  - T1: `bun test apps/web/src/features/engine`
+  - T2: `bun test apps/web/src/features/repertoire/lib apps/web/src/features/engine`
+  - T3 and T4: `bun test apps/web/src/features/repertoire apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts`
+- **Standard:** `pnpm check-types`, `pnpm --filter web check-types`, `pnpm check`, `bun test`. Run `pnpm db:test:prepare` first for the DB suites.
+
+## Progress
+
+- 2026-10-24: Feature document created after exploration and one user decision (engine panel only). Next: T1.
