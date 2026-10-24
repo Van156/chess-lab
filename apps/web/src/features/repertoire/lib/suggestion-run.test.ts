@@ -19,7 +19,7 @@ class TestCancelled extends Error {}
 const info = (depth: number): EngineInfo => ({ depth, lines: [] }) as unknown as EngineInfo;
 const result = (depth: number): EngineResult => ({ depth, lines: [] }) as unknown as EngineResult;
 
-function setup(fen = START_FEN) {
+function setup(fen = START_FEN, multiPv = 3) {
   const events: SuggestionEvent[] = [];
   const requests: EngineJobRequest[] = [];
   let cancels = 0;
@@ -39,7 +39,7 @@ function setup(fen = START_FEN) {
     fen,
     job: 7,
     depth: 18,
-    multiPv: 3,
+    multiPv,
     engine: {
       analyse: (request) => {
         requests.push(request);
@@ -90,6 +90,11 @@ describe("startSuggestionSearch", () => {
       priority: "interactive",
       multiPv: 3,
     });
+  });
+
+  test("searches as many lines as it is told to, from one to five", () => {
+    expect(setup(START_FEN, 1).requests[0]?.multiPv).toBe(1);
+    expect(setup(START_FEN, 5).requests[0]?.multiPv).toBe(5);
   });
 
   test("a position without legal moves is terminal and never reaches the engine", () => {
