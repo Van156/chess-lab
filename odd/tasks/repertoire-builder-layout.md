@@ -46,7 +46,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - The name (ECO + name) shows above the board toolbar; nothing shows when no name is known yet along the path.
   - The dataset is listed on the licences page.
   - Not in scope: the T1+T2 review follow-ups (offered to the user, not accepted).
-- [ ] **T4 — Builder proofs (review follow-ups)** [T lib, O UI]: Branch `feat/repertoire-builder-layout4` (from `08aa01d`). Route: delegated `react-staff` (container, view, several `lib/` modules; 2+ non-trivial files). Accepted by the user 2026-10-24 ("continue with the tasks"). Forecast about 350 lines.
+- [x] **T4 — Builder proofs (review follow-ups)** [T lib, O UI]: Branch `feat/repertoire-builder-layout4` (from `08aa01d`). Route: delegated `react-staff` (container, view, several `lib/` modules; 2+ non-trivial files). Accepted by the user 2026-10-24 ("continue with the tasks"). Forecast about 350 lines.
   - R3-page-wiring-unproved: move the container's board-lines composition (engine lines only from the analysing/done panel states, count, repertoire toggle → arrows and text) into a pure `lib/` function; test engine off, unavailable, analysing and done.
   - R3-line-fens-derivation-untested: move the line-FENs derivation into a pure `lib/` helper; test the start position, a normal line and a missing position.
   - R3-delete-by-id-untested: move the move-id lookup into a pure helper; test found and not found (not found stays a no-op, now proven).
@@ -129,3 +129,12 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R3-precache-ignore-depends-on-chunk-name (SUGGESTION): the precache exclusion matches the chunk name; a rename would silently precache the book again.
 - Closed 2026-10-24: T1–T3 done, every review approved. Open follow-ups (none accepted by the user yet): the three T1+T2 findings, the T3 findings above, `EngineView.arrow` now unused by the view, two tab stops per tree row. Delivery (push, PRs for the chain `feat/repertoire-builder-layout` → `…1b` → `…2` → `…2b` → `…3` → `…3b`, on top of the unmerged `feat/engine-suggestions5`) is the user's decision.
 - Reopened 2026-10-24: the user accepted the review follow-ups ("continue with the tasks") → T4 and T5, reviewed together as one group from boundary `08c3764`. Not included: two tab stops per tree row (an interaction design choice, not a review finding).
+- T4 done: `cdafedd` (description lists only drawn lines), `4dea7af` (wiring into tested helpers), `bdf12b5` (drop `EngineView.arrow`, assert the reserved name line).
+  - `lib/board-lines.ts`: `boardLinesFor({ panel, noteArrows, lineCount, repertoireMoves, showRepertoire }) → { arrows, text }` (engine lines only from analysing/done; tested off, starting, unavailable, terminal, analysing, done); `describeBoardLines` and `buildBoardArrows` share a private `drawnLines()`, so text and arrows agree on malformed UCI.
+  - `lib/builder-state.ts`: `lineFens(graph, line)` (missing positions dropped; empty line → start FEN only; missing start → `[]`; documented and tested) and `findMove(graph, id)` (not found → `undefined`, the page stays a no-op).
+  - `lib/opening-lookup.ts`: `openingName(state, fens)` with `OpeningBookState` (loading, failed, loaded); `useOpeningName` is now a thin binding. Tested loading, failed, name, no name, empty list, null FENs.
+  - View test asserts `min-h-6` on the empty opening name. `EngineView.arrow` removed from `suggestion-state.ts`, fixtures, stories and tests (`bestMoveArrow` stays for `board-lines.ts`).
+  - Skipped (item 8): proving the restart on a count change — it is only the `lines` dependency of the effect in `use-engine-suggestions.ts`; no pure seam without a hook-testing library.
+  - RED: `board-lines.test.ts` → `Export named 'boardLinesFor' not found`, then the malformed-UCI tests `Expected: "Engine lines, best first: d4." Received: "Engine lines, best first: ??, d4."` (28 pass, 2 fail) → GREEN 30 / 0; `builder-state.test.ts` → missing `findMove`/`lineFens` exports → GREEN 21 / 0; `opening-lookup.test.ts` → `Export named 'openingName' not found` → GREEN (19 / 0, parent re-run).
+  - Checks (writer): `pnpm --filter web check-types` exit 0; `pnpm check` exit 0; bun tests 493 pass / 0 fail. Parent spot check: bun tests 493 / 0.
+  - Size: ≈320 lines.
