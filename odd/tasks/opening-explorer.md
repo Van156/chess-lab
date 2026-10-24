@@ -80,7 +80,7 @@ Building a repertoire without data means guessing which replies matter. The spec
   - It returns `{band, offset, speeds, result}` with moves mapped to `{san, uci, games, white, draws, black}`.
   - `settings.update` accepts `explorerBandOffset` (int, -2..+2, bounds from T1).
   - Tests in `repertoire.test.ts` (fake port; flag off gives `NOT_FOUND`; ownership) and `settings.test.ts`.
-- [ ] **T4b — Explorer review fixes** [T]: Branch `feat/chess-lab-v1-p2d4b`. Route: delegated writer (2-3 non-trivial server files).
+- [x] **T4b — Explorer review fixes** [T]: Branch `feat/chess-lab-v1-p2d4b`. Route: delegated writer (2-3 non-trivial server files).
   - (a) R3-shared-inflight-token-failures: the cache's in-flight dedupe is keyed per user (an `inflightKey` option or similar) while the stored value stays under the shared key. Add a cross-user test: A's in-flight load fails with a 401 while B's concurrent request uses B's token and gets ok.
   - (b) R3-vacuous-unauthorized-cache-test: build both ports on one shared cache instance, so an unlinked user is proved to get `unauthorized` for a cached position.
 - [ ] **T5 — Explorer panel (read-only)** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d5`. Route: delegated `react-staff`.
@@ -176,4 +176,11 @@ Building a repertoire without data means guessing which replies matter. The spec
   - R3-vacuous-unauthorized-cache-test (WARNING): the "unauthorized even when cached" test builds the cold port on a fresh cache, so token-before-cache is unproved.
   - User chose "Fix now as T4b" (2026-10-24).
   - Decision: in-flight dedupe becomes per user (`key|userId`) while stored stats stay shared across users. This is a deviation from design L249, which shares one in-flight promise per key across users. Concurrent cold misses from different users now each call Lichess with their own token.
-  - Next: T4b.
+- 2026-10-24 T4b done (route: delegated writer, 4 server files).
+  - RED (tests first): `bun test apps/server/src/explorer-cache.test.ts apps/server/src/lichess-port.test.ts` -> 47 pass, 3 fail. The new in-flight-key cache tests failed, and in the cross-user port test B inherited A's 401 (`unauthorized` instead of `ok`).
+  - The rewritten (b) test passed in RED, as expected. To prove it meaningful, the writer temporarily read the cache before the token: the test failed (1 fail), then the file was restored.
+  - GREEN: 49 pass (parent re-ran: 49 pass).
+  - `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 1960 pass, 0 fail.
+  - `cache.get(key, load, { inflightKey = key })`; the adapter passes `${key}|${userId}`.
+  - The old cross-user "one client call" port test was removed as part of the recorded deviation; a same-user dedupe test replaces it.
+  - Commit `8b78eac` (206 authored lines). Review: pending with T5. Next: T5.
