@@ -71,6 +71,7 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `packages/lichess`: `explorer()` sends `moves`, `topGames=0` and `recentGames=0`; config gets `EXPLORER_CACHE_TTL_MS` (24 h), `EXPLORER_CACHE_MAX_ENTRIES` (5000) and `EXPLORER_STALE_MAX_MS` (7 d); tests for params, a 429 and move parsing.
   - `apps/server/src/explorer-cache.ts`: pure TTL+LRU with injectable clock, in-flight dedupe and stale-serve, with tests.
 - [ ] **T3 — `LichessPort.explorer` adapter** [T]: Branch `feat/chess-lab-v1-p2d3`. Route: delegated writer.
+  - From the T1+T2 review: fail fast on a 429 while respecting the gate pause; an adapter deadline that serves stale or "unavailable" while the load continues; a stale lookup on the cache; a concurrent-waiters test.
   - `Context` `LichessPort.explorer(userId, {positionKey, fen, band, speeds})` returns `{status:"ok", stats, stale} | {status:"unavailable", reason:"unauthorized"|"rate_limited"|"error"}`.
   - The adapter checks the cache before the gate and serves stale on 429 or error. The token resolver is extracted from `services.ts`.
   - Tests in `lichess-port.test.ts`; fix the other `Context["lichess"]` fakes.
@@ -131,3 +132,10 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `createExplorerCache<T>({ ttlMs, staleMaxMs, maxEntries, now })` returns `get(key, load) -> { value, stale }`: a Map-order LRU with in-flight dedupe and stale on load failure; the loader's error is rethrown otherwise.
   - Not yet wired (T3).
   - Commit `e154910` (300 authored lines).
+- 2026-10-24 Review T1+T2 (bbc9228 to 50829a3, lineage review-ec03e63d65e1316d), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 50829a3.
+  - Accepted into T3: R3-stale-after-full-retry (SUGGESTION). The client rejects a 429 only after its 60+120+240 s retries, so stale data on 429 would take minutes, and nothing remembers the failure. The stale path also has no test with concurrent waiters on one failing load.
+  - T3 scope grows (technical decision, same user-visible behaviour as the spec's "Explorer unavailable"):
+    - Explorer requests fail fast on a 429 (no in-request sleeps), while the backoff still holds: no explorer request is sent during the pause.
+    - The adapter waits at most a short deadline. On timeout it serves a stale entry if one exists, otherwise "unavailable". The load keeps running and fills the cache for the next request.
+    - This also covers waiting behind a long import on the same per-token gate.
+    - The cache gets a stale lookup for that path, plus a concurrent-waiters test.
