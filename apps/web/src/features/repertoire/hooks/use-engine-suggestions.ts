@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
-import { legalMoves } from "@b2c-template/chess";
-
 import {
   EngineJobCancelledError,
   SUGGESTION_DEPTH,
   SUGGESTION_LINES,
   engine,
-  type EngineInfo,
 } from "@/features/engine";
+
+import { startSuggestionSearch } from "../lib/suggestion-run";
 
 import {
   INITIAL_SUGGESTION_STATE,
@@ -41,56 +40,17 @@ export function useEngineSuggestions(
     }
     jobs.current += 1;
     const job = jobs.current;
-    if (legalMoves(fen).length === 0) {
-      dispatch({ type: "terminal", job, fen });
-      return;
-    }
-    dispatch({ type: "started", job, fen });
-
-    let closed = false;
-    let frame: number | null = null;
-    let latest: EngineInfo | null = null;
-    const dropFrame = () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      frame = null;
-      latest = null;
-    };
-    const flush = () => {
-      frame = null;
-      if (closed || latest === null) return;
-      dispatch({ type: "progress", job, info: latest });
-      latest = null;
-    };
-
-    const handle = engine.analyse({
+    return startSuggestionSearch({
       fen,
-      limit: { depth: SUGGESTION_DEPTH },
-      priority: "interactive",
+      job,
+      depth: SUGGESTION_DEPTH,
       multiPv: SUGGESTION_LINES,
-      onProgress: (info) => {
-        if (closed) return;
-        latest = info;
-        frame ??= requestAnimationFrame(flush);
-      },
+      engine,
+      isCancelled: (error) => error instanceof EngineJobCancelledError,
+      requestFrame: (run) => requestAnimationFrame(run),
+      cancelFrame: (frame) => cancelAnimationFrame(frame),
+      dispatch,
     });
-    handle.result.then(
-      (result) => {
-        if (closed) return;
-        dropFrame();
-        dispatch({ type: "finished", job, result });
-      },
-      (error: unknown) => {
-        if (closed || error instanceof EngineJobCancelledError) return;
-        dropFrame();
-        dispatch({ type: "failed", job });
-      },
-    );
-
-    return () => {
-      closed = true;
-      dropFrame();
-      handle.cancel();
-    };
   }, [fen, enabled, attempt]);
 
   const retry = useCallback(() => setAttempt((count) => count + 1), []);

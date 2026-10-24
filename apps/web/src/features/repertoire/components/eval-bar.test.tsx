@@ -24,4 +24,10 @@ describe("EvalBar", () => {
     expect(render({ whitePercent: 140 })).toContain("height:100%");
     expect(render({ whitePercent: -5 })).toContain("height:0%");
   });
+
+  test("falls back to neutral for a non-finite score", () => {
+    expect(render({ whitePercent: Number.NaN })).toContain("height:50%");
+    expect(render({ whitePercent: Number.POSITIVE_INFINITY })).toContain("height:50%");
+    expect(render({ whitePercent: Number.NEGATIVE_INFINITY })).toContain("height:50%");
+  });
 });

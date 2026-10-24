@@ -24,3 +24,43 @@ export function writeEnginePreference(storage: PreferenceStorage | null, on: boo
     return false;
   }
 }
+
+/** A store in the shape `useSyncExternalStore` expects, over the saved engine choice. */
+export interface EnginePreferenceStore {
+  getSnapshot: () => boolean;
+  subscribe: (listener: () => void) => () => void;
+  set: (on: boolean) => void;
+}
+
+/**
+ * The engine choice as an external store. Storage is injected as a getter, because merely reading
+ * `window.localStorage` can throw (blocked storage), so the guard lives with the caller's lookup.
+ * Without a writable storage the choice would not stick, so it is also kept for this page view
+ * until a later write succeeds.
+ */
+export function createEnginePreferenceStore(
+  getStorage: () => PreferenceStorage | null,
+): EnginePreferenceStore {
+  const listeners = new Set<() => void>();
+  let fallback: boolean | null = null;
+
+  const storage = (): PreferenceStorage | null => {
+    try {
+      return getStorage();
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    getSnapshot: () => fallback ?? readEnginePreference(storage()),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    set: (on) => {
+      fallback = writeEnginePreference(storage(), on) ? null : on;
+      for (const listener of listeners) listener();
+    },
+  };
+}

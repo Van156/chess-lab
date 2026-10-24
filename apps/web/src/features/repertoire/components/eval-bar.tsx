@@ -10,7 +10,9 @@ export type EvalBarProps = {
 
 const NEUTRAL_PERCENT = 50;
 
-const clampPercent = (value: number): number => Math.min(100, Math.max(0, value));
+/** Keeps the share inside the bar; a non-finite value (a bad score) draws the neutral 50%. */
+const clampPercent = (value: number): number =>
+  Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : NEUTRAL_PERCENT;
 
 /**
  * Engine evaluation bar (presentational). Decorative: the score is also in the engine panel as
