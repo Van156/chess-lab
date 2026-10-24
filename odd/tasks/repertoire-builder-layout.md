@@ -61,7 +61,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R2-regenerate-instructions-diverge, R2-escaped-backticks-in-line-comment: one canonical regeneration command in both places; plain backticks in the comment. Regenerating may change only the generated header lines.
   - R3-tie-order-only-one-direction: test the longer-row-first order too.
   - R3-precache-ignore-depends-on-chunk-name: give the book chunk an explicit name shared by the chunk naming, `globIgnores` and the runtime rule, so renaming the data module cannot silently precache it again; verify with a build that the book is still its own chunk and absent from the precache.
-- [ ] **T6 — Close the T5 precache gap (reopened from review)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout6` (from the T4+T5 review record). Route: delegated general-purpose writer. Reopened because T5 item 5 did not meet its goal: the `codeSplitting` group still selects the book by the module file name (`/openings\.generated\.ts$/`), so renaming the module would silently put the book back in the precache, and the `vite.config.ts` comment claims the opposite (R2-chunk-name-comment-overclaims, R3-chunk-group-config-manual-only). Forecast about 150 lines.
+- [x] **T6 — Close the T5 precache gap (reopened from review)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout6` (from the T4+T5 review record). Route: delegated general-purpose writer. Reopened because T5 item 5 did not meet its goal: the `codeSplitting` group still selects the book by the module file name (`/openings\.generated\.ts$/`), so renaming the module would silently put the book back in the precache, and the `vite.config.ts` comment claims the opposite (R2-chunk-name-comment-overclaims, R3-chunk-group-config-manual-only). Forecast about 150 lines.
   - A name-independent post-build guard: after `vp build`, read the precache manifest in `dist/sw.js`, and fail when any precached JS file contains opening-book data, or when no non-precached asset does (the book must still exist as its own lazy chunk). Pure parse/check logic in a testable module with tests; the script runs in `build` and `check-types`.
   - Correct the `vite.config.ts` comment to say what the config does and what the guard enforces.
   - R2-linefens-prefix-wording: the `lineFens` doc says missing positions are skipped and the rest keep their order (not "a prefix").
@@ -80,7 +80,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
 
 - `pnpm --filter web check-types`
 - `pnpm check`
-- `bun test apps/web/src/features/repertoire apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts`
+- `bun test apps/web/src/features/repertoire apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts apps/web/scripts` (`apps/web/scripts` added with T6)
 
 ## Progress
 
@@ -155,3 +155,11 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - Browser (parent, after T4 and T5): names along the Scotch line unchanged, board top 266 px throughout, the book requested only on the builder; 1440×900 board and eval bar 572 px, 375 px 319 px with no horizontal scroll; lines 1 and 5, tree jump, fork groups ("Alternatives to 1. e4", "Alternatives to 2. Nf3") and the throwaway-repertoire clean-up all as before.
   - Size: ≈94 lines.
 - Review T4+T5 (base `08c3764`, through `ddce646`): consent granted (standing); 4 lenses; **approved**, acknowledged (lineage `review-64271e66541f1346`, authority burned). Next boundary: `ddce646`. Findings: R2-chunk-name-comment-overclaims (WARNING) and R3-chunk-group-config-manual-only (SUGGESTION) show T5 item 5 unmet → reopened as T6; R2-linefens-prefix-wording and R3-sha256-bytes-path-untested (SUGGESTION) → T6; R3-formatter-failure-path-unexercised (SUGGESTION) → not taken (see T6).
+- T6 done: `866ac53` (post-build precache guard), `06a85f0` (`lineFens` doc), `41ce2ec` (`verifySha256` on bytes).
+  - `apps/web/scripts/lib/precache-guard.ts`: `OPENING_BOOK_MARKER = "Scotch Game"` (53 occurrences in the book, survives minification), `parsePrecachedUrls` (the `url:"…"` entries of `sw.js`), `checkOpeningBookPlacement` (fails when a precached JS holds the marker, naming the file, or when no non-precached asset holds it). `apps/web/scripts/check-precache.ts` runs it on `dist/`; wired after `vp build` in `build` and `check-types`.
+  - Proof it bites (writer, config restored after each run): without the `globIgnores` entry → `check-precache: the opening book is in the service worker precache: assets/opening-book-DN7J85HA.js`; with the group regex changed to `/nomatch\.ts$/` (the rename case) → `… precache: assets/openings.generated-CqU_21VK.js`. The "no lazy chunk" branch is covered by the unit test only.
+  - `vite.config.ts` comment now states what the config does, that the group selects the module by file name, and that the guard enforces the outcome. `lineFens` doc: missing positions are skipped, the rest keep their order.
+  - RED: `precache-guard.test.ts` → `Cannot find module './precache-guard'` (0 pass) → GREEN 5 / 0. Bytes tests for `verifySha256`: pinning tests, passed on first run.
+  - Checks (writer): `pnpm --filter web check-types` exit 0 with the guard OK line; `pnpm --filter web build` OK; `pnpm check` exit 0; bun tests (with `apps/web/scripts`) 503 pass / 0 fail. Parent spot check: `check-types` printed `check-precache: OK, the opening book is only in assets/opening-book-DN7J85HA.js (101 precached files, none holds it)`; bun tests 503 / 0.
+  - Known limit: the marker is a data string; if a future list drops "Scotch Game", the guard fails loudly ("no lazy chunk") rather than passing silently.
+  - Size: ≈140 lines.
