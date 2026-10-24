@@ -75,7 +75,7 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `Context` `LichessPort.explorer(userId, {positionKey, fen, band, speeds})` returns `{status:"ok", stats, stale} | {status:"unavailable", reason:"unauthorized"|"rate_limited"|"error"}`.
   - The adapter checks the cache before the gate and serves stale on 429 or error. The token resolver is extracted from `services.ts`.
   - Tests in `lichess-port.test.ts`; fix the other `Context["lichess"]` fakes.
-- [ ] **T4 — `repertoire.explorer` and band offset setting** [T]: Branch `feat/chess-lab-v1-p2d4`. Route: delegated writer.
+- [x] **T4 — `repertoire.explorer` and band offset setting** [T]: Branch `feat/chess-lab-v1-p2d4`. Route: delegated writer.
   - Input `{repertoireId, positionId}`, owned by the caller. The procedure reads the position FEN and key, `rating_snapshot` and `explorerBandOffset`, then computes `ratingBandFor`.
   - It returns `{band, offset, speeds, result}` with moves mapped to `{san, uci, games, white, draws, black}`.
   - `settings.update` accepts `explorerBandOffset` (int, -2..+2, bounds from T1).
@@ -158,3 +158,13 @@ Building a repertoire without data means guessing which replies matter. The spec
     - The two commits together give the same tree as the original `df3a28a`.
   - Known gap (not blocking): a pause that begins while an explorer request is already sending does not abort it; that request fails fast on its own 429.
   - Review: pending with T4. Next: T4.
+- 2026-10-24 T4 done (route: delegated writer, API; 7 files).
+  - RED (tests first): `bun test packages/api/src/routers/repertoire.test.ts packages/api/src/routers/settings.test.ts packages/api/src/lib/perf-snapshot.test.ts` -> `Cannot find module './perf-snapshot'`, plus missing `explorer` and `explorerBandOffset` (32 pass, 19 fail, 1 error).
+  - GREEN: 64 pass (parent re-ran: 64 pass).
+  - `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 1955 pass, 0 fail.
+  - `repertoire.explorer({repertoireId, positionId})`:
+    - Returns `{ band, offset, speeds, result }`, where `result` is either `{status:"ok", stale, totals:{white,draws,black,games}, opening|null, moves:[{san,uci,white,draws,black,games}]}` or `{status:"unavailable", reason}`.
+    - The mapping is `explorerView` in the router. `explorerContext` in the repertoire service reads the owned position, the snapshot and the offset without creating a settings row.
+  - `lib/perf-snapshot.ts` `parsePerfSnapshot` (zod): malformed input gives null, so the fallback band applies.
+  - `settings.update` accepts `explorerBandOffset` as `z.int()` within -2..2.
+  - Commit `623bcb1` (343 authored lines).
