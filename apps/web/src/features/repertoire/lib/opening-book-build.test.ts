@@ -52,6 +52,14 @@ describe("verifySha256", () => {
   test("rejects changed text and names the file", () => {
     expect(() => verifySha256("b.tsv", "abd", abc)).toThrow("b.tsv");
   });
+
+  test("accepts bytes that match the pinned hash", () => {
+    expect(() => verifySha256("a.tsv", new TextEncoder().encode("abc"), abc)).not.toThrow();
+  });
+
+  test("rejects bytes that differ from the pinned hash", () => {
+    expect(() => verifySha256("c.tsv", new TextEncoder().encode("abd"), abc)).toThrow("c.tsv");
+  });
 });
 
 describe("buildOpeningBook", () => {
