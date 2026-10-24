@@ -58,7 +58,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
 
 ## Tasks
 
-- [ ] **T1 — MultiPV in the engine runtime** [T]: Branch `feat/engine-suggestions`. Route: delegated writer (`engine-queue.ts` and its tests, plus `uci.ts` and `index.ts`; 2+ non-trivial files).
+- [x] **T1 — MultiPV in the engine runtime** [T]: Branch `feat/engine-suggestions`. Route: delegated writer (`engine-queue.ts` and its tests, plus `uci.ts` and `index.ts`; 2+ non-trivial files).
   - `EngineJobRequest.multiPv?: number`. The queue sends `setoption name MultiPV value <multiPv ?? 1>` before every job, next to the strength options.
   - `EngineInfo` and `EngineResult` gain `lines: EngineLine[]` (`{ multipv, depth, score, pv }`): the latest info per index, sorted by index. `depth`, `score` and `pv` still come from line 1, so existing callers are unchanged.
   - `onProgress` fires on every info line with the updated snapshot. Secondary lines no longer get dropped, but they still never replace line 1's score.
@@ -100,3 +100,12 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
 ## Progress
 
 - 2026-10-24: Feature document created after exploration and one user decision (engine panel only). Next: T1.
+- 2026-10-24 T1 done (route: delegated writer, 7 files, all inside `features/engine`).
+  - RED: `bun test apps/web/src/features/engine` -> `SyntaxError: Export named 'buildMultiPvOption' not found` (85 pass, 12 fail, 1 error).
+  - GREEN: 119 pass, 0 fail (parent re-ran: 119 pass).
+  - `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0. The first type check failed on `EngineResult` fixtures missing `lines`; they were fixed before the commit. After `pnpm db:test:prepare`, the full `bun test` gives 2016 pass, 0 fail.
+  - `buildMultiPvOption(multiPv)` in `uci.ts` floors the value and keeps it at least 1. The queue sends it after the strength options and before `position` and `go` on every job.
+  - `EngineLine` is `{multipv, depth, score, pv}`. `lines` holds the latest line per index, sorted; line 1 alone drives `depth`, `score` and `pv`.
+  - `onProgress` fires on every accepted line once line 1 exists. A pre-emption clears the lines.
+  - `EngineInfo` and `EngineLine` are exported from `@/features/engine`.
+  - Commit `9fa6983` (224 authored lines). Review: pending with T2. Next: T2.
