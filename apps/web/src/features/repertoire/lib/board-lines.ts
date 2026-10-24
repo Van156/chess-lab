@@ -3,6 +3,7 @@ import { boardTheme, type BoardArrow } from "@/shared/components/board";
 import { bestMoveArrow, type SuggestionLine } from "./engine-view";
 import { clampLineCount } from "./lines-preference";
 import type { RepertoireMove } from "./repertoire-types";
+import type { EnginePanelState } from "./suggestion-state";
 
 /** Repertoire moves get their own colour (amber), apart from the blue engine and mint note arrows. */
 export const REPERTOIRE_ARROW_COLOR = "#f5a524";
@@ -13,9 +14,19 @@ export const REPERTOIRE_ARROW_COLOR = "#f5a524";
  */
 const RANK_ALPHA = ["", "bf", "8c", "66", "4d"] as const;
 
-/** The first `lineCount` engine lines, in the engine's order (best first). */
-function shownLines(lines: readonly SuggestionLine[], lineCount: number): SuggestionLine[] {
-  return lines.slice(0, clampLineCount(lineCount));
+/**
+ * The engine lines that reach the board: the first `lineCount`, in the engine's order (best
+ * first), each with its arrow. A line whose move cannot be drawn is left out, so the arrows and
+ * their description are built from the same list and cannot disagree.
+ */
+function drawnLines(
+  lines: readonly SuggestionLine[],
+  lineCount: number,
+): { line: SuggestionLine; arrow: BoardArrow }[] {
+  return lines.slice(0, clampLineCount(lineCount)).flatMap((line) => {
+    const arrow = bestMoveArrow([line.firstMove.uci]);
+    return arrow ? [{ line, arrow }] : [];
+  });
 }
 
 export type BoardLinesInput = {
@@ -42,10 +53,8 @@ export function buildBoardArrows({
   repertoireMoves,
   showRepertoire,
 }: BoardLinesInput): BoardArrow[] {
-  const engine = shownLines(engineLines, lineCount)
-    .map((line) => bestMoveArrow([line.firstMove.uci]))
-    .filter((arrow) => arrow !== null)
-    .map((arrow, rank) => ({
+  const engine = drawnLines(engineLines, lineCount)
+    .map(({ arrow }, rank) => ({
       ...arrow,
       color: `${boardTheme.engineArrow}${RANK_ALPHA[rank] ?? ""}`,
     }))
@@ -71,7 +80,8 @@ export function buildBoardArrows({
 
 /**
  * The arrows in words, so colour and opacity never carry the meaning alone. Both lists stay
- * complete when arrows collapse onto the same squares.
+ * complete when arrows collapse onto the same squares, and only engine lines that are drawn are
+ * named.
  */
 export function describeBoardLines(
   engineLines: readonly SuggestionLine[],
@@ -79,7 +89,7 @@ export function describeBoardLines(
   repertoireMoves: readonly RepertoireMove[],
   showRepertoire: boolean,
 ): string {
-  const engine = shownLines(engineLines, lineCount).map((line) => line.firstMove.san);
+  const engine = drawnLines(engineLines, lineCount).map(({ line }) => line.firstMove.san);
   const parts = [
     engine.length > 0 ? `Engine lines, best first: ${engine.join(", ")}.` : "",
     showRepertoire && repertoireMoves.length > 0
@@ -87,4 +97,32 @@ export function describeBoardLines(
       : "",
   ];
   return parts.filter(Boolean).join(" ");
+}
+
+/**
+ * The board's arrows and their wording for one position. Engine lines come only from a panel that
+ * has some (`analysing` or `done`); every other state draws none, so a stale or absent search never
+ * reaches the board.
+ */
+export function boardLinesFor({
+  panel,
+  noteArrows,
+  lineCount,
+  repertoireMoves,
+  showRepertoire,
+}: Omit<BoardLinesInput, "engineLines"> & { panel: EnginePanelState }): {
+  arrows: BoardArrow[];
+  text: string;
+} {
+  const engineLines = panel.kind === "analysing" || panel.kind === "done" ? panel.lines : [];
+  return {
+    arrows: buildBoardArrows({
+      noteArrows,
+      engineLines,
+      lineCount,
+      repertoireMoves,
+      showRepertoire,
+    }),
+    text: describeBoardLines(engineLines, lineCount, repertoireMoves, showRepertoire),
+  };
 }

@@ -2,8 +2,14 @@ import { describe, expect, test } from "bun:test";
 
 import { boardTheme } from "@/shared/components/board/board-theme";
 
-import { REPERTOIRE_ARROW_COLOR, buildBoardArrows, describeBoardLines } from "./board-lines";
+import {
+  REPERTOIRE_ARROW_COLOR,
+  boardLinesFor,
+  buildBoardArrows,
+  describeBoardLines,
+} from "./board-lines";
 import type { SuggestionLine } from "./engine-view";
+import type { EnginePanelState } from "./suggestion-state";
 import type { RepertoireMove } from "./repertoire-types";
 
 const engineLine = (multipv: number, san: string, uci: string): SuggestionLine => ({
@@ -194,5 +200,72 @@ describe("describeBoardLines", () => {
   test("follows the clamped count", () => {
     expect(describeBoardLines(lines, 9, [], true)).toContain("g3");
     expect(describeBoardLines(lines, 0, [], true)).toBe("Engine lines, best first: e4.");
+  });
+});
+
+describe("describeBoardLines and buildBoardArrows agree", () => {
+  test("names no engine line whose move cannot be drawn", () => {
+    const broken = [engineLine(1, "??", "zz"), engineLine(2, "d4", "d2d4")];
+    expect(describeBoardLines(broken, 3, [], true)).toBe("Engine lines, best first: d4.");
+    expect(keys(buildBoardArrows(input({ engineLines: broken })))).toEqual(["d2d4"]);
+  });
+
+  test("says nothing when no engine line can be drawn", () => {
+    expect(describeBoardLines([engineLine(1, "??", "(none)")], 3, [], true)).toBe("");
+  });
+});
+
+describe("boardLinesFor", () => {
+  const done = (shown: SuggestionLine[]): EnginePanelState => ({
+    kind: "done",
+    depth: 18,
+    maxDepth: 18,
+    lines: shown,
+  });
+  const base = {
+    noteArrows: [],
+    lineCount: 2,
+    repertoireMoves: [repertoireMove("c4", "c2c4")],
+    showRepertoire: true,
+  };
+
+  test("draws and describes the engine lines of a finished search", () => {
+    const out = boardLinesFor({ ...base, panel: done(lines) });
+    expect(keys(out.arrows)).toEqual(["d2d4", "e2e4", "c2c4"]);
+    expect(out.text).toBe("Engine lines, best first: e4, d4. Repertoire moves: c4.");
+  });
+
+  test("uses the lines found so far while the search is analysing", () => {
+    const panel: EnginePanelState = {
+      kind: "analysing",
+      depth: 6,
+      maxDepth: 18,
+      lines: lines.slice(0, 1),
+    };
+    const out = boardLinesFor({ ...base, panel });
+    expect(keys(out.arrows)).toEqual(["e2e4", "c2c4"]);
+    expect(out.text).toBe("Engine lines, best first: e4. Repertoire moves: c4.");
+  });
+
+  test.each<EnginePanelState>([
+    { kind: "off" },
+    { kind: "starting" },
+    { kind: "unavailable" },
+    { kind: "terminal" },
+  ])("draws no engine line when the panel is %p", (panel) => {
+    const out = boardLinesFor({ ...base, panel });
+    expect(keys(out.arrows)).toEqual(["c2c4"]);
+    expect(out.text).toBe("Repertoire moves: c4.");
+  });
+
+  test("keeps the note arrows and honours the repertoire toggle", () => {
+    const out = boardLinesFor({
+      ...base,
+      panel: { kind: "off" },
+      noteArrows: [{ from: "a2", to: "a4" }],
+      showRepertoire: false,
+    });
+    expect(keys(out.arrows)).toEqual(["a2a4"]);
+    expect(out.text).toBe("");
   });
 });
