@@ -30,18 +30,30 @@ describe("positionFens", () => {
 describe("toPlyEval", () => {
   test("maps a centipawn score, depth and best move", () => {
     expect(
-      toPlyEval({ bestMove: "e2e4", score: { kind: "cp", value: 31 }, depth: 10, pv: [] }),
+      toPlyEval({
+        bestMove: "e2e4",
+        score: { kind: "cp", value: 31 },
+        depth: 10,
+        pv: [],
+        lines: [],
+      }),
     ).toEqual({ cp: 31, depth: 10, bestUci: "e2e4" });
   });
 
   test("maps a mate score and omits a missing best move", () => {
     expect(
-      toPlyEval({ bestMove: null, score: { kind: "mate", value: -2 }, depth: 18, pv: [] }),
+      toPlyEval({
+        bestMove: null,
+        score: { kind: "mate", value: -2 },
+        depth: 18,
+        pv: [],
+        lines: [],
+      }),
     ).toEqual({ mate: -2, depth: 18 });
   });
 
   test("a position without a score has no evaluation", () => {
-    expect(toPlyEval({ bestMove: null, score: null, depth: 0, pv: [] })).toBeNull();
+    expect(toPlyEval({ bestMove: null, score: null, depth: 0, pv: [], lines: [] })).toBeNull();
   });
 });
 

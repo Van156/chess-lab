@@ -14,8 +14,10 @@ export type { EngineClient } from "./lib/engine-client";
 export {
   EngineJobCancelledError,
   EngineUnavailableError,
+  type EngineInfo,
   type EngineJobHandle,
   type EngineJobRequest,
+  type EngineLine,
   type EnginePriority,
   type EngineResult,
 } from "./lib/engine-queue";

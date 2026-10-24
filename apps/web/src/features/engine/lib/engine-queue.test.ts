@@ -49,6 +49,7 @@ describe("engine queue", () => {
     expect(fake.take()).toEqual([
       "setoption name UCI_LimitStrength value false",
       "setoption name Skill Level value 20",
+      "setoption name MultiPV value 1",
       `position fen ${FEN_A}`,
       "go depth 10",
     ]);
@@ -74,20 +75,150 @@ describe("engine queue", () => {
       score: { kind: "cp", value: 31 },
       depth: 10,
       pv: ["d2d4", "d7d5"],
+      lines: [{ multipv: 1, depth: 10, score: { kind: "cp", value: 31 }, pv: ["d2d4", "d7d5"] }],
     });
     expect(progress).toEqual([5, 10]);
   });
 
-  test("ignores secondary multipv lines", async () => {
+  test("a secondary multipv line never replaces line 1's score, depth or pv", async () => {
     const fake = createFakeTransport();
     const queue = createEngineQueue(fake.transport);
     const job = queue.submit({ fen: FEN_A, limit: { depth: 4 }, priority: "background" });
 
     fake.emit("info depth 4 multipv 1 score cp 20 pv e2e4");
-    fake.emit("info depth 4 multipv 2 score cp -50 pv a2a3");
+    fake.emit("info depth 6 multipv 2 score cp -50 pv a2a3");
     fake.emit("bestmove e2e4");
 
-    expect((await job.result).score).toEqual({ kind: "cp", value: 20 });
+    const result = await job.result;
+    expect(result.score).toEqual({ kind: "cp", value: 20 });
+    expect(result.depth).toBe(4);
+    expect(result.pv).toEqual(["e2e4"]);
+  });
+
+  test("a secondary line arriving before line 1 does not set the headline fields", async () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const job = queue.submit({ fen: FEN_A, limit: { depth: 4 }, priority: "background" });
+
+    fake.emit("info depth 4 multipv 2 score cp -50 pv a2a3");
+    fake.emit("bestmove a2a3");
+
+    const result = await job.result;
+    expect(result.score).toBeNull();
+    expect(result.depth).toBe(0);
+    expect(result.pv).toEqual([]);
+    expect(result.lines).toEqual([
+      { multipv: 2, depth: 4, score: { kind: "cp", value: -50 }, pv: ["a2a3"] },
+    ]);
+  });
+
+  test("collects the latest line per multipv index, sorted by index", async () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const job = queue.submit({
+      fen: FEN_A,
+      limit: { depth: 8 },
+      priority: "interactive",
+      multiPv: 3,
+    });
+
+    fake.emit("info depth 7 multipv 3 score cp -10 pv c2c4");
+    fake.emit("info depth 7 multipv 1 score cp 30 pv e2e4");
+    fake.emit("info depth 7 multipv 2 score cp 10 pv d2d4");
+    fake.emit("info depth 8 multipv 2 score cp 15 pv d2d4 d7d5");
+    fake.emit("bestmove e2e4");
+
+    expect((await job.result).lines).toEqual([
+      { multipv: 1, depth: 7, score: { kind: "cp", value: 30 }, pv: ["e2e4"] },
+      { multipv: 2, depth: 8, score: { kind: "cp", value: 15 }, pv: ["d2d4", "d7d5"] },
+      { multipv: 3, depth: 7, score: { kind: "cp", value: -10 }, pv: ["c2c4"] },
+    ]);
+  });
+
+  test("onProgress fires for every accepted line with the lines snapshot", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const snapshots: { depth: number; indexes: number[] }[] = [];
+    queue.submit({
+      fen: FEN_A,
+      limit: { depth: 8 },
+      priority: "interactive",
+      multiPv: 2,
+      onProgress: (info) =>
+        snapshots.push({ depth: info.depth, indexes: info.lines.map((l) => l.multipv) }),
+    });
+
+    fake.emit("info depth 5 multipv 1 score cp 30 pv e2e4");
+    fake.emit("info depth 5 multipv 2 score cp 10 pv d2d4");
+
+    expect(snapshots).toEqual([
+      { depth: 5, indexes: [1] },
+      { depth: 5, indexes: [1, 2] },
+    ]);
+  });
+
+  test("sends MultiPV with the requested value before position and go", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    queue.submit({ fen: FEN_A, limit: { depth: 18 }, priority: "interactive", multiPv: 3 });
+    expect(fake.take()).toEqual([
+      "setoption name UCI_LimitStrength value false",
+      "setoption name Skill Level value 20",
+      "setoption name MultiPV value 3",
+      `position fen ${FEN_A}`,
+      "go depth 18",
+    ]);
+  });
+
+  test("a job without multiPv resets MultiPV to 1 after a multi-line job", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    queue.submit({ fen: FEN_A, limit: { depth: 18 }, priority: "interactive", multiPv: 3 });
+    queue.submit({ fen: FEN_B, limit: { depth: 10 }, priority: "background" });
+    fake.take();
+    fake.emit("bestmove e2e4");
+    expect(fake.take()).toContain("setoption name MultiPV value 1");
+  });
+
+  test("lines from a stopping search are ignored", async () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const job = queue.submit({
+      fen: FEN_A,
+      limit: { depth: 18 },
+      priority: "interactive",
+      multiPv: 2,
+    });
+    fake.emit("info depth 5 multipv 1 score cp 30 pv e2e4");
+    job.cancel();
+    fake.emit("info depth 6 multipv 2 score cp 10 pv d2d4");
+    fake.emit("bestmove e2e4");
+    expect((await settle(job.result)).status).toBe("error");
+  });
+
+  test("a pre-empted background job restarts with no lines carried over", async () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const background = queue.submit({
+      fen: FEN_A,
+      limit: { depth: 18 },
+      priority: "background",
+      multiPv: 2,
+    });
+    fake.emit("info depth 5 multipv 1 score cp 30 pv e2e4");
+    fake.emit("info depth 5 multipv 2 score cp 10 pv d2d4");
+    const interactive = queue.submit({ fen: FEN_B, limit: { depth: 8 }, priority: "interactive" });
+    fake.emit("bestmove e2e4");
+    fake.emit("info depth 8 score cp 0 pv e7e5");
+    fake.emit("bestmove e7e5");
+    await interactive.result;
+
+    // The restarted job only reports line 1 this time; stale line 2 must be gone.
+    fake.emit("info depth 18 multipv 1 score cp 22 pv e2e4");
+    fake.emit("bestmove e2e4");
+    expect((await background.result).lines).toEqual([
+      { multipv: 1, depth: 18, score: { kind: "cp", value: 22 }, pv: ["e2e4"] },
+    ]);
   });
 
   test("runs jobs one at a time in submission order", async () => {
@@ -131,6 +262,7 @@ describe("engine queue", () => {
     expect(fake.take()).toEqual([
       "setoption name UCI_LimitStrength value false",
       "setoption name Skill Level value 20",
+      "setoption name MultiPV value 1",
       `position fen ${FEN_B}`,
       "go depth 12",
     ]);
@@ -225,6 +357,7 @@ describe("engine queue", () => {
     expect(fake.take()).toEqual([
       "setoption name UCI_LimitStrength value true",
       "setoption name UCI_Elo value 1500",
+      "setoption name MultiPV value 1",
       `position fen ${FEN_A}`,
       "go movetime 500",
     ]);
@@ -243,9 +376,10 @@ describe("engine queue", () => {
     fake.take();
     fake.emit("bestmove e2e4");
     const sent = fake.take();
-    expect(sent.slice(0, 2)).toEqual([
+    expect(sent.slice(0, 3)).toEqual([
       "setoption name UCI_LimitStrength value false",
       "setoption name Skill Level value 20",
+      "setoption name MultiPV value 1",
     ]);
   });
 

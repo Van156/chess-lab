@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildGo,
+  buildMultiPvOption,
   buildPosition,
   buildSetOption,
   buildStrengthOptions,
@@ -160,6 +161,16 @@ describe("strength options", () => {
       "setoption name UCI_LimitStrength value false",
       "setoption name Skill Level value 3",
     ]);
+  });
+
+  test("MultiPV defaults to 1 so a job never inherits the previous line count", () => {
+    expect(buildMultiPvOption(undefined)).toBe("setoption name MultiPV value 1");
+  });
+
+  test("MultiPV carries the requested line count, floored at 1", () => {
+    expect(buildMultiPvOption(3)).toBe("setoption name MultiPV value 3");
+    expect(buildMultiPvOption(0)).toBe("setoption name MultiPV value 1");
+    expect(buildMultiPvOption(2.7)).toBe("setoption name MultiPV value 2");
   });
 
   test("clampElo keeps an elo inside the supported range and rounds it", () => {

@@ -7,6 +7,7 @@ import { ENGINE_SEARCH_SILENCE_MS, ENGINE_STOP_TIMEOUT_MS } from "../config";
 import {
   STOP,
   buildGo,
+  buildMultiPvOption,
   buildPosition,
   buildStrengthOptions,
   parseUciLine,
@@ -24,10 +25,21 @@ export interface EngineTransport {
 
 export type EnginePriority = "interactive" | "background";
 
+/** One principal variation of a search: the latest report for its MultiPV index. */
+export interface EngineLine {
+  multipv: number;
+  depth: number;
+  score: UciScore;
+  pv: string[];
+}
+
+/** A progress snapshot. `depth`, `score` and `pv` always describe line 1; `lines` holds all indexes. */
 export interface EngineInfo {
   depth: number;
   score: UciScore;
   pv: string[];
+  /** Latest line per MultiPV index, sorted by index. */
+  lines: EngineLine[];
 }
 
 export interface EngineJobRequest {
@@ -36,6 +48,8 @@ export interface EngineJobRequest {
   priority: EnginePriority;
   /** Omitted for analysis, which always runs at full strength. */
   strength?: UciStrength;
+  /** Number of lines to search; omitted means 1, and every job resets it so it never leaks. */
+  multiPv?: number;
   onProgress?: (info: EngineInfo) => void;
 }
 
@@ -44,6 +58,8 @@ export interface EngineResult {
   score: UciScore | null;
   depth: number;
   pv: string[];
+  /** Latest line per MultiPV index, sorted by index. */
+  lines: EngineLine[];
 }
 
 export interface EngineJobHandle {
@@ -88,10 +104,15 @@ export interface EngineQueueOptions {
 
 interface Job {
   request: EngineJobRequest;
+  /** Line 1's snapshot: drives the headline score, depth and pv. */
   latest: EngineInfo | null;
+  lines: Map<number, EngineLine>;
   resolve: (result: EngineResult) => void;
   reject: (error: Error) => void;
 }
+
+const sortedLines = (lines: ReadonlyMap<number, EngineLine>): EngineLine[] =>
+  [...lines.values()].sort((a, b) => a.multipv - b.multipv);
 
 type StopReason = "cancel" | "preempt";
 
@@ -143,8 +164,9 @@ export const createEngineQueue = (
     if (!job) return;
     running = job;
     armSilence();
-    const { fen, limit, strength } = job.request;
+    const { fen, limit, strength, multiPv } = job.request;
     for (const option of buildStrengthOptions(strength)) transport.send(option);
+    transport.send(buildMultiPvOption(multiPv));
     transport.send(buildPosition(fen));
     transport.send(buildGo(limit));
   };
@@ -162,6 +184,7 @@ export const createEngineQueue = (
     } else if (reason === "preempt") {
       // The pre-empted background job restarts from scratch once the interactive work is done.
       job.latest = null;
+      job.lines.clear();
       insertPending(job, true);
     } else {
       job.resolve({
@@ -169,6 +192,7 @@ export const createEngineQueue = (
         score: job.latest?.score ?? null,
         depth: job.latest?.depth ?? 0,
         pv: job.latest?.pv ?? [],
+        lines: sortedLines(job.lines),
       });
     }
     startNext();
@@ -180,10 +204,22 @@ export const createEngineQueue = (
     // Any output proves the engine is alive; while stopping, the bounded stop wait stays in charge.
     if (stopReason === null && line.type !== "bestmove") armSilence();
     if (line.type === "info") {
-      if (stopReason !== null || line.multipv !== 1) return;
-      const info: EngineInfo = { depth: line.depth, score: line.score, pv: line.pv };
-      running.latest = info;
-      running.request.onProgress?.(info);
+      if (stopReason !== null) return;
+      const job = running;
+      job.lines.set(line.multipv, {
+        multipv: line.multipv,
+        depth: line.depth,
+        score: line.score,
+        pv: line.pv,
+      });
+      if (line.multipv === 1) {
+        job.latest = { depth: line.depth, score: line.score, pv: line.pv, lines: [] };
+      }
+      // Progress needs line 1 for the headline fields; engines report it first at each depth.
+      if (job.latest) {
+        job.latest = { ...job.latest, lines: sortedLines(job.lines) };
+        job.request.onProgress?.(job.latest);
+      }
     } else if (line.type === "bestmove") {
       finishRunning(line.move);
     }
@@ -208,7 +244,7 @@ export const createEngineQueue = (
       resolve = res;
       reject = rej;
     });
-    const job: Job = { request, latest: null, resolve, reject };
+    const job: Job = { request, latest: null, lines: new Map(), resolve, reject };
 
     if (failure) {
       reject(failure);

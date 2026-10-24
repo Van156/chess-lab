@@ -123,6 +123,10 @@ export const buildStrengthOptions = (strength: UciStrength | undefined): string[
   return [buildSetOption("UCI_LimitStrength", false), buildSetOption("Skill Level", skill)];
 };
 
+/** Number of principal variations to report. Sent before every job so a count never leaks across jobs. */
+export const buildMultiPvOption = (multiPv: number | undefined): string =>
+  buildSetOption("MultiPV", Math.max(1, Math.floor(multiPv ?? 1)));
+
 /** Clamps and rounds an Elo into the range the engine reported in its handshake. */
 export const clampElo = (range: EloRange, elo: number): number =>
   Math.min(range.max, Math.max(range.min, Math.round(elo)));

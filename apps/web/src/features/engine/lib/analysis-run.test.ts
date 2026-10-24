@@ -35,6 +35,7 @@ const result = (cp: number, depth: number): EngineResult => ({
   score: { kind: "cp", value: cp },
   depth,
   pv: [],
+  lines: [],
 });
 
 interface Harness {
