@@ -91,6 +91,8 @@ Building a repertoire without data means guessing which replies matter. The spec
 - [ ] **T6 — Add from explorer and inline band select** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d6`. Route: delegated `react-staff`.
   - An Add button on explorer moves not in the repertoire, through the existing `addMove` flow.
   - A band select from -2 to +2 that labels the resulting band, saves via `settings.update` and refetches the explorer.
+  - `repertoire.explorer` also returns `ownBand` (`ratingBandFor(perfs, 0)`), so the select can label each offset correctly, even when the band was clamped at an end.
+  - From the T4b+T5 review: `bandLabel` falls back to the bare number for an off-bucket band; the `useExplorer` state mapping becomes a pure tested helper.
   - Stories, registry entries and tests.
 
 ## Acceptance criteria
@@ -199,3 +201,9 @@ Building a repertoire without data means guessing which replies matter. The spec
     - `fb22391` on `p2d5`: helpers and types, 174 lines; tests and types checked alone.
     - `a9a91e2` on `p2d5b`: panel, hook, wiring, stories and tests, 410 lines. Slightly over 400 after one slicing pass, so recommend `size:exception`.
     - The two commits together give the same tree as the original `db1c43f`.
+- 2026-10-24 Review T4b+T5 (6ee9622 to 835ec9f, lineage review-22533db380ec5e86), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 835ec9f.
+  - Folded into T6, which touches the same code:
+    - R3-bandlabel-unknown-band: `bandLabel` renders an inverted range for an off-bucket band.
+    - R3-use-explorer-mapping-untested: the query-state to panel-state mapping in `useExplorer` is not tested.
+  - Pending suggestion: R3-microtask-flush-ordering. The cross-user port test does not assert that both client calls started before gate A rejects.
+  - Next: T6.
