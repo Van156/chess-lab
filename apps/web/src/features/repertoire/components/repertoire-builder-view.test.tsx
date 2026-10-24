@@ -11,6 +11,7 @@ import {
   e5Move,
   emptyNote,
   explorerOk,
+  explorerOneBandAbove,
   startPosition,
   whiteRepertoire,
 } from "./repertoire.fixtures";
@@ -27,7 +28,9 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       note={emptyNote}
       noteDirty={false}
       saving={false}
+      bandSaving={false}
       onPlayMove={() => {}}
+      onChangeBandOffset={() => {}}
       onSelectPly={() => {}}
       onSelectChild={() => {}}
       onRequestDelete={() => {}}
@@ -79,5 +82,29 @@ describe("RepertoireBuilderView", () => {
     expect(html).toContain("unavailable right now");
     expect(html).toContain(">Type a move to add it</label>");
     expect(html).toContain("Current line");
+  });
+
+  test("offers Add only on explorer moves that are not in the repertoire yet", async () => {
+    const html = await render();
+    // explorerOk lists c5, e5 and e6; the repertoire has e5 and c5 below e4.
+    expect(html).toContain('aria-label="Add e6 to the repertoire"');
+    expect(html).not.toContain('aria-label="Add e5 to the repertoire"');
+    expect(html).not.toContain('aria-label="Add c5 to the repertoire"');
+  });
+
+  test("disables Add while a write is saving", async () => {
+    const html = await render({ saving: true });
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Add e6 to the repertoire"/);
+  });
+
+  test("shows the band select with the saved band selected, and none without stats", async () => {
+    const html = await render({ explorer: { kind: "loaded", data: explorerOneBandAbove } });
+    expect(html).toContain(">Compare with rating band</label>");
+    expect(html).toMatch(
+      /<option[^>]*value="1"[^>]*selected=""[^>]*>1800–1999 \(1 above\)<\/option>/,
+    );
+    expect(await render({ explorer: { kind: "failed" } })).not.toContain(
+      "Compare with rating band",
+    );
   });
 });

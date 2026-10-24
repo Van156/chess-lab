@@ -1,8 +1,10 @@
+import { Button } from "@b2c-template/ui/components/button";
 import { Card } from "@b2c-template/ui/components/card";
 
 import { ChessBoard, MoveList, SanInput } from "@/shared/components/board";
 import PageHeader from "@/shared/components/layout/page-header";
 
+import { inRepertoire } from "../lib/explorer-view";
 import { describeNote } from "../lib/idea-note";
 import { formatLine } from "../lib/repertoire-tree";
 import type {
@@ -11,6 +13,7 @@ import type {
   RepertoireMove,
   RepertoirePosition,
 } from "../lib/repertoire-types";
+import ExplorerBandSelect from "./explorer-band-select";
 import ExplorerPanel, { type ExplorerPanelState } from "./explorer-panel";
 import IdeaNoteEditor from "./idea-note-editor";
 import LineNavigator from "./line-navigator";
@@ -26,8 +29,12 @@ export type RepertoireBuilderViewProps = {
   note: IdeaNote;
   noteDirty: boolean;
   saving: boolean;
-  /** A move from the board or the text field, as SAN; the caller adds it to the tree. */
+  /** The explorer band is being saved. */
+  bandSaving: boolean;
+  /** A move from the board, the text field or the explorer, as SAN; the caller adds it to the tree. */
   onPlayMove: (san: string) => void;
+  /** An explorer band offset from -2 to 2; the caller saves it. */
+  onChangeBandOffset: (offset: number) => void;
   onSelectPly: (ply: number) => void;
   onSelectChild: (move: RepertoireMove) => void;
   onRequestDelete: (move: RepertoireMove) => void;
@@ -50,7 +57,9 @@ export default function RepertoireBuilderView({
   note,
   noteDirty,
   saving,
+  bandSaving,
   onPlayMove,
+  onChangeBandOffset,
   onSelectPly,
   onSelectChild,
   onRequestDelete,
@@ -110,7 +119,34 @@ export default function RepertoireBuilderView({
             />
           </Card>
           <Card className="rounded-2xl p-4 md:p-6">
-            <ExplorerPanel state={explorer} childMoves={childMoves} />
+            <ExplorerPanel
+              state={explorer}
+              childMoves={childMoves}
+              bandControl={
+                explorer.kind === "loaded" ? (
+                  <ExplorerBandSelect
+                    ownBand={explorer.data.ownBand}
+                    band={explorer.data.band}
+                    pending={bandSaving}
+                    onChange={onChangeBandOffset}
+                  />
+                ) : undefined
+              }
+              moveAction={(move) =>
+                inRepertoire(move.san, childMoves) ? null : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11"
+                    disabled={saving}
+                    aria-label={`Add ${move.san} to the repertoire`}
+                    onClick={() => onPlayMove(move.san)}
+                  >
+                    Add
+                  </Button>
+                )
+              }
+            />
           </Card>
           <Card className="rounded-2xl p-4 md:p-6">
             <IdeaNoteEditor

@@ -11,6 +11,7 @@ import LoadError from "@/shared/components/feedback/load-error";
 import Loader from "@/shared/components/feedback/loader";
 
 import { useExplorer } from "../hooks/use-explorer";
+import { useExplorerBand } from "../hooks/use-explorer-band";
 import { useRepertoire } from "../hooks/use-repertoire";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
@@ -44,6 +45,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   // until the repertoire has loaded.
   const currentId = repertoire ? resolvePosition(repertoire, where.positionId) : "";
   const explorer = useExplorer(id, currentId);
+  const explorerBand = useExplorerBand();
 
   if (isPending) {
     return <Loader />;
@@ -85,6 +87,14 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
       go(move.toPositionId, [...routeTo(path), move.id]);
     } catch (failure) {
       reportFailure(failure, "The move could not be added.");
+    }
+  };
+
+  const changeBandOffset = async (explorerBandOffset: number) => {
+    try {
+      await explorerBand.setOffset({ explorerBandOffset });
+    } catch (failure) {
+      reportFailure(failure, "The rating band could not be changed.");
     }
   };
 
@@ -132,7 +142,9 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         note={note}
         noteDirty={!notesEqual(note, savedNote)}
         saving={isSaving}
+        bandSaving={explorerBand.isPending}
         onPlayMove={(san) => void playMove(san)}
+        onChangeBandOffset={(offset) => void changeBandOffset(offset)}
         onSelectPly={(ply) => {
           const walked = path.slice(0, ply);
           go(

@@ -19,13 +19,10 @@ import {
   shareOf,
   unavailableText,
 } from "../lib/explorer-view";
-import type { ExplorerData, ExplorerMove } from "../lib/repertoire-types";
+import type { ExplorerPanelState } from "../lib/explorer-state";
+import type { ExplorerMove } from "../lib/repertoire-types";
 
-/** What the container knows: still loading, the request itself failed, or an answer. */
-export type ExplorerPanelState =
-  | { kind: "loading" }
-  | { kind: "failed" }
-  | { kind: "loaded"; data: ExplorerData };
+export type { ExplorerPanelState };
 
 export type ExplorerPanelProps = {
   state: ExplorerPanelState;

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { orpc } from "@/app/orpc";
 
-import type { ExplorerPanelState } from "../components/explorer-panel";
+import { toExplorerPanelState, type ExplorerPanelState } from "../lib/explorer-state";
 
 const EXPLORER_STALE_TIME_MS = 5 * 60 * 1000;
 
@@ -18,7 +18,5 @@ export function useExplorer(repertoireId: string, positionId: string): ExplorerP
     retry: false,
     staleTime: EXPLORER_STALE_TIME_MS,
   });
-  if (query.data) return { kind: "loaded", data: query.data };
-  if (query.isError) return { kind: "failed" };
-  return { kind: "loading" };
+  return toExplorerPanelState(query);
 }
