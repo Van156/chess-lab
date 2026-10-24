@@ -152,7 +152,6 @@ describe("toEngineView", () => {
     expect(view(state, START, false)).toEqual({
       panel: { kind: "off" },
       whitePercent: null,
-      arrow: null,
     });
   });
 
@@ -168,7 +167,6 @@ describe("toEngineView", () => {
     expect(view(state, AFTER_E4)).toEqual({
       panel: { kind: "starting" },
       whitePercent: null,
-      arrow: null,
     });
   });
 
@@ -185,7 +183,7 @@ describe("toEngineView", () => {
     expect(panel.lines[0]?.scoreText).toBe("+0.30");
   });
 
-  test("the eval percent and the arrow follow line 1", () => {
+  test("the eval percent follows line 1", () => {
     const state = run([
       { type: "started", job: 1, fen: START },
       { type: "finished", job: 1, result: result(18, E4_LINES) },
@@ -193,7 +191,6 @@ describe("toEngineView", () => {
     const out = view(state);
     expect(out.panel.kind).toBe("done");
     expect(out.whitePercent).toBeGreaterThan(50);
-    expect(out.arrow).toEqual({ from: "e2", to: "e4" });
   });
 
   test("the eval is from White's side when Black is to move", () => {
@@ -221,7 +218,7 @@ describe("toEngineView", () => {
     expect(panel.lines.map((l) => l.inRepertoire)).toEqual([true, false]);
   });
 
-  test("lines that are not legal here are dropped, so no bar or arrow comes from them", () => {
+  test("lines that are not legal here are dropped, so no bar comes from them", () => {
     const state = run([
       { type: "started", job: 1, fen: START },
       { type: "progress", job: 1, info: info(5, [line(1, 5, 30, ["e7e5"])]) },
@@ -229,10 +226,9 @@ describe("toEngineView", () => {
     const out = view(state);
     expect(out.panel).toEqual({ kind: "analysing", depth: 5, maxDepth: MAX_DEPTH, lines: [] });
     expect(out.whitePercent).toBeNull();
-    expect(out.arrow).toBeNull();
   });
 
-  test("unavailable and terminal carry no bar or arrow", () => {
+  test("unavailable and terminal carry no bar", () => {
     const unavailable = run([
       { type: "started", job: 1, fen: START },
       { type: "failed", job: 1 },
@@ -240,13 +236,11 @@ describe("toEngineView", () => {
     expect(view(unavailable)).toEqual({
       panel: { kind: "unavailable" },
       whitePercent: null,
-      arrow: null,
     });
     const terminal = run([{ type: "terminal", job: 1, fen: MATED }]);
     expect(view(terminal, MATED)).toEqual({
       panel: { kind: "terminal" },
       whitePercent: null,
-      arrow: null,
     });
   });
 });

@@ -1,7 +1,6 @@
 import type { EngineInfo, EngineLine, EngineResult } from "@/features/engine";
-import type { BoardArrow } from "@/shared/components/board";
 
-import { bestMoveArrow, toSuggestionLines, winPercent, type SuggestionLine } from "./engine-view";
+import { toSuggestionLines, winPercent, type SuggestionLine } from "./engine-view";
 
 /**
  * What the suggestion hook knows about the search. Every state after `off` names the job and the
@@ -77,14 +76,12 @@ export type EngineView = {
   panel: EnginePanelState;
   /** White's share of the eval bar, 0 to 100; `null` without a score. */
   whitePercent: number | null;
-  /** The best move of line 1; `null` without a line. */
-  arrow: BoardArrow | null;
 };
 
-const NO_EVAL = { whitePercent: null, arrow: null } as const;
+const NO_EVAL = { whitePercent: null } as const;
 
 /**
- * Maps the search state to the panel, the eval bar and the arrow. A state that belongs to another
+ * Maps the search state to the panel, and the eval bar. A state that belongs to another
  * position counts as starting, so old lines are never drawn on a new position. The depth and ply
  * limits come in as inputs, which keeps this module free of the engine runtime.
  */
@@ -111,6 +108,5 @@ export function toEngineView(input: {
   return {
     panel: { kind: state.kind, depth: state.depth, maxDepth, lines },
     whitePercent: best ? winPercent(best.white) : null,
-    arrow: best ? bestMoveArrow([best.firstMove.uci]) : null,
   };
 }

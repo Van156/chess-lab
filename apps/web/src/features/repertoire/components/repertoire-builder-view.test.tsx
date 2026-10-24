@@ -114,6 +114,7 @@ describe("RepertoireBuilderView", () => {
   test("shows no name, but keeps its line, when none is known on the path", async () => {
     const html = await render({ opening: null });
     expect(html).toMatch(/data-slot="opening-name"[^>]*><\/p>/);
+    expect(html).toMatch(/data-slot="opening-name"[^>]*class="[^"]*\bmin-h-6\b/);
   });
 
   test("names the colour being played", async () => {

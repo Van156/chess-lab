@@ -114,7 +114,6 @@ export const EngineAnalysing: Story = {
         lines: engineOnView.panel.kind === "done" ? engineOnView.panel.lines : [],
       },
       whitePercent: 52,
-      arrow: { from: "e2", to: "e4" },
     },
   },
 };
@@ -132,7 +131,7 @@ export const RepertoireArrowsOff: Story = {
 };
 
 export const EngineUnavailable: Story = {
-  args: { engine: { panel: { kind: "unavailable" }, whitePercent: null, arrow: null } },
+  args: { engine: { panel: { kind: "unavailable" }, whitePercent: null } },
 };
 
 export const EngineWithIdeaNote: Story = {
