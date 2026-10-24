@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T1 next
+# Feature: Engine suggestions in the repertoire builder — T1+T2 review next
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit.
@@ -64,7 +64,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - `onProgress` fires on every info line with the updated snapshot. Secondary lines no longer get dropped, but they still never replace line 1's score.
   - Export `EngineLine` and `EngineInfo` from `@/features/engine`.
   - Tests: MultiPV is sent and reset; lines are collected per index; line 1 drives `score`; game-analysis command sequences are unchanged apart from the MultiPV reset.
-- [ ] **T2 — Engine view helpers** [T]: Branch `feat/engine-suggestions2`. Route: delegated writer (pure `lib/` module and tests).
+- [x] **T2 — Engine view helpers** [T]: Branch `feat/engine-suggestions2`. Route: delegated writer (`react-staff`; pure `lib/` module and tests).
   - In `apps/web/src/features/repertoire/lib/engine-view.ts`: White-side score from the FEN's side to move, `formatScore`, an accessible `describeScore`, `winPercent` (Lichess curve, mate clamps), `pvToSan` (move-numbered SAN via `parseMove` from `@b2c-template/chess`; stops at the first illegal move; plies limit), `bestMoveArrow` and an `inRepertoire` mark for each line's first move.
   - Engine constants `SUGGESTION_LINES`, `SUGGESTION_DEPTH` and `SUGGESTION_PV_PLIES` live in the engine `config.ts` and are exported from its public API.
   - Reuse `moveLabel` and `formatEval` ideas from `features/mistakes/lib/mistake-format.ts` only through copying the pattern, never through a cross-feature internal import.
@@ -109,3 +109,17 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - `onProgress` fires on every accepted line once line 1 exists. A pre-emption clears the lines.
   - `EngineInfo` and `EngineLine` are exported from `@/features/engine`.
   - Commit `9fa6983` (224 authored lines). Review: pending with T2. Next: T2.
+- 2026-10-24 T2 done (route: delegated `react-staff`, 4 files).
+  - RED: `bun test apps/web/src/features/repertoire/lib/engine-view.test.ts` -> `error: Cannot find module './engine-view'` (0 pass, 1 fail, 1 error).
+  - GREEN: 36 new tests. The focused run gives 236 pass, 0 fail (parent re-ran: 236 pass).
+  - `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0. After `pnpm db:test:prepare`, the full `bun test` gives 2049 pass, 0 fail.
+  - The engine config gets `SUGGESTION_LINES` (3), `SUGGESTION_DEPTH` (18) and `SUGGESTION_PV_PLIES` (8), exported from the public API.
+  - `lib/engine-view.ts`:
+    - `WhiteScore` and `toWhiteScore`. Mate 0 means the side to move is mated.
+    - `formatScore`; mate 0 is `#0`, never `#-0`.
+    - `describeScore`, for example "White is better by 0.34 pawns", "Even position", "Black mates in 2" or "Checkmate".
+    - `winPercent` on the Lichess curve, with cp clamped to ±1000.
+    - `pvToSan` returns `{sans, text}`. A bad fullmove field counts as 1.
+    - `bestMoveArrow`.
+    - `toSuggestionLines` returns `SuggestionLine` (`multipv`, `depth`, `white`, `scoreText`, `scoreLabel`, `firstMove`, `moveText`, `inRepertoire`) and drops lines whose first move is illegal.
+  - Commit `fbd2814` (424 authored lines, about 290 of them tests). Next: the T1+T2 review.
