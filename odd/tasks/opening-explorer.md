@@ -1,7 +1,7 @@
 # Feature: Opening explorer (chess-lab-v1 P2-d)
 
 - **Source:** user request 2026-10-24, "start with the next one" after P2-e. Slice P2-d of `openspec/changes/chess-lab-v1/tasks.md` (line 310). Spec: `openspec/changes/chess-lab-v1/specs/opening-explorer/spec.md` (L9-77). Design: `design.md` ADR-09 (L232-253, S0.7 amendment L247, cache L249), the ADR-18 constants (L463-469), `user_settings.explorer_band_offset` (L139), `repertoire.explorer` (L492), `LichessPort.explorer` (L496). S0.7 facts: `openspec/changes/chess-lab-v1/notes/s0-verification.md` L25-31.
-- **Branch:** T1 on `feat/chess-lab-v1-p2d`, branched from `feat/chess-lab-v1-p2e` at `bbc9228`. Each later task Tn gets `feat/chess-lab-v1-p2d<n>`, branched from the previous task's last commit.
+- **Branch:** T1 on `feat/chess-lab-v1-p2d`, branched from `feat/chess-lab-v1-p2e` at `bbc9228`. Each later task Tn gets `feat/chess-lab-v1-p2d<n>`, branched from the previous task's last commit. T3 is split across `p2d3` and `p2d3b`, so T4 branches from `p2d3b`.
 - **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b), one PR per task. Forecast is about 1,800 authored changed lines: T1 about 150, T2 about 300, T3 about 300, T4 about 350, T5 about 400, T6 about 300.
 - **TDD:** source is `openspec/config.yaml` (`strict_tdd: false`; TDD for server/API and pure logic).
   - TDD is on for T1-T4.
@@ -70,7 +70,7 @@ Building a repertoire without data means guessing which replies matter. The spec
 - [x] **T2 — Explorer client params and cache** [T]: Branch `feat/chess-lab-v1-p2d2`. Route: delegated writer.
   - `packages/lichess`: `explorer()` sends `moves`, `topGames=0` and `recentGames=0`; config gets `EXPLORER_CACHE_TTL_MS` (24 h), `EXPLORER_CACHE_MAX_ENTRIES` (5000) and `EXPLORER_STALE_MAX_MS` (7 d); tests for params, a 429 and move parsing.
   - `apps/server/src/explorer-cache.ts`: pure TTL+LRU with injectable clock, in-flight dedupe and stale-serve, with tests.
-- [ ] **T3 — `LichessPort.explorer` adapter** [T]: Branch `feat/chess-lab-v1-p2d3`. Route: delegated writer.
+- [x] **T3 — `LichessPort.explorer` adapter** [T]: Branches `feat/chess-lab-v1-p2d3` (part A) and `feat/chess-lab-v1-p2d3b` (part B). Route: delegated writer.
   - From the T1+T2 review: fail fast on a 429 while respecting the gate pause; an adapter deadline that serves stale or "unavailable" while the load continues; a stale lookup on the cache; a concurrent-waiters test.
   - `Context` `LichessPort.explorer(userId, {positionKey, fen, band, speeds})` returns `{status:"ok", stats, stale} | {status:"unavailable", reason:"unauthorized"|"rate_limited"|"error"}`.
   - The adapter checks the cache before the gate and serves stale on 429 or error. The token resolver is extracted from `services.ts`.
@@ -139,3 +139,22 @@ Building a repertoire without data means guessing which replies matter. The spec
     - The adapter waits at most a short deadline. On timeout it serves a stale entry if one exists, otherwise "unavailable". The load keeps running and fills the cache for the next request.
     - This also covers waiting behind a long import on the same per-token gate.
     - The cache gets a stale lookup for that path, plus a concurrent-waiters test.
+- 2026-10-24 T3 done (route: delegated writer, 13 files).
+  - RED: `bun test apps/server/src/lichess-port.test.ts apps/server/src/explorer-cache.test.ts packages/lichess` -> `SyntaxError: Export named 'createExplorerPort' not found` (62 pass, 1 fail, 1 error).
+  - TDD deviation: the writer wrote the gate, client and cache source before their tests. It showed RED afterwards by restoring those three files to HEAD: 4 `peek` tests, 2 gate tests and 3 client fail-fast tests failed with `expect(received).toBeInstanceOf(expected)`.
+  - GREEN: 90 pass (parent re-ran: 90 pass).
+  - `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 1923 pass, 0 fail.
+  - Gate and client:
+    - `SerialGate.acquire/run(key, ..., { failIfPaused })` throws `LichessRateLimited(pausedUntil)` on entry and after the previous holder.
+    - `send(..., failFast)` still sets the gate backoff, then throws without sleeping. Only `explorer()` uses fail-fast; import paths are unchanged.
+    - Two old explorer 429 retry tests were replaced by fail-fast tests.
+  - `EXPLORER_WAIT_MS = 5000`. `createExplorerPort`:
+    - Token first: none or unusable gives `unauthorized`, also on cache hits.
+    - It then races `cache.get` against the deadline. On timeout it returns `cache.peek(key)` or `unavailable/timeout`; the background load is caught.
+  - `resolveLichessToken` is extracted in `services.ts`. `requireAccessToken` keeps the credential-error mapping in one place. `createLichessPort(service, runner, explorer)`.
+  - Size: about 810 authored lines, 500 of them tests, so `auto-chain` split it by tree:
+    - Part A `244e82f` on `p2d3` (gate, client and cache stale lookup; 258 lines; tests and types checked alone).
+    - Part B `09fd8de` on `p2d3b` (port types, adapter and wiring; 552 lines). That is still over 400 after one slicing pass, because 359 lines are the port tests. Recommend `size:exception` for that PR.
+    - The two commits together give the same tree as the original `df3a28a`.
+  - Known gap (not blocking): a pause that begins while an explorer request is already sending does not abort it; that request fails fast on its own 429.
+  - Review: pending with T4. Next: T4.
