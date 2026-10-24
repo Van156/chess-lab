@@ -7,6 +7,12 @@
 export const SCREEN_DEPTH = 10;
 /** Depth of the deep confirmation pass. */
 export const CONFIRM_DEPTH = 18;
+/** Lines (MultiPV) searched for the suggestions in the repertoire builder. */
+export const SUGGESTION_LINES = 3;
+/** Depth the builder suggestions search to. */
+export const SUGGESTION_DEPTH = 18;
+/** Plies of each suggested line shown in the builder. */
+export const SUGGESTION_PV_PLIES = 8;
 /** Evaluations are submitted to the server every this many plies. */
 export const SUBMIT_EVERY_PLIES = 10;
 

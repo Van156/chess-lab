@@ -5,6 +5,9 @@ export {
   PAUSE_HIDDEN_MS,
   SCREEN_DEPTH,
   SUBMIT_EVERY_PLIES,
+  SUGGESTION_DEPTH,
+  SUGGESTION_LINES,
+  SUGGESTION_PV_PLIES,
 } from "./config";
 export { default as AnalysisStatus } from "./components/analysis-status";
 export { useGameAnalysis } from "./hooks/use-game-analysis";
