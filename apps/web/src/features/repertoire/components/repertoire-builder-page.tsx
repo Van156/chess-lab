@@ -16,6 +16,7 @@ import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
 import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
 import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
+import { useOpeningName } from "../hooks/use-opening-name";
 import { useRepertoire } from "../hooks/use-repertoire";
 import { buildBoardArrows, describeBoardLines } from "../lib/board-lines";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
@@ -70,6 +71,15 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     () => (repertoire ? pathTo(repertoire, currentId, where.route) : null),
     [repertoire, currentId, where.route],
   );
+  // The FENs from the start position to the shown one, for the opening name.
+  const lineFens = useMemo(() => {
+    if (!repertoire || !path) return null;
+    const fenOf = new Map(repertoire.positions.map((candidate) => [candidate.id, candidate.fen]));
+    return [repertoire.startPositionId, ...path.map((move) => move.toPositionId)]
+      .map((id) => fenOf.get(id))
+      .filter((fen): fen is string => fen !== undefined);
+  }, [repertoire, path]);
+  const opening = useOpeningName(lineFens);
   const tree = useMemo(
     () => (repertoire && path ? buildVariationTree(repertoire, path) : null),
     [repertoire, path],
@@ -197,6 +207,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         childMoves={children}
         tree={tree}
         startPositionId={repertoire.startPositionId}
+        opening={opening ?? null}
         engine={engine}
         boardArrows={boardArrows}
         boardArrowText={boardArrowText}

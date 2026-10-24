@@ -7,6 +7,7 @@ import PageHeader from "@/shared/components/layout/page-header";
 
 import { inRepertoire } from "../lib/explorer-view";
 import { describeNote } from "../lib/idea-note";
+import type { Opening } from "../lib/opening-lookup";
 import { formatLine } from "../lib/repertoire-tree";
 import type {
   IdeaNote,
@@ -34,6 +35,8 @@ export type RepertoireBuilderViewProps = {
   /** The whole repertoire as an outline; memoised by the caller on the graph and the path. */
   tree: TreeLine;
   startPositionId: string;
+  /** The opening name of this position or the last named one on the path; null when none is known yet. */
+  opening: Opening | null;
   /** Explorer stats for this position; whatever it holds, the rest of the builder works. */
   explorer: ExplorerPanelState;
   /** Stockfish suggestions for this position: the panel and the eval bar share. */
@@ -74,9 +77,11 @@ export type RepertoireBuilderViewProps = {
 const railTab = "min-h-11";
 
 /**
- * Repertoire builder (presentational), "Board + rail": a board column with the lines toolbar
- * above the board and the path, the typed-move field and the note text below it, and a rail of
- * tabs (Tree, Engine, Explorer, Notes) beside it. The rail stacks below the board at narrow widths.
+ * Repertoire builder (presentational), "Board + rail": a board column with the opening name and
+ * the lines toolbar above the board and the path, the typed-move field and the note text below it,
+ * and a rail of tabs (Tree, Engine, Explorer, Notes) beside it. The opening name has a reserved
+ * line, so the board does not move when a name appears. The rail stacks below the board at narrow
+ * widths.
  *
  * The board is as wide as the screen height allows, never below 26rem, with the eval bar beside it
  * at the board's height; the bar is hidden while the engine is off. Every rail panel stays mounted,
@@ -90,6 +95,7 @@ export default function RepertoireBuilderView({
   childMoves,
   tree,
   startPositionId,
+  opening,
   explorer,
   engine,
   boardArrows,
@@ -129,6 +135,13 @@ export default function RepertoireBuilderView({
           aria-label="Board"
           className="flex w-full min-w-0 flex-col gap-2 lg:w-[max(26rem,calc(100dvh-19rem))] lg:shrink-0"
         >
+          <p
+            data-slot="opening-name"
+            className="min-h-6 truncate text-sm font-medium"
+            title={opening ? `${opening.eco} · ${opening.name}` : undefined}
+          >
+            {opening ? `${opening.eco} · ${opening.name}` : null}
+          </p>
           <BoardToolbar
             lineCount={lineCount}
             onChangeLineCount={onChangeLineCount}

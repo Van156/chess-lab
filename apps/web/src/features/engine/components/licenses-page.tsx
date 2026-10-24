@@ -8,6 +8,9 @@ import {
   ENGINE_WORKER_PATH,
 } from "../config";
 
+const OPENINGS_REPO_URL = "https://github.com/lichess-org/chess-openings";
+const OPENINGS_LICENSE_URL = "https://creativecommons.org/publicdomain/zero/1.0/";
+
 const linkClass = "underline underline-offset-4";
 
 const SERVED_FILES = [
@@ -78,6 +81,24 @@ export default function LicensesPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="openings-heading" className="flex flex-col gap-3">
+        <h2 id="openings-heading" className="text-lg font-medium">
+          Opening names
+        </h2>
+        <p>
+          The opening names in the repertoire builder come from the{" "}
+          <a href={OPENINGS_REPO_URL} className={linkClass} rel="noreferrer">
+            lichess-org/chess-openings
+          </a>{" "}
+          dataset, released under the{" "}
+          <a href={OPENINGS_LICENSE_URL} className={linkClass} rel="noreferrer">
+            CC0 1.0 Universal
+          </a>{" "}
+          public domain dedication (CC0-1.0). We bundle a copy of it, converted to an index by
+          position.
+        </p>
       </section>
     </main>
   );

@@ -37,6 +37,7 @@ const meta = {
     childMoves: [e5Move, c5Move],
     tree: openGameTree,
     startPositionId: "p0",
+    opening: { eco: "B00", name: "King's Pawn Game" },
     explorer: { kind: "loaded", data: explorerOk },
     engine: engineOnView,
     boardArrows: midLineArrows,
@@ -69,7 +70,13 @@ type Story = StoryObj<typeof meta>;
 export const MidLine: Story = {};
 
 export const StartPosition: Story = {
-  args: { position: startPosition, path: [], childMoves: [e4Move], tree: openGameStartTree },
+  args: {
+    opening: null,
+    position: startPosition,
+    path: [],
+    childMoves: [e4Move],
+    tree: openGameStartTree,
+  },
 };
 
 export const WithIdeaNote: Story = {
@@ -135,5 +142,15 @@ export const EngineWithIdeaNote: Story = {
     childMoves: [e4Move],
     tree: openGameStartTree,
     note: centreNote,
+  },
+};
+
+export const OpeningNamed: Story = {
+  args: {
+    opening: { eco: "C44", name: "Scotch Game" },
+    position: afterE5,
+    path: [e4Move, e5Move],
+    childMoves: [],
+    tree: openGameE5Tree,
   },
 };

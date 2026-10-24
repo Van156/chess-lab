@@ -32,6 +32,7 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       childMoves={[e5Move, c5Move]}
       tree={openGameTree}
       startPositionId="p0"
+      opening={{ eco: "B00", name: "King's Pawn Game" }}
       explorer={{ kind: "loaded", data: explorerOk }}
       engine={engineOnView}
       boardArrows={midLineArrows}
@@ -102,6 +103,17 @@ describe("RepertoireBuilderView", () => {
     const html = await render({ lineCount: 5 });
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="5 lines on the board"/);
     expect(html).toContain("Repertoire arrows");
+  });
+
+  test("shows the opening name with its ECO code above the board toolbar", async () => {
+    const html = await render({ opening: { eco: "C44", name: "Scotch Game" } });
+    expect(html).toContain("C44 · Scotch Game");
+    expect(html.indexOf("C44 · Scotch Game")).toBeLessThan(html.indexOf("Repertoire arrows"));
+  });
+
+  test("shows no name, but keeps its line, when none is known on the path", async () => {
+    const html = await render({ opening: null });
+    expect(html).toMatch(/data-slot="opening-name"[^>]*><\/p>/);
   });
 
   test("names the colour being played", async () => {

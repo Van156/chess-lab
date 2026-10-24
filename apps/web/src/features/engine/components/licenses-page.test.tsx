@@ -28,4 +28,9 @@ describe("LicensesPage", () => {
       expect(html).toContain(`href="${path}"`);
     }
   });
+
+  test("credits the opening names dataset and its CC0 licence", () => {
+    expect(html).toContain('href="https://github.com/lichess-org/chess-openings"');
+    expect(html).toContain("CC0-1.0");
+  });
 });
