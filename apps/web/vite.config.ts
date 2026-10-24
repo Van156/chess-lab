@@ -32,8 +32,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-        // The engine (~7 MB WASM) is never precached; it is cached on first use instead.
-        globIgnores: ["engine/**"],
+        // The engine (~7 MB WASM) and the opening book (~460 kB, builder only) are never
+        // precached; they are cached on first use instead.
+        globIgnores: ["engine/**", "assets/openings.generated-*.js"],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/engine/"),
@@ -41,6 +42,15 @@ export default defineConfig({
             options: {
               cacheName: "engine",
               expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/assets/openings.generated-"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "opening-book",
+              expiration: { maxEntries: 2 },
               cacheableResponse: { statuses: [200] },
             },
           },
