@@ -1,7 +1,7 @@
 # Feature: Opening explorer (chess-lab-v1 P2-d)
 
 - **Source:** user request 2026-10-24, "start with the next one" after P2-e. Slice P2-d of `openspec/changes/chess-lab-v1/tasks.md` (line 310). Spec: `openspec/changes/chess-lab-v1/specs/opening-explorer/spec.md` (L9-77). Design: `design.md` ADR-09 (L232-253, S0.7 amendment L247, cache L249), the ADR-18 constants (L463-469), `user_settings.explorer_band_offset` (L139), `repertoire.explorer` (L492), `LichessPort.explorer` (L496). S0.7 facts: `openspec/changes/chess-lab-v1/notes/s0-verification.md` L25-31.
-- **Branch:** T1 on `feat/chess-lab-v1-p2d`, branched from `feat/chess-lab-v1-p2e` at `bbc9228`. Each later task Tn gets `feat/chess-lab-v1-p2d<n>`, branched from the previous task's last commit. T3 is split across `p2d3` and `p2d3b`, so T4 branches from `p2d3b`.
+- **Branch:** T1 on `feat/chess-lab-v1-p2d`, branched from `feat/chess-lab-v1-p2e` at `bbc9228`. Each later task Tn gets `feat/chess-lab-v1-p2d<n>`, branched from the previous task's last commit. T3 is split across `p2d3` and `p2d3b`, and T5 across `p2d5` and `p2d5b`; the next task branches from the `b` branch.
 - **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b), one PR per task. Forecast is about 1,800 authored changed lines: T1 about 150, T2 about 300, T3 about 300, T4 about 350, T5 about 400, T6 about 300.
 - **TDD:** source is `openspec/config.yaml` (`strict_tdd: false`; TDD for server/API and pure logic).
   - TDD is on for T1-T4.
@@ -83,7 +83,7 @@ Building a repertoire without data means guessing which replies matter. The spec
 - [x] **T4b — Explorer review fixes** [T]: Branch `feat/chess-lab-v1-p2d4b`. Route: delegated writer (2-3 non-trivial server files).
   - (a) R3-shared-inflight-token-failures: the cache's in-flight dedupe is keyed per user (an `inflightKey` option or similar) while the stored value stays under the shared key. Add a cross-user test: A's in-flight load fails with a 401 while B's concurrent request uses B's token and gets ok.
   - (b) R3-vacuous-unauthorized-cache-test: build both ports on one shared cache instance, so an unlinked user is proved to get `unauthorized` for a cached position.
-- [ ] **T5 — Explorer panel (read-only)** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d5`. Route: delegated `react-staff`.
+- [x] **T5 — Explorer panel (read-only)** [T lib, O UI]: Branches `feat/chess-lab-v1-p2d5` (helpers) and `feat/chess-lab-v1-p2d5b` (UI). Route: delegated `react-staff`.
   - `lib/` helpers: W/D/L percent text, in-repertoire mark by SAN, band label.
   - Presentational `ExplorerPanel`: a table with the band label; states for loading, empty ("no games recorded"), unavailable (with a reason and a Lichess sign-in hint for unauthorized) and stale.
   - `use-explorer` hook and container wiring in the builder page.
@@ -184,3 +184,18 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `cache.get(key, load, { inflightKey = key })`; the adapter passes `${key}|${userId}`.
   - The old cross-user "one client call" port test was removed as part of the recorded deviation; a same-user dedupe test replaces it.
   - Commit `8b78eac` (206 authored lines). Review: pending with T5. Next: T5.
+- 2026-10-24 T5 done (route: delegated react-staff, 13 files).
+  - TDD on `lib/` only. RED: `bun test apps/web/src/features/repertoire/lib/explorer-view.test.ts` -> `error: Cannot find module './explorer-view'` (0 pass, 1 fail, 1 error).
+  - GREEN: 11 pass. A first run had 1 fail on copy case, so the copy was reworded.
+  - Focused run 137 pass (parent re-ran: 137 pass). `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 1983 pass, 0 fail.
+  - `lib/explorer-view.ts`: `shareOf` (largest remainder), `formatGames`, `describeExplorerMove` (en-US), `bandLabel` (next-bucket upper bound), `inRepertoire` (SAN), `unavailableText`, `STALE_NOTE`. Explorer types are in `lib/repertoire-types.ts`.
+  - `ExplorerPanel`:
+    - Props: `{ state: loading|failed|loaded, childMoves, bandControl?, moveAction? }`. The T6 slots are not used yet.
+    - A table with an sr-only caption and `scope=col`; percentages are text, the bar is `aria-hidden`, and "In repertoire" is a text badge.
+  - `useExplorer` uses `retry: false`, a 5 min `staleTime` and no placeholder; an error becomes `failed`.
+  - The panel is its own Card between "Current line" and the idea note editor.
+  - Not verified (needs a browser): 375 px, focus, screen reader.
+  - Size: 584 authored lines, so `auto-chain` split it by tree:
+    - `fb22391` on `p2d5`: helpers and types, 174 lines; tests and types checked alone.
+    - `a9a91e2` on `p2d5b`: panel, hook, wiring, stories and tests, 410 lines. Slightly over 400 after one slicing pass, so recommend `size:exception`.
+    - The two commits together give the same tree as the original `db1c43f`.
