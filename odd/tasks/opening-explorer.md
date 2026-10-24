@@ -95,7 +95,7 @@ Building a repertoire without data means guessing which replies matter. The spec
   - From the T4b+T5 review: `bandLabel` falls back to the bare number for an off-bucket band; the `useExplorer` state mapping becomes a pure tested helper.
   - Stories, registry entries and tests.
 
-- [ ] **T7 — Band select follows the saved offset** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d7`. Route: delegated `react-staff`.
+- [x] **T7 — Band select follows the saved offset** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d7`. Route: delegated `react-staff`.
   - R3-clamped-offset-unresettable: the select value is the saved offset.
   - A saved offset whose band repeats a nearer option gets its own option (for example "2500+ (2 above, capped)"), so "your band" stays selectable and resets it.
   - `bandOptions(ownBand, savedOffset)` with tests; an SSR test for a saved offset that differs from the displayed band.
@@ -233,4 +233,11 @@ Building a repertoire without data means guessing which replies matter. The spec
 - 2026-10-24 Review T6 (835ec9f to 3411659, lineage review-a14f3614cc84c801), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 3411659.
   - R3-clamped-offset-unresettable (WARNING): the select picks its value by the clamped band, not the saved offset. A clamped saved offset (for example own band 2500 with +2) shows "your band", which cannot be re-selected to reset it, so the stats shift silently if the rating later drops. User chose "Fix now as T7" (2026-10-24).
   - Pending suggestion: R3-band-change-wiring-untested. Only static SSR tests exist; there are no interaction tests for onChange, Add or the pending and failure paths of the band change.
-  - Next: T7.
+- 2026-10-24 T7 done (route: delegated react-staff, 7 files).
+  - RED: `bun test apps/web/src/features/repertoire/lib/explorer-band-options.test.ts` -> 7 pass, 2 fail (the top and bottom clamped cases were missing the capped option).
+  - GREEN: 9 pass.
+  - Focused run 160 pass (parent re-ran: 160 pass). `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 2007 pass, 0 fail.
+  - `bandOptions(ownBand, savedOffset = 0)` also keeps a clamped saved offset as its own option ("2500+ (2 above, capped)", "Under 1000 (2 below, capped)"). Out-of-range saved offsets are rounded and clamped to -2..2.
+  - `ExplorerBandSelect` takes `offset` (the saved offset) as its value, so "your band" always resets.
+  - New story `ClampedSavedOffset`.
+  - Commit `a12345f` (97 authored lines). Review: T7 alone (base 3411659).
