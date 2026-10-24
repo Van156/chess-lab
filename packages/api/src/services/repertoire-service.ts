@@ -116,50 +116,58 @@ export function createRepertoireService(db: Database) {
   }
 
   async function get(userId: string, id: string) {
-    const [meta] = await db
-      .select(metadataColumns)
-      .from(repertoire)
-      .where(and(eq(repertoire.id, id), eq(repertoire.userId, userId)));
-    if (!meta) throw notFound("Repertoire");
-    const { positions, moves } = await db.transaction((tx) => loadRows(tx, id, userId), {
-      isolationLevel: "repeatable read",
-      accessMode: "read only",
-    });
-    const noteRows =
-      positions.length === 0
-        ? []
-        : await db
-            .select()
-            .from(ideaNote)
-            .where(
-              and(
-                eq(ideaNote.userId, userId),
-                inArray(
-                  ideaNote.repertoirePositionId,
-                  positions.map((p) => p.id),
-                ),
-              ),
-            );
-    const keyById = new Map(positions.map((p) => [p.id, p]));
+    // One snapshot for the repertoire, the graph and the notes, so a concurrent delete cannot
+    // leave a half-read tree; a missing repertoire or start position is `NOT_FOUND`.
+    const { meta, positions, moves, noteRows } = await db.transaction(
+      async (tx) => {
+        const [meta] = await tx
+          .select(metadataColumns)
+          .from(repertoire)
+          .where(and(eq(repertoire.id, id), eq(repertoire.userId, userId)));
+        if (!meta) throw notFound("Repertoire");
+        const { positions, moves } = await loadRows(tx, id, userId);
+        const noteRows =
+          positions.length === 0
+            ? []
+            : await tx
+                .select()
+                .from(ideaNote)
+                .where(
+                  and(
+                    eq(ideaNote.userId, userId),
+                    inArray(
+                      ideaNote.repertoirePositionId,
+                      positions.map((p) => p.id),
+                    ),
+                  ),
+                );
+        return { meta, positions, moves, noteRows };
+      },
+      { isolationLevel: "repeatable read", accessMode: "read only" },
+    );
     const startKey = positionKey(START_FEN);
+    const start = positions.find((p) => p.positionKey === startKey);
+    if (!start) throw notFound("Start position");
+    const sideById = new Map(positions.map((p) => [p.id, p.sideToMove]));
     return {
       repertoire: meta,
-      startPositionId: positions.find((p) => p.positionKey === startKey)!.id,
+      startPositionId: start.id,
       positions: positions.map((p) => ({
         id: p.id,
         key: p.positionKey,
         fen: p.fen,
         sideToMove: p.sideToMove,
       })),
-      moves: moves.map((m) => {
-        const from = keyById.get(m.fromPositionId)!;
+      moves: moves.flatMap((m) => {
+        const side = sideById.get(m.fromPositionId);
+        if (!side) return [];
         return {
           id: m.id,
           fromPositionId: m.fromPositionId,
           toPositionId: m.toPositionId,
           san: m.san,
           uci: m.uci,
-          isUserMove: isUserMove(meta.color, from.sideToMove),
+          isUserMove: isUserMove(meta.color, side),
         };
       }),
       notes: Object.fromEntries(

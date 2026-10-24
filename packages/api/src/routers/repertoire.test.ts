@@ -133,6 +133,12 @@ describe.skipIf(!reachable)("repertoire router", () => {
       expect(await codeOf(call(repertoireRouter.get, { id }, as("u1")))).toBe("NOT_FOUND");
     });
 
+    test("get is NOT_FOUND, never a server error, when the start position row is gone", async () => {
+      const { id, startId } = await newRepertoire();
+      await handle.db.delete(repertoirePosition).where(eq(repertoirePosition.id, startId));
+      expect(await codeOf(call(repertoireRouter.get, { id }, as("u1")))).toBe("NOT_FOUND");
+    });
+
     test("another user's repertoire is NOT_FOUND for get, rename, delete and addMove", async () => {
       const { id, startId } = await newRepertoire("u1");
       expect(await codeOf(call(repertoireRouter.get, { id }, as("u2")))).toBe("NOT_FOUND");

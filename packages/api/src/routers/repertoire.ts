@@ -1,27 +1,29 @@
 import { z } from "zod";
 
 import { featureProcedure } from "../index";
+import {
+  IDEA_NOTE_MAX_ITEMS,
+  IDEA_NOTE_PLAN_MAX_LENGTH,
+  REPERTOIRE_NAME_MAX_LENGTH,
+} from "../lib/repertoire-limits";
 import { createRepertoireService } from "../services/repertoire-service";
 
 const repertoireProcedure = featureProcedure("repertoire");
 
 const id = z.string().min(1);
-const name = z.string().trim().min(1).max(80);
+const name = z.string().trim().min(1).max(REPERTOIRE_NAME_MAX_LENGTH);
 const color = z.enum(["white", "black"]);
 const square = z.string().regex(/^[a-h][1-8]$/);
-/** Caps keep the jsonb columns bounded; a board only has 64 squares. */
-const MAX_NOTE_ITEMS = 32;
-const MAX_PLAN_LENGTH = 140;
 
 const ideaNoteInput = z.object({
   repertoireId: id,
   positionId: id,
-  arrows: z.array(z.object({ from: square, to: square })).max(MAX_NOTE_ITEMS),
-  highlights: z.array(square).max(MAX_NOTE_ITEMS),
+  arrows: z.array(z.object({ from: square, to: square })).max(IDEA_NOTE_MAX_ITEMS),
+  highlights: z.array(square).max(IDEA_NOTE_MAX_ITEMS),
   plan: z
     .string()
     .trim()
-    .max(MAX_PLAN_LENGTH)
+    .max(IDEA_NOTE_PLAN_MAX_LENGTH)
     .regex(/^[^\r\n]*$/, "The plan must be one line."),
 });
 
