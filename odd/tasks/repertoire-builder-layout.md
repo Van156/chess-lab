@@ -39,7 +39,13 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - Board lines: engine lines (1–5) to weighted arrows, repertoire arrows, from/to de-duplication with the repertoire colour on top, and the board description text.
   - Lines count (1–5) and repertoire-arrows preferences, persisted with the same pattern as the engine toggle; the suggestion controller takes the count as its MultiPV.
 - [x] **T2 — Board + rail layout** [T lib, O UI]: Branches `feat/repertoire-builder-layout2` and `feat/repertoire-builder-layout2b`. Route: delegated `react-staff` (view, tree component, container wiring, stories; 2+ non-trivial files).
-- [ ] **T3 — Opening name above the board** [T lib, O UI]: Branch `feat/repertoire-builder-layout3`. Route: delegated `react-staff`. Blocked on the user's choice of name source (explorer-only vs a bundled CC0 opening list, `lichess-org/chess-openings`).
+- [ ] **T3 — Opening name above the board (bundled opening list)** [T lib, O UI]: Branch `feat/repertoire-builder-layout3` (from `198bbd6`). Route: delegated `react-staff` (generator script, data, lookup lib, view; 2+ non-trivial files). Source decided by the user 2026-10-24: **bundled list** — `lichess-org/chess-openings` (CC0-1.0, a–e.tsv, ≈3,860 rows of ECO, name, PGN).
+  - A generator script converts the upstream TSVs, pinned to one upstream commit, into a position-keyed map (normalised FEN key → ECO + name), committed as a generated file; source, commit and licence recorded next to it.
+  - A pure lookup: position → name, plus the fallback "last known name along the current path"; the same key normalisation on both sides (en passant handled explicitly). Transpositions resolve by position.
+  - The data loads lazily (its own chunk, only on the builder), never in the main bundle.
+  - The name (ECO + name) shows above the board toolbar; nothing shows when no name is known yet along the path.
+  - The dataset is listed on the licences page.
+  - Not in scope: the T1+T2 review follow-ups (offered to the user, not accepted).
 
 ## Acceptance criteria
 
@@ -83,4 +89,4 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R3-page-wiring-unproved (WARNING): the container's composition (engine lines taken only from the analysing/done panel states, fed with the count and the repertoire toggle into `buildBoardArrows`/`describeBoardLines`) has no test, so nothing proves engine-off or unavailable yields no engine arrows or engine text on the real page. Fix shape: move that composition into a pure `lib/` function and test it.
   - R3-delete-by-id-untested (WARNING): `onDeleteNode` resolves a move id against `repertoire.moves` and silently does nothing when it is missing; untested. The MultiPV restart on a count change is also unproved (known since T1).
   - R3-description-includes-undrawn-lines (SUGGESTION): `describeBoardLines` names engine lines whose UCI is malformed although `buildBoardArrows` drops them, so the label and the drawing can diverge.
-- Next: T3 (opening name) waits on the user's choice of name source.
+- T3 started 2026-10-24: the user chose the bundled list.
