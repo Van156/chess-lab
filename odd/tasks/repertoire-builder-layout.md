@@ -61,6 +61,12 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R2-regenerate-instructions-diverge, R2-escaped-backticks-in-line-comment: one canonical regeneration command in both places; plain backticks in the comment. Regenerating may change only the generated header lines.
   - R3-tie-order-only-one-direction: test the longer-row-first order too.
   - R3-precache-ignore-depends-on-chunk-name: give the book chunk an explicit name shared by the chunk naming, `globIgnores` and the runtime rule, so renaming the data module cannot silently precache it again; verify with a build that the book is still its own chunk and absent from the precache.
+- [ ] **T6 — Close the T5 precache gap (reopened from review)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout6` (from the T4+T5 review record). Route: delegated general-purpose writer. Reopened because T5 item 5 did not meet its goal: the `codeSplitting` group still selects the book by the module file name (`/openings\.generated\.ts$/`), so renaming the module would silently put the book back in the precache, and the `vite.config.ts` comment claims the opposite (R2-chunk-name-comment-overclaims, R3-chunk-group-config-manual-only). Forecast about 150 lines.
+  - A name-independent post-build guard: after `vp build`, read the precache manifest in `dist/sw.js`, and fail when any precached JS file contains opening-book data, or when no non-precached asset does (the book must still exist as its own lazy chunk). Pure parse/check logic in a testable module with tests; the script runs in `build` and `check-types`.
+  - Correct the `vite.config.ts` comment to say what the config does and what the guard enforces.
+  - R2-linefens-prefix-wording: the `lineFens` doc says missing positions are skipped and the rest keep their order (not "a prefix").
+  - R3-sha256-bytes-path-untested: test `verifySha256` with `Uint8Array` input, the path production uses.
+  - Not included: R3-formatter-failure-path-unexercised (the branch is two lines in a script; testing it needs a process-spawn seam not worth adding).
 
 ## Acceptance criteria
 
@@ -148,3 +154,4 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - Checks (writer): `pnpm --filter web check-types` pass; `pnpm check` exit 0; bun tests 496 pass / 0 fail. Parent spot check: bun tests 496 / 0.
   - Browser (parent, after T4 and T5): names along the Scotch line unchanged, board top 266 px throughout, the book requested only on the builder; 1440×900 board and eval bar 572 px, 375 px 319 px with no horizontal scroll; lines 1 and 5, tree jump, fork groups ("Alternatives to 1. e4", "Alternatives to 2. Nf3") and the throwaway-repertoire clean-up all as before.
   - Size: ≈94 lines.
+- Review T4+T5 (base `08c3764`, through `ddce646`): consent granted (standing); 4 lenses; **approved**, acknowledged (lineage `review-64271e66541f1346`, authority burned). Next boundary: `ddce646`. Findings: R2-chunk-name-comment-overclaims (WARNING) and R3-chunk-group-config-manual-only (SUGGESTION) show T5 item 5 unmet → reopened as T6; R2-linefens-prefix-wording and R3-sha256-bytes-path-untested (SUGGESTION) → T6; R3-formatter-failure-path-unexercised (SUGGESTION) → not taken (see T6).
