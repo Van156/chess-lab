@@ -15,11 +15,18 @@ export {
   DEFAULT_THRESHOLDS,
   ENDGAME_MATERIAL,
   EVAL_CLAMP_CP,
+  EXPLORER_BAND_OFFSET_MAX,
+  EXPLORER_BAND_OFFSET_MIN,
+  EXPLORER_BAND_SPEEDS,
+  EXPLORER_RATING_BUCKETS,
+  FALLBACK_EXPLORER_BAND,
   MATE_CP,
   OPENING_PLY_LIMIT,
   TIME_PRESSURE_RATIO,
 } from "./config";
 export type { Severity, Thresholds } from "./config";
+export { ratingBandFor } from "./explorer-band";
+export type { PerfSnapshot } from "./explorer-band";
 export { START_FEN, addMove, createGraph } from "./repertoire-graph";
 export type {
   AddMoveResult,

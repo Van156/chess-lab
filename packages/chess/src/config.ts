@@ -24,3 +24,16 @@ export const ENDGAME_MATERIAL = 13;
 
 /** Time pressure when the clock left is strictly below this fraction of the base clock time. */
 export const TIME_PRESSURE_RATIO = 0.1;
+
+/** Rating buckets of the Lichess opening explorer `ratings` parameter (a bucket covers its value up to the next one). */
+export const EXPLORER_RATING_BUCKETS = [0, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500] as const;
+
+/** Band used when the user has no usable rating (no perf with games, or all provisional). */
+export const FALLBACK_EXPLORER_BAND = 1600;
+
+/** Speeds that choose the user's band; the explorer is queried with the same speeds. */
+export const EXPLORER_BAND_SPEEDS = ["blitz", "rapid", "classical"] as const;
+
+/** The user may move the band by this many buckets down or up (for example +1 is "one band above"). */
+export const EXPLORER_BAND_OFFSET_MIN = -2;
+export const EXPLORER_BAND_OFFSET_MAX = 2;
