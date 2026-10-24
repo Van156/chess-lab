@@ -13,6 +13,7 @@ import Loader from "@/shared/components/feedback/loader";
 import { useRepertoire } from "../hooks/use-repertoire";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
+import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
 import { isNotFound } from "../lib/repertoire-query";
 import { childMoves, pathTo, removalPreview } from "../lib/repertoire-tree";
 import type { IdeaNote, RepertoireMove } from "../lib/repertoire-types";
@@ -21,7 +22,6 @@ import RepertoireBuilderView from "./repertoire-builder-view";
 const NO_NOTE: IdeaNote = { arrows: [], highlights: [], plan: "" };
 
 type Where = { positionId: string | null; route: string[] };
-type Draft = { positionId: string; note: IdeaNote };
 
 function reportFailure(error: unknown, fallback: string) {
   toast.error(error instanceof Error && error.message ? error.message : fallback);
@@ -83,16 +83,19 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     }
   };
 
-  const saveNote = async (next: IdeaNote) => {
+  // `next` is what is stored; `shown` is the draft on screen when the user asked, which is the
+  // only draft the save may discard (Clear stores an empty note but discards the shown draft).
+  const saveNote = async (next: IdeaNote, shown: IdeaNote) => {
+    const savedAt = position.id;
     try {
       await setIdeaNote({
         repertoireId: id,
-        positionId: position.id,
+        positionId: savedAt,
         arrows: next.arrows,
         highlights: next.highlights,
         plan: next.plan.trim(),
       });
-      setDraft(null);
+      setDraft((current) => draftAfterSave(current, savedAt, shown));
     } catch (failure) {
       reportFailure(failure, "The note could not be saved.");
     }
@@ -106,7 +109,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
       reportFailure(failure, "The move could not be deleted.");
       throw failure;
     }
-    setDraft(null);
+    setDraft((current) => draftAfterDelete(current, repertoire, move.id));
     setDeleting(null);
     go(next, []);
   };
@@ -134,8 +137,8 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         onSelectChild={(move) => go(move.toPositionId, [...routeTo(path), move.id])}
         onRequestDelete={setDeleting}
         onNoteChange={(next) => setDraft({ positionId, note: next })}
-        onSaveNote={() => void saveNote(note)}
-        onClearNote={() => void saveNote(NO_NOTE)}
+        onSaveNote={() => void saveNote(note, note)}
+        onClearNote={() => void saveNote(NO_NOTE, note)}
       />
       <ConfirmDialog
         open={deleting !== null && removal !== null}

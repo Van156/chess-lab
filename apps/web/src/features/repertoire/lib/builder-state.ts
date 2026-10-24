@@ -1,4 +1,5 @@
-import { MAX_NOTE_ITEMS } from "./idea-note";
+import { IDEA_NOTE_MAX_ITEMS } from "@b2c-template/api/lib/repertoire-limits";
+
 import { removalPreview, type RepertoireGraph } from "./repertoire-tree";
 import type { NoteArrow, RepertoireData } from "./repertoire-types";
 
@@ -24,6 +25,27 @@ export function parseSquareInput(text: string): SquareInput {
     : { ok: false, error: `"${text.trim()}" is not a square. Use a file a-h and a rank 1-8.` };
 }
 
+/**
+ * A typed square toggled in a note's highlights: added when missing, removed when present. This is
+ * where the highlight cap lives; a new square past it is refused with a message, never dropped.
+ */
+export function toggleHighlightInput(
+  text: string,
+  highlights: readonly string[],
+): { ok: true; highlights: string[] } | { ok: false; error: string } {
+  const parsed = parseSquareInput(text);
+  if (!parsed.ok) {
+    return parsed;
+  }
+  if (highlights.includes(parsed.square)) {
+    return { ok: true, highlights: highlights.filter((square) => square !== parsed.square) };
+  }
+  if (highlights.length >= IDEA_NOTE_MAX_ITEMS) {
+    return { ok: false, error: `A note holds at most ${IDEA_NOTE_MAX_ITEMS} highlighted squares.` };
+  }
+  return { ok: true, highlights: [...highlights, parsed.square] };
+}
+
 /** Two typed squares as a new arrow for a note that already holds `existing`. */
 export function parseArrowInput(
   from: string,
@@ -44,8 +66,8 @@ export function parseArrowInput(
   if (existing.some((arrow) => arrow.from === start && arrow.to === end)) {
     return { ok: false, error: "That arrow is already on the board." };
   }
-  if (existing.length >= MAX_NOTE_ITEMS) {
-    return { ok: false, error: `A note holds at most ${MAX_NOTE_ITEMS} arrows.` };
+  if (existing.length >= IDEA_NOTE_MAX_ITEMS) {
+    return { ok: false, error: `A note holds at most ${IDEA_NOTE_MAX_ITEMS} arrows.` };
   }
   return { ok: true, arrow: { from: start, to: end } };
 }

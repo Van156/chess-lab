@@ -1,5 +1,4 @@
-/** Same limit as the server: a name is 1 to 80 characters once trimmed. */
-export const MAX_NAME_LENGTH = 80;
+import { REPERTOIRE_NAME_MAX_LENGTH } from "@b2c-template/api/lib/repertoire-limits";
 
 /** Why the name cannot be saved, or null when it can. */
 export function validateRepertoireName(name: string): string | null {
@@ -7,8 +6,8 @@ export function validateRepertoireName(name: string): string | null {
   if (trimmed === "") {
     return "Enter a name.";
   }
-  if (trimmed.length > MAX_NAME_LENGTH) {
-    return `The name must be ${MAX_NAME_LENGTH} characters or fewer.`;
+  if (trimmed.length > REPERTOIRE_NAME_MAX_LENGTH) {
+    return `The name must be ${REPERTOIRE_NAME_MAX_LENGTH} characters or fewer.`;
   }
   return null;
 }

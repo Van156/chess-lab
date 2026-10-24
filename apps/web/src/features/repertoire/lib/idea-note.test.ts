@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
+import { IDEA_NOTE_PLAN_MAX_LENGTH } from "@b2c-template/api/lib/repertoire-limits";
+
 import {
   describeNote,
   isEmptyNote,
-  MAX_NOTE_ITEMS,
-  MAX_PLAN_LENGTH,
   notesEqual,
+  removeSquare,
   toggleArrow,
-  toggleSquare,
   validatePlan,
 } from "./idea-note";
 
@@ -15,15 +15,15 @@ describe("validatePlan", () => {
   test("accepts an empty plan and one up to 140 characters", () => {
     expect(validatePlan("")).toBeNull();
     expect(validatePlan("   ")).toBeNull();
-    expect(validatePlan("x".repeat(MAX_PLAN_LENGTH))).toBeNull();
+    expect(validatePlan("x".repeat(IDEA_NOTE_PLAN_MAX_LENGTH))).toBeNull();
   });
 
   test("counts the trimmed text, like the server", () => {
-    expect(validatePlan(` ${"x".repeat(MAX_PLAN_LENGTH)} `)).toBeNull();
+    expect(validatePlan(` ${"x".repeat(IDEA_NOTE_PLAN_MAX_LENGTH)} `)).toBeNull();
   });
 
   test("rejects a plan over 140 characters", () => {
-    expect(validatePlan("x".repeat(MAX_PLAN_LENGTH + 1))).toBe(
+    expect(validatePlan("x".repeat(IDEA_NOTE_PLAN_MAX_LENGTH + 1))).toBe(
       "The plan must be 140 characters or fewer.",
     );
   });
@@ -65,16 +65,10 @@ describe("describeNote", () => {
   });
 });
 
-describe("toggleSquare", () => {
-  test("adds a missing square and removes a present one", () => {
-    expect(toggleSquare(["d5"], "e5")).toEqual(["d5", "e5"]);
-    expect(toggleSquare(["d5", "e5"], "d5")).toEqual(["e5"]);
-  });
-
-  test("does not add past the cap but still removes", () => {
-    const full = Array.from({ length: MAX_NOTE_ITEMS }, (_, index) => `a${(index % 8) + 1}`);
-    expect(toggleSquare(full, "h8")).toBe(full);
-    expect(toggleSquare([...full.slice(1), "h8"], "h8")).toHaveLength(MAX_NOTE_ITEMS - 1);
+describe("removeSquare", () => {
+  test("removes a present square and ignores a missing one", () => {
+    expect(removeSquare(["d5", "e5"], "d5")).toEqual(["e5"]);
+    expect(removeSquare(["d5"], "e5")).toEqual(["d5"]);
   });
 });
 

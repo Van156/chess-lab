@@ -6,8 +6,9 @@ import {
   parseSquareInput,
   positionAfterRemoval,
   resolvePosition,
+  toggleHighlightInput,
 } from "./builder-state";
-import { MAX_NOTE_ITEMS } from "./idea-note";
+import { IDEA_NOTE_MAX_ITEMS as MAX_NOTE_ITEMS } from "@b2c-template/api/lib/repertoire-limits";
 import type { RepertoireData } from "./repertoire-types";
 
 /** start -e4-> p1 -e5-> p2 ; start -d4-> p3 */
@@ -97,6 +98,38 @@ describe("parseArrowInput", () => {
     expect(result).toEqual({
       ok: false,
       error: `A note holds at most ${MAX_NOTE_ITEMS} arrows.`,
+    });
+  });
+});
+
+describe("toggleHighlightInput", () => {
+  test("adds a typed square", () => {
+    expect(toggleHighlightInput(" E4 ", ["d5"])).toEqual({ ok: true, highlights: ["d5", "e4"] });
+  });
+
+  test("removes a typed square that is already highlighted", () => {
+    expect(toggleHighlightInput("d5", ["d5", "e4"])).toEqual({ ok: true, highlights: ["e4"] });
+  });
+
+  test("rejects text that is not a square", () => {
+    expect(toggleHighlightInput("z9", [])).toEqual({
+      ok: false,
+      error: '"z9" is not a square. Use a file a-h and a rank 1-8.',
+    });
+  });
+
+  test("rejects a new square past the cap but still removes one", () => {
+    const full = Array.from(
+      { length: MAX_NOTE_ITEMS },
+      (_, i) => `${"abcdefgh"[i % 8]}${(i % 4) + 1}`,
+    );
+    expect(toggleHighlightInput("h8", full)).toEqual({
+      ok: false,
+      error: `A note holds at most ${MAX_NOTE_ITEMS} highlighted squares.`,
+    });
+    expect(toggleHighlightInput("a1", full)).toEqual({
+      ok: true,
+      highlights: full.filter((square) => square !== "a1"),
     });
   });
 });

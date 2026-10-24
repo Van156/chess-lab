@@ -1,8 +1,9 @@
-import type { IdeaNote, NoteArrow } from "./repertoire-types";
+import {
+  IDEA_NOTE_MAX_ITEMS,
+  IDEA_NOTE_PLAN_MAX_LENGTH,
+} from "@b2c-template/api/lib/repertoire-limits";
 
-/** Same limits as the server: a plan is one line of at most 140 characters, lists hold 32 items. */
-export const MAX_PLAN_LENGTH = 140;
-export const MAX_NOTE_ITEMS = 32;
+import type { IdeaNote, NoteArrow } from "./repertoire-types";
 
 /** Why the plan cannot be saved, or null when it can. Measured on the trimmed text, like the server. */
 export function validatePlan(plan: string): string | null {
@@ -10,8 +11,8 @@ export function validatePlan(plan: string): string | null {
   if (/[\r\n]/.test(trimmed)) {
     return "The plan must be one line.";
   }
-  if (trimmed.length > MAX_PLAN_LENGTH) {
-    return `The plan must be ${MAX_PLAN_LENGTH} characters or fewer.`;
+  if (trimmed.length > IDEA_NOTE_PLAN_MAX_LENGTH) {
+    return `The plan must be ${IDEA_NOTE_PLAN_MAX_LENGTH} characters or fewer.`;
   }
   return null;
 }
@@ -43,12 +44,9 @@ export function describeNote(note: IdeaNote): string {
   return parts.join(" ");
 }
 
-/** Adds the square when missing, removes it when present; at the cap nothing more is added. */
-export function toggleSquare(squares: readonly string[], square: string): string[] {
-  if (squares.includes(square)) {
-    return squares.filter((existing) => existing !== square);
-  }
-  return squares.length >= MAX_NOTE_ITEMS ? (squares as string[]) : [...squares, square];
+/** The squares without `square`; adding is `toggleHighlightInput`, which owns the cap. */
+export function removeSquare(squares: readonly string[], square: string): string[] {
+  return squares.filter((existing) => existing !== square);
 }
 
 /** Adds the arrow when missing, removes it when present; an arrow onto its own square is ignored. */
@@ -60,7 +58,7 @@ export function toggleArrow(arrows: readonly NoteArrow[], arrow: NoteArrow): Not
   if (arrows.some(same)) {
     return arrows.filter((other) => !same(other));
   }
-  return arrows.length >= MAX_NOTE_ITEMS ? [...arrows] : [...arrows, arrow];
+  return arrows.length >= IDEA_NOTE_MAX_ITEMS ? [...arrows] : [...arrows, arrow];
 }
 
 /** Same arrows, highlights and trimmed plan, in the same order. */

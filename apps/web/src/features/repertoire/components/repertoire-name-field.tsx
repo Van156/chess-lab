@@ -2,7 +2,7 @@ import { Input } from "@b2c-template/ui/components/input";
 import { Label } from "@b2c-template/ui/components/label";
 import { cn } from "@b2c-template/ui/lib/utils";
 
-import { MAX_NAME_LENGTH } from "../lib/repertoire-name";
+import { REPERTOIRE_NAME_MAX_LENGTH } from "@b2c-template/api/lib/repertoire-limits";
 
 export type RepertoireNameFieldProps = {
   /** Unique within the page; the error text gets `${id}-error`. */
@@ -51,7 +51,7 @@ export default function RepertoireNameField({
           {error}
         </p>
       ) : (
-        <p className="sr-only">Up to {MAX_NAME_LENGTH} characters.</p>
+        <p className="sr-only">Up to {REPERTOIRE_NAME_MAX_LENGTH} characters.</p>
       )}
     </div>
   );

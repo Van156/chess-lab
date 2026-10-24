@@ -1,17 +1,12 @@
+import { IDEA_NOTE_PLAN_MAX_LENGTH } from "@b2c-template/api/lib/repertoire-limits";
 import { Button } from "@b2c-template/ui/components/button";
 import { Input } from "@b2c-template/ui/components/input";
 import { Label } from "@b2c-template/ui/components/label";
 import { Spinner } from "@b2c-template/ui/components/spinner";
 import { useId, useState } from "react";
 
-import { parseArrowInput, parseSquareInput } from "../lib/builder-state";
-import {
-  describeNote,
-  MAX_NOTE_ITEMS,
-  MAX_PLAN_LENGTH,
-  toggleSquare,
-  validatePlan,
-} from "../lib/idea-note";
+import { parseArrowInput, toggleHighlightInput } from "../lib/builder-state";
+import { describeNote, removeSquare, validatePlan } from "../lib/idea-note";
 import type { IdeaNote } from "../lib/repertoire-types";
 
 export type IdeaNoteEditorProps = {
@@ -50,18 +45,14 @@ export default function IdeaNoteEditor({
   const planCountId = `${planId}-count`;
 
   function addHighlight() {
-    const parsed = parseSquareInput(highlight);
-    if (!parsed.ok) {
-      setHighlightError(parsed.error);
-      return;
-    }
-    if (!note.highlights.includes(parsed.square) && note.highlights.length >= MAX_NOTE_ITEMS) {
-      setHighlightError(`A note holds at most ${MAX_NOTE_ITEMS} highlighted squares.`);
+    const toggled = toggleHighlightInput(highlight, note.highlights);
+    if (!toggled.ok) {
+      setHighlightError(toggled.error);
       return;
     }
     setHighlightError(null);
     setHighlight("");
-    onChange({ ...note, highlights: toggleSquare(note.highlights, parsed.square) });
+    onChange({ ...note, highlights: toggled.highlights });
   }
 
   function addArrow() {
@@ -90,7 +81,7 @@ export default function IdeaNoteEditor({
         <Input
           id={planId}
           value={note.plan}
-          maxLength={MAX_PLAN_LENGTH}
+          maxLength={IDEA_NOTE_PLAN_MAX_LENGTH}
           autoComplete="off"
           className="min-h-11"
           aria-invalid={planError ? true : undefined}
@@ -98,7 +89,7 @@ export default function IdeaNoteEditor({
           onChange={(event) => onChange({ ...note, plan: event.target.value })}
         />
         <p id={planCountId} className="text-xs text-muted-foreground">
-          {note.plan.length} of {MAX_PLAN_LENGTH} characters
+          {note.plan.length} of {IDEA_NOTE_PLAN_MAX_LENGTH} characters
         </p>
         {planError ? (
           <p id={planErrorId} role="alert" className="text-sm text-destructive">
@@ -150,7 +141,7 @@ export default function IdeaNoteEditor({
                   className="h-11 px-3 font-mono"
                   aria-label={`Remove highlight ${square}`}
                   onClick={() =>
-                    onChange({ ...note, highlights: toggleSquare(note.highlights, square) })
+                    onChange({ ...note, highlights: removeSquare(note.highlights, square) })
                   }
                 >
                   {square} <span aria-hidden>×</span>
