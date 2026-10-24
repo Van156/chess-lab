@@ -7,6 +7,7 @@ import type {
   RepertoirePosition,
   RepertoireSummary,
 } from "../lib/repertoire-types";
+import type { RepertoireGraph } from "../lib/repertoire-tree";
 import type { EngineView } from "../lib/suggestion-state";
 
 export const whiteRepertoire = {
@@ -76,6 +77,29 @@ export const openGameGraph = {
   moves: [e4Move, e5Move, c5Move],
   notes: {},
 } satisfies RepertoireData;
+
+/**
+ * A graph for the outline: 1. e4 with the replies e5 and c5 (c5 itself forks into 2. Nf3 and
+ * 2. Nc3, a nested alternative), and 1. Nf3 e5 2. e4, which reaches the position after
+ * 1. e4 e5 2. Nf3 by another move order, a transposition.
+ */
+export const forkGraph = {
+  startPositionId: "p0",
+  moves: [
+    move("f1", "p0", "p1", "e4", "e2e4", true),
+    move("f2", "p1", "p2", "e5", "e7e5", false),
+    move("f3", "p1", "p3", "c5", "c7c5", false),
+    move("f4", "p2", "p7", "Nf3", "g1f3", true),
+    move("f5", "p3", "p5", "Nf3", "g1f3", true),
+    move("f6", "p3", "p6", "Nc3", "b1c3", true),
+    move("f7", "p0", "p8", "Nf3", "g1f3", true),
+    move("f8", "p8", "p9", "e5", "e7e5", false),
+    move("f9", "p9", "p7", "e4", "e2e4", true),
+  ],
+} satisfies RepertoireGraph;
+
+/** Move ids from the start to 1. e4 c5 2. Nc3, a move inside a nested alternative. */
+export const forkGraphPath = ["f1", "f3", "f6"];
 
 export const emptyNote: IdeaNote = { arrows: [], highlights: [], plan: "" };
 
