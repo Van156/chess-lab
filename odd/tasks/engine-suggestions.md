@@ -82,7 +82,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Manual check in the local dev app (web on port 4000): lines deepen, the arrow follows line 1, Add works, the toggle is remembered, and game analysis resumes afterwards. This session has no browser automation, so the writer runs `pnpm --filter web build` and confirms the worker is not in the main bundle. The in-browser check goes to the user.
   - From T3: pass `maxDepth: SUGGESTION_DEPTH` and `maxPlies: SUGGESTION_PV_PLIES` into `toEngineView` from the container. The constants come from `@/features/engine` in the container, not in a `lib/` module.
 
-- [ ] **T5 — Review follow-ups (hook, toggle and bar tests)** [T]: Branch `feat/engine-suggestions5`. Route: delegated `react-staff`. Added after the T3+T4 review at the user's request; it is reviewed alone. Forecast is about 250 lines.
+- [x] **T5 — Review follow-ups (hook, toggle and bar tests)** [T]: Branch `feat/engine-suggestions5`. Route: delegated `react-staff`. Added after the T3+T4 review at the user's request; it is reviewed alone. Forecast is about 250 lines.
   - R3-suggestion-hook-unproved: move the search logic of `useEngineSuggestions` into a pure controller in `lib/` with injected engine and frame functions, the same pattern as `createAnalysisRun` and `useGameAnalysis`. Test cancel on a FEN change, toggle-off and close; the ignored `EngineJobCancelledError`; other errors leading to `failed`; one dispatch per frame; and the pending frame dropped on finish or close. The hook becomes a thin binding.
   - R3-toggle-fallback-unproved: move the toggle store (snapshot, subscribe, fallback, notify) into a testable unit with an injected storage. Test that the choice is kept when writes fail and that subscribers are notified.
   - R3-evalbar-nonfinite: guard `clampPercent` with `Number.isFinite`, falling back to 50, and test it.
@@ -186,3 +186,16 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
     - R3-evalbar-nonfinite (SUGGESTION): `clampPercent` passes `NaN` through as `height: NaN%`. Guard it with `Number.isFinite`, falling back to 50.
   - Asked the user whether to fix these now as T5.
   - User, 2026-10-24: "Fix now as T5".
+- 2026-10-24 T5 done (route: delegated `react-staff`, 8 files). Behaviour is unchanged, and so are the hook signatures.
+  - RED, then GREEN:
+    - Eval bar: `Received: ... style="height:NaN%"` (1 fail), then 5 pass.
+    - Store: module load failed on the missing `createEnginePreferenceStore` export (0 pass, 1 fail, 1 error), then 10 pass.
+    - Controller: `Cannot find module './suggestion-run'`, then 9 pass.
+  - The focused run gives 380 pass, 0 fail (parent re-ran: 380 pass). `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0. After `pnpm db:test:prepare`, the full `bun test` gives 2117 pass, 0 fail.
+  - `lib/suggestion-run.ts`:
+    - `startSuggestionSearch({fen, job, depth, multiPv, engine, isCancelled, requestFrame, cancelFrame, dispatch})` returns `close()`.
+    - The terminal check lives here, and only types are imported from `@/features/engine`.
+    - The hook injects the engine, the constants, the cancelled-error check and the animation-frame functions.
+  - `createEnginePreferenceStore(getStorage)` returns `{getSnapshot, subscribe, set}`. It guards storage access, keeps an in-memory fallback, and notifies subscribers. `useEngineToggle` uses a module-level instance.
+  - `clampPercent` falls back to 50 for non-finite input.
+  - Commit `5c95110` (483 authored lines, mostly tests). Review: T5 alone, next.
