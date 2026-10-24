@@ -1,13 +1,15 @@
 import { truncateAllTables, resolveTestDatabaseUrl } from "@b2c-template/auth/testing";
 import { user } from "@b2c-template/db/schema/auth";
+import { lichessProfile } from "@b2c-template/db/schema/lichess";
 import { ideaNote, repertoirePosition } from "@b2c-template/db/schema/repertoire";
+import { userSettings } from "@b2c-template/db/schema/settings";
 import { createTestDatabase, requireTestDatabaseOrSkip } from "@b2c-template/db/testing";
 import type { TestDatabaseHandle } from "@b2c-template/db/testing";
 import { call, ORPCError } from "@orpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
-import type { Context } from "../context";
+import type { Context, ExplorerQuery, ExplorerResult } from "../context";
 import { parseFeatureFlags } from "../features";
 import { repertoireRouter } from "./repertoire";
 
@@ -42,16 +44,35 @@ describe.skipIf(!reachable)("repertoire router", () => {
     await handle.close();
   });
 
+  const explorerCalls: { userId: string; query: ExplorerQuery }[] = [];
+  let explorerResult: ExplorerResult = {
+    status: "ok",
+    stale: false,
+    stats: { white: 0, draws: 0, black: 0, moves: [] },
+  };
+
   const context = (userId: string, flags = "repertoire"): Context =>
     ({
       session: { user: { id: userId } },
       db: handle.db,
       features: parseFeatureFlags({ CHESSLAB_FEATURES: flags }),
+      lichess: {
+        explorer: async (id: string, query: ExplorerQuery) => {
+          explorerCalls.push({ userId: id, query });
+          return explorerResult;
+        },
+      },
     }) as unknown as Context;
 
   const as = (userId: string) => ({ context: context(userId) });
 
   beforeEach(async () => {
+    explorerCalls.length = 0;
+    explorerResult = {
+      status: "ok",
+      stale: false,
+      stats: { white: 0, draws: 0, black: 0, moves: [] },
+    };
     await truncateAllTables(handle.db);
     for (const id of ["u1", "u2"]) {
       await handle.db.insert(user).values({ id, name: id, email: `${id}@example.test` });
@@ -85,6 +106,9 @@ describe.skipIf(!reachable)("repertoire router", () => {
       "NOT_FOUND",
     );
     expect(await codeOf(call(repertoireRouter.get, { id: "x" }, off))).toBe("NOT_FOUND");
+    expect(
+      await codeOf(call(repertoireRouter.explorer, { repertoireId: "x", positionId: "y" }, off)),
+    ).toBe("NOT_FOUND");
   });
 
   describe("repertoires", () => {
@@ -328,5 +352,151 @@ describe.skipIf(!reachable)("repertoire router", () => {
         ),
       ).toBe("NOT_FOUND");
     });
+  });
+  describe("explorer", () => {
+    const explorer = (repertoireId: string, positionId: string, userId = "u1") =>
+      call(repertoireRouter.explorer, { repertoireId, positionId }, as(userId));
+
+    const setSnapshot = (ratingSnapshot: unknown, userId = "u1") =>
+      handle.db
+        .insert(lichessProfile)
+        .values({ userId, lichessId: userId, username: userId, ratingSnapshot });
+
+    test("another user's repertoire or position is NOT_FOUND and the port is not called", async () => {
+      const { id, startId } = await newRepertoire("u1");
+      expect(await codeOf(explorer(id, startId, "u2"))).toBe("NOT_FOUND");
+      expect(await codeOf(explorer(id, "missing"))).toBe("NOT_FOUND");
+      expect(explorerCalls).toHaveLength(0);
+    });
+
+    test("a position of another repertoire of the same user is NOT_FOUND", async () => {
+      const a = await newRepertoire("u1");
+      const b = await newRepertoire("u1", "black");
+      expect(await codeOf(explorer(a.id, b.startId))).toBe("NOT_FOUND");
+      expect(explorerCalls).toHaveLength(0);
+    });
+
+    test("queries the port with the position, the three speeds and the band of the snapshot", async () => {
+      await setSnapshot({
+        blitz: { rating: 1400, games: 10 },
+        rapid: { rating: 1650, games: 300 },
+        bullet: { rating: 2400, games: 9000 },
+      });
+      const { id, startId } = await newRepertoire("u1");
+      const [, afterE4] = await line(id, startId, ["e4"]);
+      const [position] = await handle.db
+        .select()
+        .from(repertoirePosition)
+        .where(eq(repertoirePosition.id, afterE4!));
+
+      const result = await explorer(id, afterE4!);
+
+      expect(explorerCalls).toHaveLength(1);
+      expect(explorerCalls[0]!.userId).toBe("u1");
+      expect(explorerCalls[0]!.query).toEqual({
+        positionKey: position!.positionKey,
+        fen: position!.fen,
+        band: 1600,
+        speeds: ["blitz", "rapid", "classical"],
+      });
+      expect(result).toMatchObject({
+        band: 1600,
+        offset: 0,
+        speeds: ["blitz", "rapid", "classical"],
+      });
+    });
+
+    test("applies the saved offset", async () => {
+      await setSnapshot({ rapid: { rating: 1650, games: 300 } });
+      await handle.db.insert(userSettings).values({ userId: "u1", explorerBandOffset: 1 });
+      const { id, startId } = await newRepertoire("u1");
+
+      const result = await explorer(id, startId);
+
+      expect(result).toMatchObject({ band: 1800, offset: 1 });
+      expect(explorerCalls[0]!.query.band).toBe(1800);
+    });
+
+    test("does not create a settings row", async () => {
+      const { id, startId } = await newRepertoire("u1");
+      await explorer(id, startId);
+      expect(await handle.db.select().from(userSettings)).toHaveLength(0);
+    });
+
+    test("uses the fallback band without a Lichess profile", async () => {
+      const { id, startId } = await newRepertoire("u1");
+      expect(await explorer(id, startId)).toMatchObject({ band: 1600, offset: 0 });
+    });
+
+    test("uses the fallback band for a null or malformed snapshot", async () => {
+      const { id, startId } = await newRepertoire("u1");
+      await setSnapshot(null);
+      expect((await explorer(id, startId)).band).toBe(1600);
+      await handle.db.delete(lichessProfile);
+      await setSnapshot({ rapid: { rating: "2300", games: 50 } });
+      expect((await explorer(id, startId)).band).toBe(1600);
+      await handle.db.delete(lichessProfile);
+      await setSnapshot([1, 2, 3]);
+      expect((await explorer(id, startId)).band).toBe(1600);
+    });
+
+    test("maps an ok result, keeping the Lichess order", async () => {
+      explorerResult = {
+        status: "ok",
+        stale: true,
+        stats: {
+          white: 60,
+          draws: 25,
+          black: 15,
+          opening: { eco: "B00", name: "King's Pawn" },
+          moves: [
+            { uci: "e7e5", san: "e5", white: 30, draws: 10, black: 5, averageRating: 1700 },
+            { uci: "c7c5", san: "c5", white: 10, draws: 5, black: 10 },
+          ],
+        },
+      };
+      const { id, startId } = await newRepertoire("u1");
+
+      const { result } = await explorer(id, startId);
+
+      expect(result).toEqual({
+        status: "ok",
+        stale: true,
+        totals: { white: 60, draws: 25, black: 15, games: 100 },
+        opening: { eco: "B00", name: "King's Pawn" },
+        moves: [
+          { san: "e5", uci: "e7e5", white: 30, draws: 10, black: 5, games: 45 },
+          { san: "c5", uci: "c7c5", white: 10, draws: 5, black: 10, games: 25 },
+        ],
+      });
+    });
+
+    test("an absent opening maps to null", async () => {
+      explorerResult = {
+        status: "ok",
+        stale: false,
+        stats: { white: 0, draws: 0, black: 0, moves: [] },
+      };
+      const { id, startId } = await newRepertoire("u1");
+      const { result } = await explorer(id, startId);
+      expect(result).toEqual({
+        status: "ok",
+        stale: false,
+        totals: { white: 0, draws: 0, black: 0, games: 0 },
+        opening: null,
+        moves: [],
+      });
+    });
+
+    test.each(["unauthorized", "rate_limited", "timeout", "error"] as const)(
+      "passes an unavailable result (%s) through",
+      async (reason) => {
+        explorerResult = { status: "unavailable", reason };
+        const { id, startId } = await newRepertoire("u1");
+        const out = await explorer(id, startId);
+        expect(out.result).toEqual({ status: "unavailable", reason });
+        expect(out.band).toBe(1600);
+      },
+    );
   });
 });

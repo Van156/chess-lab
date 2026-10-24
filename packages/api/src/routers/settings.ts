@@ -1,3 +1,4 @@
+import { EXPLORER_BAND_OFFSET_MAX, EXPLORER_BAND_OFFSET_MIN } from "@b2c-template/chess";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
@@ -20,6 +21,11 @@ function isIanaTimeZone(value: string): boolean {
 const updateInput = z.object({
   dailyNewCardLimit: z.int().min(MIN_DAILY_NEW_CARDS).max(MAX_DAILY_NEW_CARDS).optional(),
   timeZone: z.string().refine(isIanaTimeZone, { message: "Unknown IANA time zone." }).optional(),
+  explorerBandOffset: z
+    .int()
+    .min(EXPLORER_BAND_OFFSET_MIN)
+    .max(EXPLORER_BAND_OFFSET_MAX)
+    .optional(),
 });
 
 /** Per-user settings. The row is created lazily; the user id comes from the session only. */
@@ -33,6 +39,9 @@ export const settingsRouter = {
         ? {}
         : { dailyNewCardLimit: input.dailyNewCardLimit }),
       ...(input.timeZone === undefined ? {} : { timeZone: input.timeZone }),
+      ...(input.explorerBandOffset === undefined
+        ? {}
+        : { explorerBandOffset: input.explorerBandOffset }),
     };
     return updateSettings(context.db, context.session.user.id, patch);
   }),

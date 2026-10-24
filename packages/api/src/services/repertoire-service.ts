@@ -1,15 +1,18 @@
 import { START_FEN, addMove as addGraphMove, positionKey } from "@b2c-template/chess";
 import type { PositionKey, RepertoireColor } from "@b2c-template/chess";
 import type { Database } from "@b2c-template/db";
+import { lichessProfile } from "@b2c-template/db/schema/lichess";
 import {
   ideaNote,
   repertoire,
   repertoireMove,
   repertoirePosition,
 } from "@b2c-template/db/schema/repertoire";
+import { userSettings } from "@b2c-template/db/schema/settings";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
+import { parsePerfSnapshot } from "../lib/perf-snapshot";
 import { isUserMove, reachablePositionIds, rowsToGraph } from "./repertoire-rows";
 
 export type Square = string;
@@ -183,6 +186,35 @@ export function createRepertoireService(db: Database) {
     };
   }
 
+  /** What the explorer needs: the position and the caller's rating snapshot and band offset. */
+  async function explorerContext(userId: string, repertoireId: string, positionId: string) {
+    const [position] = await db
+      .select({ positionKey: repertoirePosition.positionKey, fen: repertoirePosition.fen })
+      .from(repertoirePosition)
+      .where(
+        and(
+          eq(repertoirePosition.id, positionId),
+          eq(repertoirePosition.repertoireId, repertoireId),
+          eq(repertoirePosition.userId, userId),
+        ),
+      );
+    if (!position) throw notFound("Position");
+    const [profile] = await db
+      .select({ ratingSnapshot: lichessProfile.ratingSnapshot })
+      .from(lichessProfile)
+      .where(eq(lichessProfile.userId, userId));
+    const [settings] = await db
+      .select({ explorerBandOffset: userSettings.explorerBandOffset })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId));
+    return {
+      positionKey: position.positionKey,
+      fen: position.fen,
+      perfs: parsePerfSnapshot(profile?.ratingSnapshot),
+      offset: settings?.explorerBandOffset ?? 0,
+    };
+  }
+
   async function addMove(
     userId: string,
     input: { repertoireId: string; fromPositionId: string; move: string },
@@ -329,5 +361,5 @@ export function createRepertoireService(db: Database) {
     });
   }
 
-  return { list, create, rename, remove, get, addMove, deleteMove, setIdeaNote };
+  return { list, create, rename, remove, get, explorerContext, addMove, deleteMove, setIdeaNote };
 }

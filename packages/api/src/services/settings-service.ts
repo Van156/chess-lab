@@ -3,7 +3,9 @@ import { userSettings } from "@b2c-template/db/schema/settings";
 import { eq } from "drizzle-orm";
 
 export type UserSettings = Omit<typeof userSettings.$inferSelect, "userId">;
-export type SettingsPatch = Partial<Pick<UserSettings, "dailyNewCardLimit" | "timeZone">>;
+export type SettingsPatch = Partial<
+  Pick<UserSettings, "dailyNewCardLimit" | "timeZone" | "explorerBandOffset">
+>;
 
 const toSettings = ({ userId: _userId, ...rest }: typeof userSettings.$inferSelect): UserSettings =>
   rest;

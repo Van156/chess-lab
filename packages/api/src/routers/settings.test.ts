@@ -77,6 +77,34 @@ describe.skipIf(!reachable)("settings router", () => {
     expect(code).toBe("BAD_REQUEST");
   });
 
+  test("get returns the band offset, 0 by default", async () => {
+    const settings = await call(settingsRouter.get, undefined, { context: context("u1") });
+    expect(settings.explorerBandOffset).toBe(0);
+  });
+
+  test("update saves explorerBandOffset and leaves the other fields alone", async () => {
+    await call(settingsRouter.update, { dailyNewCardLimit: 9 }, { context: context("u1") });
+    for (const value of [-2, 2, 0]) {
+      const result = await call(
+        settingsRouter.update,
+        { explorerBandOffset: value },
+        { context: context("u1") },
+      );
+      expect(result).toMatchObject({ explorerBandOffset: value, dailyNewCardLimit: 9 });
+    }
+    await call(settingsRouter.update, { explorerBandOffset: 1 }, { context: context("u1") });
+    await call(settingsRouter.update, { timeZone: "Europe/Madrid" }, { context: context("u1") });
+    const settings = await call(settingsRouter.get, undefined, { context: context("u1") });
+    expect(settings).toMatchObject({ explorerBandOffset: 1, dailyNewCardLimit: 9 });
+  });
+
+  test.each([[3], [-3], [1.5]])("update rejects explorerBandOffset %p", async (value) => {
+    const code = await codeOf(
+      call(settingsRouter.update, { explorerBandOffset: value }, { context: context("u1") }),
+    );
+    expect(code).toBe("BAD_REQUEST");
+  });
+
   test("update accepts the limit bounds 0 and 200", async () => {
     for (const value of [0, 200]) {
       const result = await call(
