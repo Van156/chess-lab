@@ -22,6 +22,7 @@ function fakePort(current: ImportStatus) {
       calls.status.push(userId);
       return Promise.resolve(latest);
     },
+    explorer: () => Promise.resolve({ status: "unavailable", reason: "error" }),
     requestSync: (userId) => {
       calls.requestSync.push(userId);
       latest = { ...latest, state: "running" };
@@ -71,6 +72,7 @@ describe("lichess router", () => {
     const port: LichessPort = {
       status: () => Promise.resolve(idle(null)),
       requestSync: () => Promise.resolve({ ...idle(null), state: "running" }),
+      explorer: () => Promise.resolve({ status: "unavailable", reason: "error" }),
     };
     await expect(
       call(lichessRouter.status, undefined, { context: context(port) }),

@@ -7,11 +7,19 @@ import { createDrizzleAuditLogger, startAuditRetentionJob } from "@b2c-template/
 import { createEmailSender } from "@b2c-template/auth/email";
 import { createImportService } from "@b2c-template/api/services/import-service";
 import { createDb } from "@b2c-template/db";
-import { createLichessClient } from "@b2c-template/lichess";
+import {
+  EXPLORER_CACHE_MAX_ENTRIES,
+  EXPLORER_CACHE_TTL_MS,
+  EXPLORER_STALE_MAX_MS,
+  createLichessClient,
+} from "@b2c-template/lichess";
+import type { ExplorerStats } from "@b2c-template/lichess";
+
+import { createExplorerCache } from "./explorer-cache";
 
 import { createImportRunner } from "./import-runner";
 import { ENV } from "./env.server";
-import { createGamesSource, createLichessPort } from "./lichess-port";
+import { createExplorerPort, createGamesSource, createLichessPort } from "./lichess-port";
 
 export const db = createDb(ENV);
 export const features = parseFeatureFlags(ENV);
@@ -24,23 +32,36 @@ export const platformAdmin = createBetterAuthPlatformAdmin(auth);
 // Lichess (ADR-09, ADR-10): one client (it owns the per-user serial gate), the token resolved
 // server-side from the encrypted account row, and a runner that owns the background imports.
 const lichessClient = createLichessClient({ fetch });
+
+/** The user's Lichess access token, decrypted from the account row; `null` without a link. */
+async function resolveLichessToken(userId: string): Promise<string | null> {
+  // better-auth selects the account by its provider account id, which is the Lichess id.
+  const profile = await db.query.lichessProfile.findFirst({
+    columns: { lichessId: true },
+    where: { userId },
+  });
+  if (!profile) return null;
+  const tokens = await auth.api.getAccessToken({
+    body: { accountId: profile.lichessId, userId },
+  });
+  return tokens.accessToken ?? null;
+}
+
 const importService = createImportService({
   db,
-  source: createGamesSource(lichessClient, async (userId) => {
-    // better-auth selects the account by its provider account id, which is the Lichess id.
-    const profile = await db.query.lichessProfile.findFirst({
-      columns: { lichessId: true },
-      where: { userId },
-    });
-    if (!profile) return null;
-    const tokens = await auth.api.getAccessToken({
-      body: { accountId: profile.lichessId, userId },
-    });
-    return tokens.accessToken ?? null;
-  }),
+  source: createGamesSource(lichessClient, resolveLichessToken),
 });
 const importRunner = createImportRunner(importService);
-export const lichess = createLichessPort(importService, importRunner);
+const explorer = createExplorerPort({
+  client: lichessClient,
+  resolveToken: resolveLichessToken,
+  cache: createExplorerCache<ExplorerStats>({
+    ttlMs: EXPLORER_CACHE_TTL_MS,
+    staleMaxMs: EXPLORER_STALE_MAX_MS,
+    maxEntries: EXPLORER_CACHE_MAX_ENTRIES,
+  }),
+});
+export const lichess = createLichessPort(importService, importRunner, explorer);
 
 /**
  * Starts the background jobs (the R7.6 audit retention job) and returns a handle to stop them.
