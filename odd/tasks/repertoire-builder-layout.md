@@ -1,8 +1,9 @@
 # Feature: Repertoire builder layout (Board + rail)
 
 - **Source:** user verdict 2026-10-24 on the layout prototype — "implement the A". Prototype and its record: branch `prototype/repertoire-builder-layout` (primary source, never merged), `odd/tasks/repertoire-builder-layout-prototype.md` on that branch.
-- **Branch:** T1 on `feat/repertoire-builder-layout`, branched from `feat/engine-suggestions5` at `98edb96` (the engine suggestions are not on `main` yet). Each later task Tn gets `feat/repertoire-builder-layout<n>`, branched from the previous task's last commit.
-- **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b, P2-d and engine suggestions), one branch per task. Forecast is about 1,000–1,200 authored changed lines: T1 about 350, T2 about 450, T3 about 150–400 depending on the name source.
+- **Branch:** T1 on `feat/repertoire-builder-layout`, branched from `feat/engine-suggestions5` at `98edb96` (the engine suggestions are not on `main` yet). T1 is split across `feat/repertoire-builder-layout` (tree model) and `feat/repertoire-builder-layout1b` (board lines, preferences, MultiPV). Each later task Tn gets `feat/repertoire-builder-layout<n>`, branched from the previous task's last commit.
+- **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b, P2-d and engine suggestions), one branch per task, split at commit boundaries when a task runs well over about 400 lines. Forecast was about 1,000–1,200 authored changed lines (T1 about 350, T2 about 450, T3 about 150–400); T1 alone came in at about 1,075, so the running forecast is now about 1,700–1,900.
+- **Slices:** `feat/repertoire-builder-layout` = `d2f7521`, `61db3f2` (≈300 lines); `feat/repertoire-builder-layout1b` = `3d4513b` plus the T1 record (≈775 lines, one commit, not split further).
 - **TDD:** source is `openspec/config.yaml` (`strict_tdd: false`; TDD for server/API and pure logic). T1 is TDD (pure `lib/`); T2 and T3 use TDD for pure `lib/` helpers and ordinary checks for components. Runner: `bun test`.
 - **Review (RDD):** on (global); user policy: review every two tasks, auto-consent. Groups: T1+T2, then T3 alone. First boundary: `98edb96`.
 
@@ -33,7 +34,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
 
 ## Tasks
 
-- [ ] **T1 — Builder model (tree, board lines, lines preference)** [T]: Branch `feat/repertoire-builder-layout`. Route: delegated `react-staff` (several pure `lib/` modules plus tests and the suggestion controller; 2+ non-trivial files).
+- [x] **T1 — Builder model (tree, board lines, lines preference)** [T]: Branches `feat/repertoire-builder-layout` and `feat/repertoire-builder-layout1b`. Route: delegated `react-staff` (several pure `lib/` modules plus tests and the suggestion controller; 2+ non-trivial files).
   - Fork-aware variation tree builder from the repertoire graph (chains flat, alternatives grouped and marked, transpositions once, current-path flags).
   - Board lines: engine lines (1–5) to weighted arrows, repertoire arrows, from/to de-duplication with the repertoire colour on top, and the board description text.
   - Lines count (1–5) and repertoire-arrows preferences, persisted with the same pattern as the engine toggle; the suggestion controller takes the count as its MultiPV.
@@ -57,3 +58,13 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
 ## Progress
 
 - Created 2026-10-24.
+- T1 done: `61db3f2` (fork-aware variation tree) and `3d4513b` (board lines, preference store, lines preferences, MultiPV count).
+  - `lib/variation-tree.ts` `buildVariationTree(graph, path): TreeLine` — `TreeLine {depth, isAlternative, nodes}`; `TreeNode {moveId, san, label, side, positionId, route, ply, onPath, isCurrent, transposition, alternatives}`. Only-child chains stay flat; a fork's first stored child continues, the others become `alternatives` on the continuing move (PGN order); later arrivals at an expanded position are `transposition` leaves. Depends only on graph and path.
+  - `lib/board-lines.ts` `buildBoardArrows({noteArrows, engineLines, lineCount, repertoireMoves, showRepertoire})` and `describeBoardLines(...)`; draw order note → engine (weakest to strongest; ranks 2–5 at alpha `bf`/`8c`/`66`/`4d`) → repertoire (amber `#f5a524`); one arrow per from/to, highest layer wins. `mergeBoardArrows` is still used by the current page and becomes dead in T2.
+  - `lib/preference-store.ts` (generic, same failure handling as the engine toggle; `engine-preference.ts` now delegates, behaviour unchanged), `lib/lines-preference.ts` (count 1–5, default 3, clamped; repertoire arrows default on), `hooks/use-preference.ts`, `hooks/use-lines-preference.ts` (`useLineCount`, `useRepertoireArrows`).
+  - `useEngineSuggestions(fen, enabled, multiPv = SUGGESTION_LINES)`; the clamped count is in the effect dependencies, so a change restarts the search. The current page is unchanged (default 3, as before).
+  - RED: `bun test apps/web/src/features/repertoire/lib/variation-tree.test.ts` → `error: Cannot find module './variation-tree'` (0 pass, 1 fail, 1 error); `board-lines.test.ts` and `lines-preference.test.ts` → Cannot find module (0 pass, 1 fail, 1 error each). GREEN: 11, 21 and 20 new tests pass; `suggestion-run.test.ts` gained a MultiPV 1/5 forwarding test.
+  - Checks (writer): `pnpm --filter web check-types` exit 0; `pnpm check` exit 0; `bun test apps/web/src/features/repertoire apps/web/src/features/engine tests/ui-story-coverage.test.ts tests/lint-boundaries.test.ts` 429 pass / 0 fail. Parent spot check: the bun test command re-run → 429 pass / 0 fail.
+  - Not proven by a test: the search restart on a count change (no React hook-testing library in the repo; the engine index does not load under `bun test`). It rests on the effect dependency array.
+  - Size: ≈1,075 lines (tests ≈550; the generic preference store and the engine-toggle refactor onto it account for the rest of the overage).
+  - Review: deferred to the T1+T2 group.
