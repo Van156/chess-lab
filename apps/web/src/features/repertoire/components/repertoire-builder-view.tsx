@@ -11,6 +11,7 @@ import type {
   RepertoireMove,
   RepertoirePosition,
 } from "../lib/repertoire-types";
+import ExplorerPanel, { type ExplorerPanelState } from "./explorer-panel";
 import IdeaNoteEditor from "./idea-note-editor";
 import LineNavigator from "./line-navigator";
 
@@ -19,6 +20,8 @@ export type RepertoireBuilderViewProps = {
   position: RepertoirePosition;
   path: readonly RepertoireMove[];
   childMoves: readonly RepertoireMove[];
+  /** Explorer stats for this position; whatever it holds, the rest of the builder works. */
+  explorer: ExplorerPanelState;
   /** The note being edited; the board and the text below it show this one. */
   note: IdeaNote;
   noteDirty: boolean;
@@ -43,6 +46,7 @@ export default function RepertoireBuilderView({
   position,
   path,
   childMoves,
+  explorer,
   note,
   noteDirty,
   saving,
@@ -104,6 +108,9 @@ export default function RepertoireBuilderView({
               onSelectChild={onSelectChild}
               onDelete={onRequestDelete}
             />
+          </Card>
+          <Card className="rounded-2xl p-4 md:p-6">
+            <ExplorerPanel state={explorer} childMoves={childMoves} />
           </Card>
           <Card className="rounded-2xl p-4 md:p-6">
             <IdeaNoteEditor

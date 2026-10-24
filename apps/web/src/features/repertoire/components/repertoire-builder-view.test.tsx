@@ -10,6 +10,7 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  explorerOk,
   startPosition,
   whiteRepertoire,
 } from "./repertoire.fixtures";
@@ -22,6 +23,7 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       position={afterE4}
       path={[e4Move]}
       childMoves={[e5Move, c5Move]}
+      explorer={{ kind: "loaded", data: explorerOk }}
       note={emptyNote}
       noteDirty={false}
       saving={false}
@@ -69,5 +71,13 @@ describe("RepertoireBuilderView", () => {
 
   test("names the colour being played", async () => {
     expect(await render({ repertoire: blackRepertoire })).toContain("Playing Black");
+  });
+
+  test("shows the explorer beside the line, and the builder still works when it failed", async () => {
+    expect(await render()).toContain(">Explorer</h2>");
+    const html = await render({ explorer: { kind: "failed" } });
+    expect(html).toContain("unavailable right now");
+    expect(html).toContain(">Type a move to add it</label>");
+    expect(html).toContain("Current line");
   });
 });

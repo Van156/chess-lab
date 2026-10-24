@@ -10,6 +10,7 @@ import EmptyState from "@/shared/components/feedback/empty-state";
 import LoadError from "@/shared/components/feedback/load-error";
 import Loader from "@/shared/components/feedback/loader";
 
+import { useExplorer } from "../hooks/use-explorer";
 import { useRepertoire } from "../hooks/use-repertoire";
 import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
@@ -39,6 +40,10 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   const [where, setWhere] = useState<Where>({ positionId: null, route: [] });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<RepertoireMove | null>(null);
+  // Resolved before the early returns so the explorer hook runs on every render; it stays idle
+  // until the repertoire has loaded.
+  const currentId = repertoire ? resolvePosition(repertoire, where.positionId) : "";
+  const explorer = useExplorer(id, currentId);
 
   if (isPending) {
     return <Loader />;
@@ -61,7 +66,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     return <LoadError message="This repertoire could not be loaded." onRetry={retry} />;
   }
 
-  const positionId = resolvePosition(repertoire, where.positionId);
+  const positionId = currentId;
   const position = repertoire.positions.find((candidate) => candidate.id === positionId);
   const path = pathTo(repertoire, positionId, where.route);
   if (!position || !path) {
@@ -123,6 +128,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         position={position}
         path={path}
         childMoves={childMoves(repertoire, positionId)}
+        explorer={explorer}
         note={note}
         noteDirty={!notesEqual(note, savedNote)}
         saving={isSaving}

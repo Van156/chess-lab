@@ -10,6 +10,7 @@ import {
   e4Move,
   e5Move,
   emptyNote,
+  explorerOk,
   startPosition,
   whiteRepertoire,
   blackRepertoire,
@@ -27,6 +28,7 @@ const meta = {
     position: afterE4,
     path: [e4Move],
     childMoves: [e5Move, c5Move],
+    explorer: { kind: "loaded", data: explorerOk },
     note: emptyNote,
     noteDirty: false,
     saving: false,
@@ -62,3 +64,5 @@ export const WithIdeaNote: Story = {
 export const PlayingBlack: Story = {
   args: { repertoire: blackRepertoire, position: startPosition, path: [], childMoves: [e4Move] },
 };
+
+export const ExplorerUnavailable: Story = { args: { explorer: { kind: "failed" } } };

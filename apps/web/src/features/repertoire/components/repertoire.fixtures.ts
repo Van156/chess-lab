@@ -1,4 +1,6 @@
 import type {
+  ExplorerData,
+  ExplorerUnavailableReason,
   IdeaNote,
   RepertoireData,
   RepertoireMove,
@@ -84,3 +86,41 @@ export const centreNote: IdeaNote = {
   highlights: ["e4", "d4"],
   plan: "Develop the knight and aim at f7.",
 };
+
+const speeds: ExplorerData["speeds"] = ["blitz", "rapid", "classical"];
+const explorerBase = { band: 1600, offset: 0, speeds };
+
+/** Explorer answer for the position after 1. e4: e5 is in the repertoire, c5 and e6 are not. */
+export const explorerOk = {
+  ...explorerBase,
+  result: {
+    status: "ok",
+    stale: false,
+    totals: { white: 5200, draws: 3000, black: 1800, games: 10000 },
+    opening: { eco: "B00", name: "King's Pawn Game" },
+    moves: [
+      { san: "c5", uci: "c7c5", white: 2100, draws: 1200, black: 700, games: 4000 },
+      { san: "e5", uci: "e7e5", white: 1900, draws: 1100, black: 700, games: 3700 },
+      { san: "e6", uci: "e7e6", white: 1200, draws: 700, black: 400, games: 2300 },
+    ],
+  },
+} satisfies ExplorerData;
+
+export const explorerStale = {
+  ...explorerOk,
+  result: { ...explorerOk.result, stale: true },
+} satisfies ExplorerData;
+
+export const explorerEmpty = {
+  ...explorerBase,
+  result: {
+    status: "ok",
+    stale: false,
+    totals: { white: 0, draws: 0, black: 0, games: 0 },
+    opening: null,
+    moves: [],
+  },
+} satisfies ExplorerData;
+
+export const explorerUnavailable = (reason: ExplorerUnavailableReason) =>
+  ({ ...explorerBase, result: { status: "unavailable", reason } }) satisfies ExplorerData;
