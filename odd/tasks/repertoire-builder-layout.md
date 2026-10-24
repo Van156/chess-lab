@@ -46,6 +46,21 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - The name (ECO + name) shows above the board toolbar; nothing shows when no name is known yet along the path.
   - The dataset is listed on the licences page.
   - Not in scope: the T1+T2 review follow-ups (offered to the user, not accepted).
+- [ ] **T4 — Builder proofs (review follow-ups)** [T lib, O UI]: Branch `feat/repertoire-builder-layout4` (from `08aa01d`). Route: delegated `react-staff` (container, view, several `lib/` modules; 2+ non-trivial files). Accepted by the user 2026-10-24 ("continue with the tasks"). Forecast about 350 lines.
+  - R3-page-wiring-unproved: move the container's board-lines composition (engine lines only from the analysing/done panel states, count, repertoire toggle → arrows and text) into a pure `lib/` function; test engine off, unavailable, analysing and done.
+  - R3-line-fens-derivation-untested: move the line-FENs derivation into a pure `lib/` helper; test the start position, a normal line and a missing position.
+  - R3-delete-by-id-untested: move the move-id lookup into a pure helper; test found and not found (not found stays a no-op, now proven).
+  - R3-description-includes-undrawn-lines: the board description lists only engine lines that draw; test a malformed UCI line.
+  - R3-opening-hook-states-untested: move `useOpeningName`'s state logic into a pure function (loading, failed, no name, name) and keep the hook a thin binding; test each state.
+  - R3-reserved-line-not-asserted: assert the reserved line (`min-h-6`) on the empty opening name.
+  - Dead code: remove `EngineView.arrow` if nothing in production needs it after T2.
+  - Optional, only if it fits the existing pure suggestion controller without a hook-testing library: prove that a count change restarts the search.
+- [ ] **T5 — Opening book generator and cache hardening (review follow-ups)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout5` (from T4's last commit). Route: delegated general-purpose writer (script, config, tests; not React). Forecast about 200 lines.
+  - R2/R3/R4 formatter result: `build-openings.ts` checks the `spawnSync` result and exits non-zero on failure.
+  - R1-upstream-integrity-unverified: pin and verify a SHA-256 per upstream TSV next to the commit SHA.
+  - R2-regenerate-instructions-diverge, R2-escaped-backticks-in-line-comment: one canonical regeneration command in both places; plain backticks in the comment. Regenerating may change only the generated header lines.
+  - R3-tie-order-only-one-direction: test the longer-row-first order too.
+  - R3-precache-ignore-depends-on-chunk-name: give the book chunk an explicit name shared by the chunk naming, `globIgnores` and the runtime rule, so renaming the data module cannot silently precache it again; verify with a build that the book is still its own chunk and absent from the precache.
 
 ## Acceptance criteria
 
@@ -113,3 +128,4 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R3-reserved-line-not-asserted (SUGGESTION): the no-layout-shift `min-h-6` is not asserted.
   - R3-precache-ignore-depends-on-chunk-name (SUGGESTION): the precache exclusion matches the chunk name; a rename would silently precache the book again.
 - Closed 2026-10-24: T1–T3 done, every review approved. Open follow-ups (none accepted by the user yet): the three T1+T2 findings, the T3 findings above, `EngineView.arrow` now unused by the view, two tab stops per tree row. Delivery (push, PRs for the chain `feat/repertoire-builder-layout` → `…1b` → `…2` → `…2b` → `…3` → `…3b`, on top of the unmerged `feat/engine-suggestions5`) is the user's decision.
+- Reopened 2026-10-24: the user accepted the review follow-ups ("continue with the tasks") → T4 and T5, reviewed together as one group from boundary `08c3764`. Not included: two tab stops per tree row (an interaction design choice, not a review finding).
