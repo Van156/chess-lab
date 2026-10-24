@@ -55,7 +55,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R3-reserved-line-not-asserted: assert the reserved line (`min-h-6`) on the empty opening name.
   - Dead code: remove `EngineView.arrow` if nothing in production needs it after T2.
   - Optional, only if it fits the existing pure suggestion controller without a hook-testing library: prove that a count change restarts the search.
-- [ ] **T5 — Opening book generator and cache hardening (review follow-ups)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout5` (from T4's last commit). Route: delegated general-purpose writer (script, config, tests; not React). Forecast about 200 lines.
+- [x] **T5 — Opening book generator and cache hardening (review follow-ups)** [T lib, O script/config]: Branch `feat/repertoire-builder-layout5` (from T4's last commit). Route: delegated general-purpose writer (script, config, tests; not React). Forecast about 200 lines.
   - R2/R3/R4 formatter result: `build-openings.ts` checks the `spawnSync` result and exits non-zero on failure.
   - R1-upstream-integrity-unverified: pin and verify a SHA-256 per upstream TSV next to the commit SHA.
   - R2-regenerate-instructions-diverge, R2-escaped-backticks-in-line-comment: one canonical regeneration command in both places; plain backticks in the comment. Regenerating may change only the generated header lines.
@@ -138,3 +138,13 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - RED: `board-lines.test.ts` → `Export named 'boardLinesFor' not found`, then the malformed-UCI tests `Expected: "Engine lines, best first: d4." Received: "Engine lines, best first: ??, d4."` (28 pass, 2 fail) → GREEN 30 / 0; `builder-state.test.ts` → missing `findMove`/`lineFens` exports → GREEN 21 / 0; `opening-lookup.test.ts` → `Export named 'openingName' not found` → GREEN (19 / 0, parent re-run).
   - Checks (writer): `pnpm --filter web check-types` exit 0; `pnpm check` exit 0; bun tests 493 pass / 0 fail. Parent spot check: bun tests 493 / 0.
   - Size: ≈320 lines.
+- T5 done: `1cda7a9` (generator fails on formatter or checksum errors), `4f19428` (book chunk named once for the precache rules).
+  - `build-openings.ts` checks `spawnSync`'s `error` and `status` and exits 1 with `oxfmt failed (<reason>)` (failure path not exercised, only the happy path). `verifySha256(file, content, expected)` in `lib/opening-book-build.ts` (`node:crypto`); `FILE_SHA256` pinned next to `UPSTREAM_SHA` and checked on the raw bytes before parsing (a `3282e4c9…f793`, b `1d5ed134…f623`, c `45e843c7…986f`, d `1cf4057a…ceda`, e `48c6f664…8546`).
+  - One regeneration command, `pnpm --filter web build:openings`, in the doc comment and (via `REGENERATE`) the generated header; plain backticks in the comment. Regeneration run: exit 0, 3,865 rows → 3,865 positions, `openings.generated.ts` unchanged.
+  - Tie order: "a shorter transposition after the longer line leaves the existing entry" (pinning test; passed on first run, no RED claimed).
+  - `OPENING_BOOK_CHUNK = "opening-book"` in `vite.config.ts`, used by `build.rolldownOptions.output.codeSplitting.groups` (`test: /openings\.generated\.ts$/`), `globIgnores` and the runtime rule; the runtime rule is a `RegExp` because a function is serialised into `sw.js` without its closure.
+  - RED: `opening-book-build.test.ts` → `Export named 'verifySha256' not found` (0 pass, 1 fail) → GREEN 11 / 0.
+  - Build: `dist/assets/opening-book-DN7J85HA.js` 464.29 kB (62.44 kB gzip); main `index-*.js` 282.77 kB without "Scotch Game"; precache 101 entries (1,734.66 KiB). Parent check: the hashed book file appears 0 times in `dist/sw.js`; `registerRoute(/\/assets\/opening-book-[^/]+\.js$/, CacheFirst …)` present.
+  - Checks (writer): `pnpm --filter web check-types` pass; `pnpm check` exit 0; bun tests 496 pass / 0 fail. Parent spot check: bun tests 496 / 0.
+  - Browser (parent, after T4 and T5): names along the Scotch line unchanged, board top 266 px throughout, the book requested only on the builder; 1440×900 board and eval bar 572 px, 375 px 319 px with no horizontal scroll; lines 1 and 5, tree jump, fork groups ("Alternatives to 1. e4", "Alternatives to 2. Nf3") and the throwaway-repertoire clean-up all as before.
+  - Size: ≈94 lines.
