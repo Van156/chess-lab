@@ -17,3 +17,18 @@ export type RepertoireMove = RepertoireData["moves"][number];
 export type IdeaNote = RepertoireData["notes"][string];
 
 export type NoteArrow = IdeaNote["arrows"][number];
+
+/** What `repertoire.explorer` returns: the rating band in use and the stats or why there are none. */
+export type ExplorerData = Awaited<ReturnType<AppRouterClient["repertoire"]["explorer"]>>;
+
+export type ExplorerResult = ExplorerData["result"];
+
+/** An explorer result that carries stats. */
+export type ExplorerStats = Extract<ExplorerResult, { status: "ok" }>;
+
+export type ExplorerMove = ExplorerStats["moves"][number];
+
+export type ExplorerUnavailableReason = Extract<
+  ExplorerResult,
+  { status: "unavailable" }
+>["reason"];
