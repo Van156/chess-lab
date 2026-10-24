@@ -8,7 +8,7 @@
   - T5 and T6 use TDD for pure `lib/` helpers and ordinary checks for components.
   - Runner: `bun test`.
 - **Review (RDD):** user policy is groups of two with auto-consent.
-  - Groups: T1+T2 (base `bbc9228`), T3+T4, then T4b+T5 and T6 alone (T4b was added after the T3+T4 review).
+  - Groups: T1+T2 (base `bbc9228`), T3+T4, then T4b+T5, T6 alone, and T7 alone (T4b and T7 were added after reviews).
   - Untracked `.codegraph/` needs `--untracked-scope=exclude --expected-untracked-inventory=<sha from status>`.
 
 ## Objective
@@ -94,6 +94,11 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `repertoire.explorer` also returns `ownBand` (`ratingBandFor(perfs, 0)`), so the select can label each offset correctly, even when the band was clamped at an end.
   - From the T4b+T5 review: `bandLabel` falls back to the bare number for an off-bucket band; the `useExplorer` state mapping becomes a pure tested helper.
   - Stories, registry entries and tests.
+
+- [ ] **T7 — Band select follows the saved offset** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d7`. Route: delegated `react-staff`.
+  - R3-clamped-offset-unresettable: the select value is the saved offset.
+  - A saved offset whose band repeats a nearer option gets its own option (for example "2500+ (2 above, capped)"), so "your band" stays selectable and resets it.
+  - `bandOptions(ownBand, savedOffset)` with tests; an SSR test for a saved offset that differs from the displayed band.
 
 ## Acceptance criteria
 
@@ -225,4 +230,7 @@ Building a repertoire without data means guessing which replies matter. The spec
     - `a69e5dc` on `p2d6`: `ownBand`, lib helpers and fixtures, 182 lines; types and tests checked alone (180 pass).
     - `8854292` on `p2d6b`: UI, 297 lines.
     - The two commits together give the same tree as the original `486681b`.
-  - Review: T6 alone (base 835ec9f).
+- 2026-10-24 Review T6 (835ec9f to 3411659, lineage review-a14f3614cc84c801), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 3411659.
+  - R3-clamped-offset-unresettable (WARNING): the select picks its value by the clamped band, not the saved offset. A clamped saved offset (for example own band 2500 with +2) shows "your band", which cannot be re-selected to reset it, so the stats shift silently if the rating later drops. User chose "Fix now as T7" (2026-10-24).
+  - Pending suggestion: R3-band-change-wiring-untested. Only static SSR tests exist; there are no interaction tests for onChange, Add or the pending and failure paths of the band change.
+  - Next: T7.
