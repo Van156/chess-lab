@@ -62,3 +62,14 @@ export function toggleArrow(arrows: readonly NoteArrow[], arrow: NoteArrow): Not
   }
   return arrows.length >= MAX_NOTE_ITEMS ? [...arrows] : [...arrows, arrow];
 }
+
+/** Same arrows, highlights and trimmed plan, in the same order. */
+export function notesEqual(a: IdeaNote, b: IdeaNote): boolean {
+  return (
+    a.plan.trim() === b.plan.trim() &&
+    a.highlights.length === b.highlights.length &&
+    a.highlights.every((square, i) => square === b.highlights[i]) &&
+    a.arrows.length === b.arrows.length &&
+    a.arrows.every((arrow, i) => arrow.from === b.arrows[i]?.from && arrow.to === b.arrows[i]?.to)
+  );
+}

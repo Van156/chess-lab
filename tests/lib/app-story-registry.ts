@@ -65,4 +65,7 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/repertoire/components/repertoire-row.tsx",
   "features/repertoire/components/create-repertoire-form.tsx",
   "features/repertoire/components/repertoire-name-field.tsx",
+  "features/repertoire/components/line-navigator.tsx",
+  "features/repertoire/components/idea-note-editor.tsx",
+  "features/repertoire/components/repertoire-builder-view.tsx",
 ];

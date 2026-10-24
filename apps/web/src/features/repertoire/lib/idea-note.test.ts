@@ -5,6 +5,7 @@ import {
   isEmptyNote,
   MAX_NOTE_ITEMS,
   MAX_PLAN_LENGTH,
+  notesEqual,
   toggleArrow,
   toggleSquare,
   validatePlan,
@@ -94,5 +95,19 @@ describe("isEmptyNote", () => {
     expect(isEmptyNote({ arrows: [], highlights: [], plan: "  " })).toBe(true);
     expect(isEmptyNote({ arrows: [], highlights: ["d5"], plan: "" })).toBe(false);
     expect(isEmptyNote({ arrows: [], highlights: [], plan: "x" })).toBe(false);
+  });
+});
+
+describe("notesEqual", () => {
+  const note = { arrows: [{ from: "g1", to: "f3" }], highlights: ["e4"], plan: "Develop" };
+
+  test("treats the same content as equal, ignoring spaces around the plan", () => {
+    expect(notesEqual(note, { ...note, plan: " Develop " })).toBe(true);
+  });
+
+  test("sees a changed arrow, highlight or plan", () => {
+    expect(notesEqual(note, { ...note, arrows: [] })).toBe(false);
+    expect(notesEqual(note, { ...note, highlights: ["e5"] })).toBe(false);
+    expect(notesEqual(note, { ...note, plan: "Castle" })).toBe(false);
   });
 });
