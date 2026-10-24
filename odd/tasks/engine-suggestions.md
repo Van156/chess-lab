@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T4 next
+# Feature: Engine suggestions in the repertoire builder — T3+T4 review next
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit. T3 is split across `p3` and `p3b`, so T4 branches from `feat/engine-suggestions3b`.
@@ -75,7 +75,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Presentational `EnginePanel`: the toggle, depth as text, lines with score and SAN, an Add button for a first move not yet in the repertoire (an "In repertoire" badge otherwise), unavailable with Retry, and a "no legal moves" state.
   - Presentational `EvalBar`, plus stories, registry entries and SSR tests.
   - From the T1+T2 review: R3-multipv-nan and R3-stopping-lines-unproved, in their own `fix(web)` commit.
-- [ ] **T4 — Builder wiring** [T lib, O UI]: Branch `feat/engine-suggestions4`. Route: delegated `react-staff`.
+- [x] **T4 — Builder wiring** [T lib, O UI]: Branch `feat/engine-suggestions4`. Route: delegated `react-staff`.
   - Mount the eval bar beside the board and the panel in the builder view. The best-move arrow is merged with the idea-note arrows.
   - Add a suggested move through the existing `playMove` and `addMove` flow.
   - Update builder view stories and tests, and the engine section of `docs/architecture/web-app.md`.
@@ -155,3 +155,18 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
     - Part A `ba90624` on `p3` holds the state, the preference and the hooks: 591 lines, about 300 of them tests. With the UI files set aside, `pnpm --filter web check-types` exits 0 and the focused run gives 339 pass. Recommend `size:exception` for that PR, since its test share is over half.
     - Part B `39118de` on `p3b` holds the panel, the bar, stories, fixtures and the registry: 436 lines.
   - Review: pending with T4. Next: T4.
+- 2026-10-24 T4 done (route: delegated `react-staff`, 9 files).
+  - TDD for the new `lib/board-arrows.ts` (`mergeBoardArrows`): RED was `Cannot find module './board-arrows'` (0 pass, 1 fail, 1 error); GREEN is 6 pass.
+  - The focused run gives 364 pass, 0 fail (parent re-ran: 364 pass). One SSR test was changed to assert the board label text, because SSR markup carries no arrows.
+  - `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0. After `pnpm db:test:prepare`, the full `bun test` gives 2101 pass, 0 fail.
+  - `pnpm --filter web build` succeeds. `dist/engine/` holds the unmodified worker files. Outside them, "stockfish" appears only as the panel's UI text and in the existing lazy engine-client chunk (UCI, queue, `new Worker`), with no engine code in the main bundle.
+  - Container: the toggle and suggestion hooks run before the early returns. The search is enabled only when the panel is on and the position's FEN is known. The empty FEN is never sent. `toEngineView` gets `SUGGESTION_DEPTH` and `SUGGESTION_PV_PLIES`. Add reuses `playMove`, and `addPending` is `isSaving`.
+  - View:
+    - An `EvalBar` (`w-4`) sits beside the board in a flex row. It is hidden when the panel is off and neutral while starting.
+    - The `EnginePanel` card is at the top of the side column, above "Current line" and the explorer.
+    - The engine arrow uses the new `boardTheme.engineArrow` (`#4da3ff`), is drawn last, and is also described in the board label ("Engine best move: e2 to e4.").
+  - New stories: `EngineOff`, `EngineAnalysing`, `EngineUnavailable` and `EngineWithIdeaNote`. The default args have the engine on.
+  - `docs/architecture/web-app.md`: the engine section now covers the builder suggestions.
+  - Commit `86e9db0` (234 authored lines).
+  - Pending (user): the in-browser check, because this session has no browser automation. It covers deepening lines, the arrow following line 1, Add, the toggle surviving a reload, game analysis resuming, and the layout at 375 px.
+  - Review: T3+T4 next.
