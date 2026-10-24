@@ -67,6 +67,7 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - R2-linefens-prefix-wording: the `lineFens` doc says missing positions are skipped and the rest keep their order (not "a prefix").
   - R3-sha256-bytes-path-untested: test `verifySha256` with `Uint8Array` input, the path production uses.
   - Not included: R3-formatter-failure-path-unexercised (the branch is two lines in a script; testing it needs a process-spawn seam not worth adding).
+- [ ] **T7 — Make the precache guard fail closed (from the T6 review)** [T lib, O script]: Branch `feat/repertoire-builder-layout7` (from the T6 record). Route: inline (two small, fully specified edits plus tests; no design work). R3-empty-precache-manifest-passes-silently (WARNING): an unreadable manifest (e.g. quoted `"url":` keys) parses to no entries, every asset counts as lazy, and the guard passes having checked nothing. R3-guard-scans-only-top-level-assets-js (SUGGESTION): only `dist/assets/*.js` is scanned. Fix: parse quoted and bare `url` keys; fail when no precached JS is found; check every precached `.js` URL and every other `.js` under `dist/`, wherever it sits. Any further non-blocking finding goes to the follow-up list, not another task.
 
 ## Acceptance criteria
 
@@ -163,3 +164,4 @@ Out of scope: the prototype switcher and `?variant=`; layouts B and C; changes t
   - Checks (writer): `pnpm --filter web check-types` exit 0 with the guard OK line; `pnpm --filter web build` OK; `pnpm check` exit 0; bun tests (with `apps/web/scripts`) 503 pass / 0 fail. Parent spot check: `check-types` printed `check-precache: OK, the opening book is only in assets/opening-book-DN7J85HA.js (101 precached files, none holds it)`; bun tests 503 / 0.
   - Known limit: the marker is a data string; if a future list drops "Scotch Game", the guard fails loudly ("no lazy chunk") rather than passing silently.
   - Size: ≈140 lines.
+- Review T6 (base `ddce646`, through `5cb9fd2`): consent granted (standing); 1 lens (reliability); **approved**, acknowledged (lineage `review-b4d1d1e264451d2b`, authority burned). Next boundary: `5cb9fd2`. Findings R3-empty-precache-manifest-passes-silently (WARNING) and R3-guard-scans-only-top-level-assets-js (SUGGESTION) → T7, since the guard exists to fail loudly.
