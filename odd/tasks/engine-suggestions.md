@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T1+T2 review next
+# Feature: Engine suggestions in the repertoire builder — T3 next
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit.
@@ -74,6 +74,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - A `useEngineToggle` preference, backed by `localStorage` inside try/catch and defaulting to on.
   - Presentational `EnginePanel`: the toggle, depth as text, lines with score and SAN, an Add button for a first move not yet in the repertoire (an "In repertoire" badge otherwise), unavailable with Retry, and a "no legal moves" state.
   - Presentational `EvalBar`, plus stories, registry entries and SSR tests.
+  - From the T1+T2 review: R3-multipv-nan and R3-stopping-lines-unproved, in their own `fix(web)` commit.
 - [ ] **T4 — Builder wiring** [T lib, O UI]: Branch `feat/engine-suggestions4`. Route: delegated `react-staff`.
   - Mount the eval bar beside the board and the panel in the builder view. The best-move arrow is merged with the idea-note arrows.
   - Add a suggested move through the existing `playMove` and `addMove` flow.
@@ -123,3 +124,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
     - `bestMoveArrow`.
     - `toSuggestionLines` returns `SuggestionLine` (`multipv`, `depth`, `white`, `scoreText`, `scoreLabel`, `firstMove`, `moveText`, `inRepertoire`) and drops lines whose first move is illegal.
   - Commit `fbd2814` (424 authored lines, about 290 of them tests). Next: the T1+T2 review.
+- 2026-10-24 Review T1+T2 (`0a7c9bf` to `366ba95`, lineage `review-a20d596a65961bfa`), medium risk, auto-consent granted, 1 lens (reliability): APPROVED and acknowledged. Next review boundary: `366ba95`.
+  - Accepted into T3 as technical fixes, with no user-visible scope change:
+    - R3-multipv-nan (WARNING): `buildMultiPvOption` lets `NaN` and `Infinity` through, because `Math.max(1, NaN)` is `NaN`. Guard with `Number.isFinite`, fall back to 1, and test it.
+    - R3-stopping-lines-unproved (SUGGESTION): the "lines from a stopping search are ignored" test only checks the rejection. Prove that no `onProgress` call and no stale line follow a stop, through the pre-empt path.
