@@ -67,7 +67,7 @@ Building a repertoire without data means guessing which replies matter. The spec
 - [x] **T1 — Rating band rule** [T]: `packages/chess/src/explorer-band.ts` + test + `index.ts` export. Branch `feat/chess-lab-v1-p2d`. Route: delegated writer (2 non-trivial files).
   - Constants: `EXPLORER_RATING_BUCKETS`, `FALLBACK_EXPLORER_BAND = 1600`, `EXPLORER_BAND_SPEEDS = ["blitz","rapid","classical"]`, `EXPLORER_BAND_OFFSET_MIN = -2`, `EXPLORER_BAND_OFFSET_MAX = 2`.
   - `ratingBandFor(perfs, offset = 0)`, where `perfs` is a perf snapshot with `{rating?, games?, prov?}`.
-- [ ] **T2 — Explorer client params and cache** [T]: Branch `feat/chess-lab-v1-p2d2`. Route: delegated writer.
+- [x] **T2 — Explorer client params and cache** [T]: Branch `feat/chess-lab-v1-p2d2`. Route: delegated writer.
   - `packages/lichess`: `explorer()` sends `moves`, `topGames=0` and `recentGames=0`; config gets `EXPLORER_CACHE_TTL_MS` (24 h), `EXPLORER_CACHE_MAX_ENTRIES` (5000) and `EXPLORER_STALE_MAX_MS` (7 d); tests for params, a 429 and move parsing.
   - `apps/server/src/explorer-cache.ts`: pure TTL+LRU with injectable clock, in-flight dedupe and stale-serve, with tests.
 - [ ] **T3 — `LichessPort.explorer` adapter** [T]: Branch `feat/chess-lab-v1-p2d3`. Route: delegated writer.
@@ -122,3 +122,12 @@ Building a repertoire without data means guessing which replies matter. The spec
   - Constants live in `packages/chess/src/config.ts` (ADR-18). `ratingBandFor` and `PerfSnapshot` are exported from `index.ts`.
   - A `NaN` offset counts as 0; `±Infinity` is clamped to the offset range.
   - Commit `083ede9` (162 authored lines). Review: pending with T2. Next: T2.
+- 2026-10-24 T2 done (route: delegated writer, 6 files).
+  - RED: `bun test packages/lichess apps/server/src/explorer-cache.test.ts` -> `SyntaxError: Export named 'EXPLORER_MOVES' not found` and the missing `explorer-cache.ts` (16 pass, 2 fail, 2 errors).
+  - GREEN: 51 pass, 0 fail (parent re-ran: 51 pass).
+  - `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 1891 pass, 0 fail.
+  - `explorer()` also sends `moves=12` (`EXPLORER_MOVES`), `topGames=0` and `recentGames=0`.
+  - Cache constants are in `packages/lichess/src/config.ts`.
+  - `createExplorerCache<T>({ ttlMs, staleMaxMs, maxEntries, now })` returns `get(key, load) -> { value, stale }`: a Map-order LRU with in-flight dedupe and stale on load failure; the loader's error is rethrown otherwise.
+  - Not yet wired (T3).
+  - Commit `e154910` (300 authored lines).
