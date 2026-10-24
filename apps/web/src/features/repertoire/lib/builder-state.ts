@@ -107,8 +107,8 @@ export function describeChildMove(plyBefore: number, san: string): string {
 
 /**
  * The FENs from the start position through each move of a line, for the opening name. A position
- * the graph does not hold is left out rather than failing: the name is a nicety, and the shorter
- * list still names the longest known prefix.
+ * the graph does not hold is left out rather than failing: the name is a nicety, and the
+ * remaining FENs keep their order.
  */
 export function lineFens(
   graph: Pick<RepertoireData, "startPositionId" | "positions">,
