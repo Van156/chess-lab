@@ -69,5 +69,7 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/repertoire/components/idea-note-editor.tsx",
   "features/repertoire/components/explorer-panel.tsx",
   "features/repertoire/components/explorer-band-select.tsx",
+  "features/repertoire/components/engine-panel.tsx",
+  "features/repertoire/components/eval-bar.tsx",
   "features/repertoire/components/repertoire-builder-view.tsx",
 ];

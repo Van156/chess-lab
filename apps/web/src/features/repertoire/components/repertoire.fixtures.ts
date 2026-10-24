@@ -131,3 +131,37 @@ export const explorerOneBandAbove = {
   band: 1800,
   offset: 1,
 } satisfies ExplorerData;
+
+const suggestion = (
+  multipv: number,
+  scoreText: string,
+  scoreLabel: string,
+  san: string,
+  uci: string,
+  moveText: string,
+  inRepertoire = false,
+) => ({
+  multipv,
+  depth: 14,
+  white: { kind: "cp" as const, cp: 0 },
+  scoreText,
+  scoreLabel,
+  firstMove: { san, uci },
+  moveText,
+  inRepertoire,
+});
+
+/** Three lines from the start position; the second first move is already in the repertoire. */
+export const engineLines = [
+  suggestion(
+    1,
+    "+0.34",
+    "White is better by 0.34 pawns",
+    "e4",
+    "e2e4",
+    "1. e4 e5 2. Nf3 Nc6",
+    true,
+  ),
+  suggestion(2, "+0.28", "White is better by 0.28 pawns", "d4", "d2d4", "1. d4 d5 2. c4 e6"),
+  suggestion(3, "+0.20", "White is better by 0.20 pawns", "Nf3", "g1f3", "1. Nf3 d5 2. g3 Nf6"),
+];
