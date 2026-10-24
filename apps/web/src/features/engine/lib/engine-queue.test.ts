@@ -196,6 +196,40 @@ describe("engine queue", () => {
     expect((await settle(job.result)).status).toBe("error");
   });
 
+  test("info lines arriving while a search is stopping never reach progress or the restarted result", async () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    const progress: number[] = [];
+    const background = queue.submit({
+      fen: FEN_A,
+      limit: { depth: 18 },
+      priority: "background",
+      multiPv: 2,
+      onProgress: (info) => progress.push(info.lines.length * 100 + info.depth),
+    });
+    fake.emit("info depth 5 multipv 1 score cp 30 pv e2e4");
+    expect(progress).toEqual([105]);
+
+    // Pre-empt: the background search is now stopping.
+    const interactive = queue.submit({ fen: FEN_B, limit: { depth: 8 }, priority: "interactive" });
+    fake.emit("info depth 6 multipv 1 score cp 31 pv e2e4");
+    fake.emit("info depth 6 multipv 2 score cp 11 pv d2d4");
+    expect(progress).toEqual([105]);
+
+    fake.emit("bestmove e2e4");
+    fake.emit("info depth 8 score cp 0 pv e7e5");
+    fake.emit("bestmove e7e5");
+    await interactive.result;
+
+    fake.emit("info depth 18 multipv 1 score cp 22 pv e2e4");
+    fake.emit("bestmove e2e4");
+    const result = await background.result;
+    expect(progress).toEqual([105, 118]);
+    expect(result.lines).toEqual([
+      { multipv: 1, depth: 18, score: { kind: "cp", value: 22 }, pv: ["e2e4"] },
+    ]);
+  });
+
   test("a pre-empted background job restarts with no lines carried over", async () => {
     const fake = createFakeTransport();
     const queue = createEngineQueue(fake.transport);

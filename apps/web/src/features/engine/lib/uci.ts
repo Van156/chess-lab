@@ -124,8 +124,10 @@ export const buildStrengthOptions = (strength: UciStrength | undefined): string[
 };
 
 /** Number of principal variations to report. Sent before every job so a count never leaks across jobs. */
-export const buildMultiPvOption = (multiPv: number | undefined): string =>
-  buildSetOption("MultiPV", Math.max(1, Math.floor(multiPv ?? 1)));
+export const buildMultiPvOption = (multiPv: number | undefined): string => {
+  const count = multiPv !== undefined && Number.isFinite(multiPv) ? Math.floor(multiPv) : 1;
+  return buildSetOption("MultiPV", Math.max(1, count));
+};
 
 /** Clamps and rounds an Elo into the range the engine reported in its handshake. */
 export const clampElo = (range: EloRange, elo: number): number =>

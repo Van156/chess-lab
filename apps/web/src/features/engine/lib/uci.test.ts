@@ -173,6 +173,12 @@ describe("strength options", () => {
     expect(buildMultiPvOption(2.7)).toBe("setoption name MultiPV value 2");
   });
 
+  test("MultiPV falls back to 1 for non-finite input", () => {
+    expect(buildMultiPvOption(Number.NaN)).toBe("setoption name MultiPV value 1");
+    expect(buildMultiPvOption(Number.POSITIVE_INFINITY)).toBe("setoption name MultiPV value 1");
+    expect(buildMultiPvOption(Number.NEGATIVE_INFINITY)).toBe("setoption name MultiPV value 1");
+  });
+
   test("clampElo keeps an elo inside the supported range and rounds it", () => {
     const range = { min: 1320, max: 3190 };
     expect(clampElo(range, 1000)).toBe(1320);
