@@ -9,8 +9,11 @@ import { injectBrandTitle } from "./src/app/brand-html";
 
 /**
  * Name of the chunk that holds the generated opening book (~460 kB, builder only). The chunk
- * file is `assets/<name>-<hash>.js`; the precache ignore and the runtime cache rule below both
- * match this one name, so renaming the data module cannot put the book back in the precache.
+ * file is `assets/<name>-<hash>.js`. The `codeSplitting` group below puts the book data module in
+ * it, the precache ignore keeps it out of the precache and the runtime cache rule caches it on
+ * first use. The group selects the module by file name; `scripts/check-precache.ts` runs after
+ * the build and fails it when the book is precached or has no chunk of its own, whatever the
+ * module is called.
  */
 const OPENING_BOOK_CHUNK = "opening-book";
 
