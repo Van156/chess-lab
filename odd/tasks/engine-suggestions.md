@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T3+T4 review next
+# Feature: Engine suggestions in the repertoire builder — T1-T4 reviewed; review follow-ups and in-browser check pending
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit. T3 is split across `p3` and `p3b`, so T4 branches from `feat/engine-suggestions3b`.
@@ -170,3 +170,13 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Commit `86e9db0` (234 authored lines).
   - Pending (user): the in-browser check, because this session has no browser automation. It covers deepening lines, the arrow following line 1, Add, the toggle surviving a reload, game analysis resuming, and the layout at 375 px.
   - Review: T3+T4 next.
+- 2026-10-24 Review T3+T4 (`366ba95` to `d44caa6`, lineage `review-7176f5d405f3066e`), medium risk, 1,364 changed lines, auto-consent granted, 1 lens (reliability): APPROVED and acknowledged. Next review boundary: `d44caa6`.
+  - Advisory findings, all non-blocking and not yet accepted:
+    - R3-suggestion-hook-unproved (WARNING): `useEngineSuggestions` has no automated test. Unproved behaviour:
+      - it cancels on a FEN change, on toggle-off and on unmount;
+      - it ignores `EngineJobCancelledError`;
+      - other errors make it `unavailable`;
+      - progress is coalesced to one dispatch per frame, and a pending frame is dropped on finish or close.
+    - R3-toggle-fallback-unproved (SUGGESTION): the toggle's in-memory fallback when storage refuses writes, and the subscriber notification on `setEnabled`, are untested.
+    - R3-evalbar-nonfinite (SUGGESTION): `clampPercent` passes `NaN` through as `height: NaN%`. Guard it with `Number.isFinite`, falling back to 50.
+  - Asked the user whether to fix these now as T5.
