@@ -126,7 +126,7 @@ export default function RepertoireBuilderView({
                 explorer.kind === "loaded" ? (
                   <ExplorerBandSelect
                     ownBand={explorer.data.ownBand}
-                    band={explorer.data.band}
+                    offset={explorer.data.offset}
                     pending={bandSaving}
                     onChange={onChangeBandOffset}
                   />

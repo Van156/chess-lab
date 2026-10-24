@@ -7,7 +7,7 @@ function render(overrides: Partial<ExplorerBandSelectProps> = {}) {
   return renderToStaticMarkup(
     <ExplorerBandSelect
       ownBand={1600}
-      band={1600}
+      offset={0}
       pending={false}
       onChange={() => {}}
       {...overrides}
@@ -38,15 +38,24 @@ describe("ExplorerBandSelect", () => {
     }
   });
 
-  test("selects the option of the band in use", () => {
-    const html = render({ band: 1800 });
+  test("selects the option of the saved offset", () => {
+    const html = render({ offset: 1 });
     expect(html).toMatch(/value="1"[^>]*selected=""/);
     expect(html.match(/selected=""/g)).toHaveLength(1);
   });
 
   test("drops duplicate bands at the end of the list", () => {
-    const html = render({ ownBand: 2500, band: 2500 });
+    const html = render({ ownBand: 2500, offset: 0 });
     expect(html.match(/<option/g)).toHaveLength(3);
+  });
+
+  test("selects a clamped saved offset and keeps your band available to reset it", () => {
+    const html = render({ ownBand: 2500, offset: 2 });
+    expect(html.match(/<option/g)).toHaveLength(4);
+    expect(html).toMatch(/value="2"[^>]*selected=""[^>]*>2500\+ \(2 above, capped\)<\/option>/);
+    expect(html).not.toMatch(/value="0"[^>]*selected/);
+    expect(html).toMatch(/value="0">2500\+ \(your band\)<\/option>/);
+    expect(html.match(/selected=""/g)).toHaveLength(1);
   });
 
   test("is disabled and announces saving while a change is pending", () => {

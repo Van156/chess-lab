@@ -44,4 +44,35 @@ describe("bandOptions", () => {
   test("offers only the own band when it is not a bucket", () => {
     expect(bandOptions(1500)).toEqual([{ offset: 0, band: 1500, label: "1500 (your band)" }]);
   });
+
+  test("keeps a saved offset that is clamped at the top end as its own option", () => {
+    const options = bandOptions(2500, 2);
+    expect(options).toEqual([
+      { offset: -2, band: 2000, label: "2000–2199 (2 below)" },
+      { offset: -1, band: 2200, label: "2200–2499 (1 below)" },
+      { offset: 0, band: 2500, label: "2500+ (your band)" },
+      { offset: 2, band: 2500, label: "2500+ (2 above, capped)" },
+    ]);
+  });
+
+  test("keeps a saved offset that is clamped at the bottom end as its own option", () => {
+    const options = bandOptions(0, -2);
+    expect(options).toEqual([
+      { offset: -2, band: 0, label: "Under 1000 (2 below, capped)" },
+      { offset: 0, band: 0, label: "Under 1000 (your band)" },
+      { offset: 1, band: 1000, label: "1000–1199 (1 above)" },
+      { offset: 2, band: 1200, label: "1200–1399 (2 above)" },
+    ]);
+  });
+
+  test("leaves the options unchanged when the saved offset gives a distinct band", () => {
+    expect(bandOptions(2500, -1)).toEqual(bandOptions(2500));
+    expect(bandOptions(1600, 2)).toEqual(bandOptions(1600));
+    expect(bandOptions(2500, 0)).toEqual(bandOptions(2500));
+  });
+
+  test("clamps a saved offset outside the allowed range before using it", () => {
+    expect(bandOptions(2500, 9)).toEqual(bandOptions(2500, 2));
+    expect(bandOptions(0, -9)).toEqual(bandOptions(0, -2));
+  });
 });

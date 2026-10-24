@@ -62,8 +62,8 @@ const addButton = (disabled: boolean) => (move: { san: string }) => (
   </Button>
 );
 
-const bandSelect = (pending: boolean, band = 1600) => (
-  <ExplorerBandSelect ownBand={1600} band={band} pending={pending} onChange={() => {}} />
+const bandSelect = (pending: boolean, offset = 0) => (
+  <ExplorerBandSelect ownBand={1600} offset={offset} pending={pending} onChange={() => {}} />
 );
 
 export const WithAddAndBandSelect: Story = {
@@ -82,6 +82,6 @@ export const BandOneAbove: Story = {
   args: {
     state: { kind: "loaded", data: explorerOneBandAbove },
     moveAction: addButton(false),
-    bandControl: bandSelect(false, 1800),
+    bandControl: bandSelect(false, 1),
   },
 };
