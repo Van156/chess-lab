@@ -8,7 +8,7 @@
   - T5 and T6 use TDD for pure `lib/` helpers and ordinary checks for components.
   - Runner: `bun test`.
 - **Review (RDD):** user policy is groups of two with auto-consent.
-  - Groups: T1+T2 (base `bbc9228`), T3+T4, T5+T6.
+  - Groups: T1+T2 (base `bbc9228`), T3+T4, then T4b+T5 and T6 alone (T4b was added after the T3+T4 review).
   - Untracked `.codegraph/` needs `--untracked-scope=exclude --expected-untracked-inventory=<sha from status>`.
 
 ## Objective
@@ -80,6 +80,9 @@ Building a repertoire without data means guessing which replies matter. The spec
   - It returns `{band, offset, speeds, result}` with moves mapped to `{san, uci, games, white, draws, black}`.
   - `settings.update` accepts `explorerBandOffset` (int, -2..+2, bounds from T1).
   - Tests in `repertoire.test.ts` (fake port; flag off gives `NOT_FOUND`; ownership) and `settings.test.ts`.
+- [ ] **T4b — Explorer review fixes** [T]: Branch `feat/chess-lab-v1-p2d4b`. Route: delegated writer (2-3 non-trivial server files).
+  - (a) R3-shared-inflight-token-failures: the cache's in-flight dedupe is keyed per user (an `inflightKey` option or similar) while the stored value stays under the shared key. Add a cross-user test: A's in-flight load fails with a 401 while B's concurrent request uses B's token and gets ok.
+  - (b) R3-vacuous-unauthorized-cache-test: build both ports on one shared cache instance, so an unlinked user is proved to get `unauthorized` for a cached position.
 - [ ] **T5 — Explorer panel (read-only)** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d5`. Route: delegated `react-staff`.
   - `lib/` helpers: W/D/L percent text, in-repertoire mark by SAN, band label.
   - Presentational `ExplorerPanel`: a table with the band label; states for loading, empty ("no games recorded"), unavailable (with a reason and a Lichess sign-in hint for unauthorized) and stale.
@@ -168,3 +171,9 @@ Building a repertoire without data means guessing which replies matter. The spec
   - `lib/perf-snapshot.ts` `parsePerfSnapshot` (zod): malformed input gives null, so the fallback band applies.
   - `settings.update` accepts `explorerBandOffset` as `z.int()` within -2..2.
   - Commit `623bcb1` (343 authored lines).
+- 2026-10-24 Review T3+T4 (50829a3 to 6ee9622, lineage review-3b7172f0142d4508), 1 lens (reliability): APPROVED and acknowledged. Next review boundary: 6ee9622.
+  - R3-shared-inflight-token-failures (WARNING): the cache is shared and its in-flight load captures the first caller's token. A user who joins it inherits that token's 401 (told to re-link), 429, pause or import wait.
+  - R3-vacuous-unauthorized-cache-test (WARNING): the "unauthorized even when cached" test builds the cold port on a fresh cache, so token-before-cache is unproved.
+  - User chose "Fix now as T4b" (2026-10-24).
+  - Decision: in-flight dedupe becomes per user (`key|userId`) while stored stats stay shared across users. This is a deviation from design L249, which shares one in-flight promise per key across users. Concurrent cold misses from different users now each call Lichess with their own token.
+  - Next: T4b.
