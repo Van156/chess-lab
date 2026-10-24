@@ -2,8 +2,9 @@
  * Builds `openings.generated.ts`: the Lichess opening names keyed by position, so the repertoire
  * builder can name the line on the board. Downloads the five ECO files from one pinned commit of
  * lichess-org/chess-openings (CC0-1.0), replays every line with the chess package and writes the
- * map. The downloaded text is only parsed, never executed. Run it with `bun run build:openings`,
- * then commit the result; to move to newer data, change `UPSTREAM_SHA` and run it again.
+ * map. The downloaded text is only parsed, never executed. Every download is checked against the SHA-256 pinned
+ * beside it. Run it with `pnpm --filter web build:openings` from the repo root, then commit the
+ * result; to move to newer data, change `UPSTREAM_SHA` and `FILE_SHA256` together and run it again.
  */
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -13,21 +14,33 @@ import { fileURLToPath } from "node:url";
 import {
   buildOpeningBook,
   parseOpeningRows,
+  verifySha256,
 } from "../src/features/repertoire/lib/opening-book-build";
 
 const UPSTREAM_REPO = "lichess-org/chess-openings";
 /** The upstream `master` commit the data comes from (resolved 2026-10-24). */
 const UPSTREAM_SHA = "a6189a30dc273ccb21fc2536a9a2fefd5592a67a";
-const FILES = ["a", "b", "c", "d", "e"] as const;
+/** SHA-256 of each file at `UPSTREAM_SHA`; a download that differs aborts the run. */
+const FILE_SHA256 = {
+  a: "3282e4c9155289a29224f9a85fba0decb46efa35c2fa5e39662d2ac48fb0f793",
+  b: "1d5ed134ebbd87915ead5683416e37583bb3e5ae3582b4d8cb5cb4aa7ef4f623",
+  c: "45e843c7b7e79a0d04d5bda879c9bd23f5a10974488bd8615e4f4c5d0749986f",
+  d: "1cf4057a8aece94f27bb3f278ad410ee2844831a642364eeceaafa091dbcceda",
+  e: "48c6f6645b031a5937c8386839debab0e2e48837251687ba1afb6369677f8546",
+} as const;
+const FILES = Object.keys(FILE_SHA256) as (keyof typeof FILE_SHA256)[];
+const REGENERATE = "pnpm --filter web build:openings";
 
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outFile = join(webRoot, "src/features/repertoire/data/openings.generated.ts");
 
-async function download(letter: string): Promise<string> {
+async function download(letter: keyof typeof FILE_SHA256): Promise<string> {
   const url = `https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_SHA}/${letter}.tsv`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url} -> HTTP ${response.status}`);
-  return response.text();
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  verifySha256(`${letter}.tsv`, bytes, FILE_SHA256[letter]);
+  return new TextDecoder().decode(bytes);
 }
 
 const rows = (await Promise.all(FILES.map(download))).flatMap(parseOpeningRows);
@@ -45,7 +58,7 @@ writeFileSync(
 // ${rowCount} rows -> ${entries.length} distinct positions. When several rows reach one
 // position the longest line wins; on a tie the row that comes first (a to e) stays.
 // Keys come from openingKey() in ../lib/opening-lookup.ts.
-// Regenerate: pnpm --filter web build:openings
+// Regenerate: ${REGENERATE}
 import type { OpeningBook } from "../lib/opening-lookup";
 
 export const OPENINGS: OpeningBook = {
@@ -53,6 +66,11 @@ ${entries.join("\n")}
 };
 `,
 );
-// Keep the committed file in the formatter's shape so \`pnpm check\` leaves it alone.
-spawnSync("pnpm", ["exec", "oxfmt", outFile], { cwd: webRoot, stdio: "inherit" });
+// Keep the committed file in the formatter's shape so `pnpm check` leaves it alone.
+const format = spawnSync("pnpm", ["exec", "oxfmt", outFile], { cwd: webRoot, stdio: "inherit" });
+if (format.error || format.status !== 0) {
+  const reason = format.error ? format.error.message : `exit status ${format.status}`;
+  console.error(`build-openings: oxfmt failed (${reason}); ${outFile} is not formatted.`);
+  process.exit(1);
+}
 console.log(`build-openings: ${rowCount} rows -> ${entries.length} positions -> ${outFile}`);

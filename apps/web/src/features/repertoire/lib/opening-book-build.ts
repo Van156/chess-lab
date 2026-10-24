@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { START_FEN, applyMove } from "@b2c-template/chess";
 
 import { openingKey, type OpeningBook } from "./opening-lookup";
@@ -19,6 +21,14 @@ export function fenAfterPgn(pgn: string): string {
     fen = next;
   }
   return fen;
+}
+
+/** Throws unless the SHA-256 of `content` equals the pinned `expected` hex digest of `file`. */
+export function verifySha256(file: string, content: string | Uint8Array, expected: string): void {
+  const actual = createHash("sha256").update(content).digest("hex");
+  if (actual !== expected) {
+    throw new Error(`${file}: SHA-256 ${actual} does not match the pinned ${expected}`);
+  }
 }
 
 /**

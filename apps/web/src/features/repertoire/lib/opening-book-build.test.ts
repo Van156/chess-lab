@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { START_FEN } from "@b2c-template/chess";
 
-import { buildOpeningBook, fenAfterPgn, parseOpeningRows, sansOf } from "./opening-book-build";
+import {
+  buildOpeningBook,
+  fenAfterPgn,
+  parseOpeningRows,
+  sansOf,
+  verifySha256,
+} from "./opening-book-build";
 import { openingFor } from "./opening-lookup";
 
 describe("sansOf", () => {
@@ -35,6 +41,19 @@ describe("parseOpeningRows", () => {
   });
 });
 
+describe("verifySha256", () => {
+  // SHA-256 of "abc".
+  const abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+
+  test("accepts text that matches the pinned hash", () => {
+    expect(() => verifySha256("a.tsv", "abc", abc)).not.toThrow();
+  });
+
+  test("rejects changed text and names the file", () => {
+    expect(() => verifySha256("b.tsv", "abd", abc)).toThrow("b.tsv");
+  });
+});
+
 describe("buildOpeningBook", () => {
   const row = (eco: string, name: string, pgn: string) => ({ eco, name, pgn });
 
@@ -62,5 +81,13 @@ describe("buildOpeningBook", () => {
       row("A10", "Second", "1. c4 d5 2. d4"),
     ]);
     expect(Object.values(book)).toEqual([["D06", "First"]]);
+  });
+
+  test("a shorter transposition after the longer line leaves the existing entry", () => {
+    const { book } = buildOpeningBook([
+      row("A01", "Long", "1. Nc3 d5 2. Nf3 Nf6 3. Nb1 Ng8 4. Nc3 Nf6 5. Nb1 Ng8"),
+      row("A00", "Short", "1. Nf3 d5 2. Nc3 Nf6 3. Nb1 Ng8"),
+    ]);
+    expect(Object.values(book)).toEqual([["A01", "Long"]]);
   });
 });
