@@ -1,4 +1,4 @@
-# Feature: Engine suggestions in the repertoire builder — T5 next; in-browser check pending
+# Feature: Engine suggestions in the repertoire builder — DONE, T1-T5 reviewed; in-browser check pending
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
 - **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit. T3 is split across `p3` and `p3b`, so T4 branches from `feat/engine-suggestions3b`.
@@ -199,3 +199,13 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - `createEnginePreferenceStore(getStorage)` returns `{getSnapshot, subscribe, set}`. It guards storage access, keeps an in-memory fallback, and notifies subscribers. `useEngineToggle` uses a module-level instance.
   - `clampPercent` falls back to 50 for non-finite input.
   - Commit `5c95110` (483 authored lines, mostly tests). Review: T5 alone, next.
+- 2026-10-24 Review T5 (`d44caa6` to `61df461`, lineage `review-7c11efae83f4f749`), medium risk, 514 changed lines, auto-consent granted, 1 lens (reliability): APPROVED and acknowledged. Final review boundary: `61df461`.
+  - R3-failed-frame-drop-unproved (SUGGESTION, follow-up and not accepted): no test queues progress before a rejection that is not a cancellation, so dropping the frame on failure is unproved. The finish path is proved. This is recorded as follow-up work rather than another fix-and-review round.
+- 2026-10-24 Feature closed.
+  - All five tasks are done and reviewed.
+  - The last full run gives 2117 pass, 0 fail. `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0, and `pnpm --filter web build` succeeds (at T4).
+  - Pending (user): the in-browser check on the local dev app (web 4000), covering deepening lines, the arrow following line 1, Add, the toggle surviving a reload, game analysis resuming, and the layout at 375 px.
+  - Delivery: nothing is pushed. The branch chain is `feat/engine-suggestions`, then `2`, `3`, `3b`, `4` and `5`, one PR per branch. Pushing, opening PRs and merging are the user's decisions.
+  - Follow-ups:
+    - R3-failed-frame-drop-unproved.
+    - Possible product follow-ups from the reference sites: Lichess cloud eval, a Masters database, and engine evals inside the explorer table.
