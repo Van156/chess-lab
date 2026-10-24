@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { LICHESS_BASE_URL, LICHESS_EXPLORER_URL, MAX_429_RETRIES } from "./config";
+import { EXPLORER_MOVES, LICHESS_BASE_URL, LICHESS_EXPLORER_URL, MAX_429_RETRIES } from "./config";
 import { parseNdjson } from "./ndjson";
 import { createSerialGate } from "./serial-gate";
 import {
@@ -138,6 +138,9 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
       url.searchParams.set("fen", args.fen);
       url.searchParams.set("ratings", args.ratings.join(","));
       url.searchParams.set("speeds", args.speeds.join(","));
+      url.searchParams.set("moves", String(EXPLORER_MOVES));
+      url.searchParams.set("topGames", "0");
+      url.searchParams.set("recentGames", "0");
       return getJson<ExplorerStats>(url, args.token);
     },
   };

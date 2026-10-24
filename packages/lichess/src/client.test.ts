@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createLichessClient } from "./client";
+import { EXPLORER_MOVES } from "./config";
 import { LichessHttpError, LichessRateLimited, LichessUnauthorized } from "./types";
 import type { LichessGame } from "./types";
 
@@ -272,6 +273,64 @@ describe("explorer", () => {
     expect(url.searchParams.get("ratings")).toBe("1600,1800");
     expect(url.searchParams.get("speeds")).toBe("blitz,rapid");
     expect(header(init.headers, "authorization")).toBe("Bearer tok");
+  });
+
+  test("asks for the default move count and no games", async () => {
+    const { client, calls } = setup(() =>
+      Response.json({ white: 0, draws: 0, black: 0, moves: [] }),
+    );
+    await client.explorer({ fen: "x", ratings: [1600], speeds: ["blitz"], token: "tok" });
+    const { searchParams } = calls[0]!.url;
+    expect(searchParams.get("moves")).toBe(String(EXPLORER_MOVES));
+    expect(EXPLORER_MOVES).toBe(12);
+    expect(searchParams.get("topGames")).toBe("0");
+    expect(searchParams.get("recentGames")).toBe("0");
+  });
+
+  test("parses a response with moves and the opening", async () => {
+    const stats = {
+      white: 60,
+      draws: 20,
+      black: 20,
+      moves: [
+        { uci: "e2e4", san: "e4", white: 40, draws: 10, black: 10, averageRating: 1750 },
+        { uci: "d2d4", san: "d4", white: 20, draws: 10, black: 10 },
+      ],
+      opening: { eco: "A00", name: "Start" },
+    };
+    const { client } = setup(() => Response.json(stats));
+    const result = await client.explorer({
+      fen: "x",
+      ratings: [1600],
+      speeds: ["blitz"],
+      token: "tok",
+    });
+    expect(result.white).toBe(60);
+    expect(result.draws).toBe(20);
+    expect(result.black).toBe(20);
+    expect(result.moves.map((m) => m.san)).toEqual(["e4", "d4"]);
+    expect(result.opening).toEqual({ eco: "A00", name: "Start" });
+  });
+
+  test("on 429 pauses a minute, then retries", async () => {
+    const stats = { white: 1, draws: 0, black: 0, moves: [] };
+    const { client, calls, clock } = setup((_, i) =>
+      i === 0 ? new Response("", { status: 429 }) : Response.json(stats),
+    );
+    const result = await client.explorer({ fen: "x", ratings: [], speeds: [], token: "tok" });
+    expect(result).toEqual(stats);
+    expect(calls).toHaveLength(2);
+    expect(clock.sleeps).toEqual([60_000]);
+  });
+
+  test("throws LichessRateLimited when every explorer retry is a 429", async () => {
+    const { client, calls, clock } = setup(() => new Response("", { status: 429 }));
+    const error = await client
+      .explorer({ fen: "x", ratings: [], speeds: [], token: "tok" })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(LichessRateLimited);
+    expect(calls).toHaveLength(4);
+    expect(clock.sleeps).toEqual([60_000, 120_000, 240_000]);
   });
 
   test("maps 401 to LichessUnauthorized", async () => {

@@ -3,6 +3,10 @@ export { parseNdjson } from "./ndjson";
 export { createSerialGate } from "./serial-gate";
 export type { SerialGate, SerialGateOptions } from "./serial-gate";
 export {
+  EXPLORER_CACHE_MAX_ENTRIES,
+  EXPLORER_CACHE_TTL_MS,
+  EXPLORER_MOVES,
+  EXPLORER_STALE_MAX_MS,
   LICHESS_BASE_URL,
   LICHESS_EXPLORER_URL,
   MAX_429_RETRIES,
