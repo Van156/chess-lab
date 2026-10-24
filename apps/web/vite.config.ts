@@ -7,6 +7,13 @@ import { defineConfig, type Plugin } from "vite-plus";
 import { brand } from "./src/app/brand";
 import { injectBrandTitle } from "./src/app/brand-html";
 
+/**
+ * Name of the chunk that holds the generated opening book (~460 kB, builder only). The chunk
+ * file is `assets/<name>-<hash>.js`; the precache ignore and the runtime cache rule below both
+ * match this one name, so renaming the data module cannot put the book back in the precache.
+ */
+const OPENING_BOOK_CHUNK = "opening-book";
+
 /** Keeps the static `<title>` in `index.html` in sync with the brand config. */
 const brandHtml: Plugin = {
   name: "brand-html",
@@ -16,6 +23,15 @@ const brandHtml: Plugin = {
 export default defineConfig({
   server: {
     port: 3001,
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [{ name: OPENING_BOOK_CHUNK, test: /openings\.generated\.ts$/ }],
+        },
+      },
+    },
   },
   resolve: {
     tsconfigPaths: true,
@@ -34,7 +50,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
         // The engine (~7 MB WASM) and the opening book (~460 kB, builder only) are never
         // precached; they are cached on first use instead.
-        globIgnores: ["engine/**", "assets/openings.generated-*.js"],
+        globIgnores: ["engine/**", `assets/${OPENING_BOOK_CHUNK}-*.js`],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/engine/"),
@@ -46,7 +62,8 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/assets/openings.generated-"),
+            // A RegExp, not a function: a function is serialized into sw.js and loses this constant.
+            urlPattern: new RegExp(`/assets/${OPENING_BOOK_CHUNK}-[^/]+\\.js$`),
             handler: "CacheFirst",
             options: {
               cacheName: "opening-book",
