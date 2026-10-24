@@ -1,7 +1,7 @@
-# Feature: Engine suggestions in the repertoire builder — T3 next
+# Feature: Engine suggestions in the repertoire builder — T4 next
 
 - **Source:** user request 2026-10-24: "for the repertoire preparation use as reference chess.com and lichess and include the use of stockfish for suggestion similar [to] that webapp". New scope: the PRD and `openspec/changes/chess-lab-v1/tasks.md` have no engine-in-builder requirement.
-- **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit.
+- **Branch:** T1 on `feat/engine-suggestions`, branched from `main` at `0a7c9bf`. Each later task Tn gets `feat/engine-suggestions<n>`, branched from the previous task's last commit. T3 is split across `p3` and `p3b`, so T4 branches from `feat/engine-suggestions3b`.
 - **Delivery:** `auto-chain`, `feature-branch-chain` (cached from P2-b and P2-d), one PR per task. Forecast is about 1,250 authored changed lines: T1 about 250, T2 about 300, T3 about 400, T4 about 300.
 - **TDD:** source is `openspec/config.yaml` (`strict_tdd: false`; TDD for server/API and pure logic).
   - TDD is on for T1 and T2.
@@ -68,7 +68,7 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - In `apps/web/src/features/repertoire/lib/engine-view.ts`: White-side score from the FEN's side to move, `formatScore`, an accessible `describeScore`, `winPercent` (Lichess curve, mate clamps), `pvToSan` (move-numbered SAN via `parseMove` from `@b2c-template/chess`; stops at the first illegal move; plies limit), `bestMoveArrow` and an `inRepertoire` mark for each line's first move.
   - Engine constants `SUGGESTION_LINES`, `SUGGESTION_DEPTH` and `SUGGESTION_PV_PLIES` live in the engine `config.ts` and are exported from its public API.
   - Reuse `moveLabel` and `formatEval` ideas from `features/mistakes/lib/mistake-format.ts` only through copying the pattern, never through a cross-feature internal import.
-- [ ] **T3 — Suggestion hook and engine panel** [T lib, O UI]: Branch `feat/engine-suggestions3`. Route: delegated `react-staff`.
+- [x] **T3 — Suggestion hook and engine panel** [T lib, O UI]: Branches `feat/engine-suggestions3` (fix, state and hooks) and `feat/engine-suggestions3b` (UI). Route: delegated `react-staff`.
   - A pure reducer for the suggestion state (`off | starting | analysing{depth, lines} | done{depth, lines} | unavailable | terminal`), with tests.
   - `useEngineSuggestions(fen, enabled)` calls `engine.analyse({ fen, limit: { depth: SUGGESTION_DEPTH }, priority: "interactive", multiPv: SUGGESTION_LINES, onProgress })`. It cancels on a position change, when toggled off and on unmount, and ignores `EngineJobCancelledError`.
   - A `useEngineToggle` preference, backed by `localStorage` inside try/catch and defaulting to on.
@@ -79,7 +79,8 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Mount the eval bar beside the board and the panel in the builder view. The best-move arrow is merged with the idea-note arrows.
   - Add a suggested move through the existing `playMove` and `addMove` flow.
   - Update builder view stories and tests, and the engine section of `docs/architecture/web-app.md`.
-  - Manual check in the local dev app (web on port 4000): lines deepen, the arrow follows line 1, Add works, the toggle is remembered, and game analysis resumes afterwards.
+  - Manual check in the local dev app (web on port 4000): lines deepen, the arrow follows line 1, Add works, the toggle is remembered, and game analysis resumes afterwards. This session has no browser automation, so the writer runs `pnpm --filter web build` and confirms the worker is not in the main bundle. The in-browser check goes to the user.
+  - From T3: pass `maxDepth: SUGGESTION_DEPTH` and `maxPlies: SUGGESTION_PV_PLIES` into `toEngineView` from the container. The constants come from `@/features/engine` in the container, not in a `lib/` module.
 
 ## Acceptance criteria
 
@@ -128,3 +129,29 @@ The explorer shows what people play, not what is sound. Lichess and chess.com pa
   - Accepted into T3 as technical fixes, with no user-visible scope change:
     - R3-multipv-nan (WARNING): `buildMultiPvOption` lets `NaN` and `Infinity` through, because `Math.max(1, NaN)` is `NaN`. Guard with `Number.isFinite`, fall back to 1, and test it.
     - R3-stopping-lines-unproved (SUGGESTION): the "lines from a stopping search are ignored" test only checks the rejection. Prove that no `onProgress` call and no stale line follow a stop, through the pre-empt path.
+- 2026-10-24 T3 done (route: delegated `react-staff`, 17 files).
+  - Fixes, commit `1cb5fda` (46 lines):
+    - RED for R3-multipv-nan: `Expected: "setoption name MultiPV value 1"`, `Received: "...value NaN"` (23 pass, 1 fail). GREEN: 56 pass.
+    - The new pre-empt test for R3-stopping-lines-unproved passed against the current code. With the `stopReason !== null` guard temporarily removed, it failed (31 pass, 1 fail), so it is meaningful. The guard was then restored.
+  - Lib TDD:
+    - RED: `Cannot find module './suggestion-state'`. GREEN: 21 tests.
+    - Deviation: `engine-preference.ts` was written together with its 4 tests, so there is no separate RED.
+  - The focused run gives 354 pass, 0 fail (parent re-ran: 354 pass). `pnpm check`, `pnpm --filter web check-types` and `pnpm check-types` exit 0. After `pnpm db:test:prepare`, the full `bun test` gives 2091 pass, 0 fail.
+  - `lib/suggestion-state.ts`:
+    - The states are `off | starting | analysing | done | unavailable | terminal`, each carrying `{job, fen}`.
+    - The reducer accepts progress, finished and failed events only for the current `job`.
+    - `toEngineView({state, fen, enabled, childMoves, maxDepth, maxPlies})` returns `{panel, whitePercent, arrow}`. A state for another FEN counts as starting.
+    - The limits are inputs: importing the constants from `@/features/engine` under `bun test` loads `orpc` and fails on `VITE_SERVER_URL`.
+  - `useEngineSuggestions(fen, enabled)` returns `{state, retry}`. Progress is coalesced to one update per animation frame, and the hook has no automated test.
+  - `useEngineToggle()` uses `useSyncExternalStore`: the key is `chess-lab:repertoire:engine-suggestions` (`on`/`off`), the default is on, and the server snapshot is `true`.
+  - `EnginePanel`:
+    - A Base UI `Switch` inside a native label, "Stockfish".
+    - Score text is `aria-hidden`, with the sr-only `scoreLabel` beside it.
+    - "Add <san>" is disabled while `addPending`; a first move already in the repertoire gets an "In repertoire" badge instead.
+    - One polite status announces only "Analysis finished at depth N." or "The engine is unavailable."
+  - `EvalBar` is `aria-hidden`, `w-4` and `h-full`, and follows the orientation; null gives 50%.
+  - Size and slicing (`auto-chain`):
+    - The writer's single commit `dbfdc08` held 1,027 lines: about 400 tests, 200 stories and fixtures, and 400 source. The parent split it by tree, and the final tree is identical (`7497011`).
+    - Part A `ba90624` on `p3` holds the state, the preference and the hooks: 591 lines, about 300 of them tests. With the UI files set aside, `pnpm --filter web check-types` exits 0 and the focused run gives 339 pass. Recommend `size:exception` for that PR, since its test share is over half.
+    - Part B `39118de` on `p3b` holds the panel, the bar, stories, fixtures and the registry: 436 lines.
+  - Review: pending with T4. Next: T4.
