@@ -1,7 +1,7 @@
 import { IDEA_NOTE_MAX_ITEMS } from "@b2c-template/api/lib/repertoire-limits";
 
 import { removalPreview, type RepertoireGraph } from "./repertoire-tree";
-import type { NoteArrow, RepertoireData } from "./repertoire-types";
+import type { NoteArrow, RepertoireData, RepertoireMove } from "./repertoire-types";
 
 const SQUARE = /^[a-h][1-8]$/;
 const SQUARE_HINT = "type a square, for example e4.";
@@ -103,4 +103,28 @@ export function positionAfterRemoval(
 export function describeChildMove(plyBefore: number, san: string): string {
   const number = Math.floor(plyBefore / 2) + 1;
   return `${number}${plyBefore % 2 === 0 ? "." : "..."} ${san}`;
+}
+
+/**
+ * The FENs from the start position through each move of a line, for the opening name. A position
+ * the graph does not hold is left out rather than failing: the name is a nicety, and the shorter
+ * list still names the longest known prefix.
+ */
+export function lineFens(
+  graph: Pick<RepertoireData, "startPositionId" | "positions">,
+  line: readonly Pick<RepertoireMove, "toPositionId">[],
+): string[] {
+  const fenOf = new Map(graph.positions.map((position) => [position.id, position.fen]));
+  return [graph.startPositionId, ...line.map((move) => move.toPositionId)].flatMap((id) => {
+    const fen = fenOf.get(id);
+    return fen === undefined ? [] : [fen];
+  });
+}
+
+/** The move with this id, or `undefined` when the graph no longer holds it (a stale request). */
+export function findMove(
+  graph: Pick<RepertoireData, "moves">,
+  moveId: string,
+): RepertoireMove | undefined {
+  return graph.moves.find((candidate) => candidate.id === moveId);
 }

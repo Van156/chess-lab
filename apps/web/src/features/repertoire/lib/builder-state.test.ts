@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   describeChildMove,
+  findMove,
+  lineFens,
   parseArrowInput,
   parseSquareInput,
   positionAfterRemoval,
@@ -162,5 +164,36 @@ describe("describeChildMove", () => {
     expect(describeChildMove(0, "e4")).toBe("1. e4");
     expect(describeChildMove(1, "e5")).toBe("1... e5");
     expect(describeChildMove(4, "Nf3")).toBe("3. Nf3");
+  });
+});
+
+describe("lineFens", () => {
+  const [m1, m2] = graph.moves;
+
+  test("is the start position alone for an empty line", () => {
+    expect(lineFens(graph, [])).toEqual(["fen-start"]);
+  });
+
+  test("runs from the start position through each move's position", () => {
+    expect(lineFens(graph, [m1, m2])).toEqual(["fen-start", "fen-p1", "fen-p2"]);
+  });
+
+  test("drops a position the graph does not hold, and keeps the rest in order", () => {
+    const missing = { ...m2, toPositionId: "gone" };
+    expect(lineFens(graph, [m1, missing])).toEqual(["fen-start", "fen-p1"]);
+  });
+
+  test("is empty when the start position itself is missing", () => {
+    expect(lineFens({ ...graph, startPositionId: "gone" }, [])).toEqual([]);
+  });
+});
+
+describe("findMove", () => {
+  test("finds a move by its id", () => {
+    expect(findMove(graph, "m2")?.san).toBe("e5");
+  });
+
+  test("is undefined for an id the graph does not hold", () => {
+    expect(findMove(graph, "nope")).toBeUndefined();
   });
 });

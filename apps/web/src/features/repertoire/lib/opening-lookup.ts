@@ -36,3 +36,22 @@ export function openingAlongPath(book: OpeningBook, fens: readonly string[]): Op
   }
   return null;
 }
+
+/** What the opening book query knows: still loading, failed, or the loaded book. */
+export type OpeningBookState =
+  | { kind: "loading" }
+  | { kind: "failed" }
+  | { kind: "loaded"; book: OpeningBook };
+
+/**
+ * The opening to show for a line. `undefined` while the book loads or when it failed (the name is
+ * a nicety, so a failure is silent) and when there is no line yet; `null` once the book is loaded
+ * and the line, possibly empty, has no name.
+ */
+export function openingName(
+  state: OpeningBookState,
+  fens: readonly string[] | null,
+): Opening | null | undefined {
+  if (state.kind !== "loaded" || fens === null) return undefined;
+  return openingAlongPath(state.book, fens);
+}

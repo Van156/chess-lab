@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { START_FEN, applyMove } from "@b2c-template/chess";
 
-import { openingAlongPath, openingFor, openingKey, type OpeningBook } from "./opening-lookup";
+import {
+  openingAlongPath,
+  openingFor,
+  openingKey,
+  openingName,
+  type OpeningBook,
+} from "./opening-lookup";
 
 /** The FENs after each SAN move from the start position, the start included. */
 function fensAfter(...sans: string[]): string[] {
@@ -99,5 +105,33 @@ describe("openingAlongPath", () => {
 
   test("is none when no position on the path is known", () => {
     expect(openingAlongPath(book, fensAfter("a3", "a6"))).toBeNull();
+  });
+});
+
+describe("openingName", () => {
+  const line = fensAfter("e4");
+
+  test("is undefined while the book loads", () => {
+    expect(openingName({ kind: "loading" }, line)).toBeUndefined();
+  });
+
+  test("is undefined when the book failed to load", () => {
+    expect(openingName({ kind: "failed" }, line)).toBeUndefined();
+  });
+
+  test("is the opening once the book is loaded", () => {
+    expect(openingName({ kind: "loaded", book }, line)).toEqual({
+      eco: "B00",
+      name: "King's Pawn Game",
+    });
+  });
+
+  test("is null when the loaded book has no name along the line", () => {
+    expect(openingName({ kind: "loaded", book }, fensAfter("a3"))).toBeNull();
+  });
+
+  test("is null for an empty line and undefined without one", () => {
+    expect(openingName({ kind: "loaded", book }, [])).toBeNull();
+    expect(openingName({ kind: "loaded", book }, null)).toBeUndefined();
   });
 });

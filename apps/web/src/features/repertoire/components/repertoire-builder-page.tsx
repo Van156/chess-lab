@@ -18,8 +18,8 @@ import { useExplorerBand } from "../hooks/use-explorer-band";
 import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
 import { useOpeningName } from "../hooks/use-opening-name";
 import { useRepertoire } from "../hooks/use-repertoire";
-import { buildBoardArrows, describeBoardLines } from "../lib/board-lines";
-import { positionAfterRemoval, resolvePosition } from "../lib/builder-state";
+import { boardLinesFor } from "../lib/board-lines";
+import { findMove, lineFens, positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
 import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
 import { toEngineView } from "../lib/suggestion-state";
@@ -72,14 +72,11 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     [repertoire, currentId, where.route],
   );
   // The FENs from the start position to the shown one, for the opening name.
-  const lineFens = useMemo(() => {
-    if (!repertoire || !path) return null;
-    const fenOf = new Map(repertoire.positions.map((candidate) => [candidate.id, candidate.fen]));
-    return [repertoire.startPositionId, ...path.map((move) => move.toPositionId)]
-      .map((id) => fenOf.get(id))
-      .filter((fen): fen is string => fen !== undefined);
-  }, [repertoire, path]);
-  const opening = useOpeningName(lineFens);
+  const fens = useMemo(
+    () => (repertoire && path ? lineFens(repertoire, path) : null),
+    [repertoire, path],
+  );
+  const opening = useOpeningName(fens);
   const tree = useMemo(
     () => (repertoire && path ? buildVariationTree(repertoire, path) : null),
     [repertoire, path],
@@ -90,7 +87,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   );
   const requestDeleteById = useCallback(
     (moveId: string) => {
-      const move = repertoire?.moves.find((candidate) => candidate.id === moveId);
+      const move = repertoire ? findMove(repertoire, moveId) : undefined;
       if (move) setDeleting(move);
     },
     [repertoire],
@@ -185,16 +182,13 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     maxPlies: SUGGESTION_PV_PLIES,
   });
 
-  const engineLines =
-    engine.panel.kind === "analysing" || engine.panel.kind === "done" ? engine.panel.lines : [];
-  const boardArrows = buildBoardArrows({
+  const board = boardLinesFor({
+    panel: engine.panel,
     noteArrows: note.arrows,
-    engineLines,
     lineCount,
     repertoireMoves: children,
     showRepertoire: showRepertoireArrows,
   });
-  const boardArrowText = describeBoardLines(engineLines, lineCount, children, showRepertoireArrows);
 
   const removal = deleting ? removalPreview(repertoire, deleting.id) : null;
 
@@ -209,8 +203,8 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         startPositionId={repertoire.startPositionId}
         opening={opening ?? null}
         engine={engine}
-        boardArrows={boardArrows}
-        boardArrowText={boardArrowText}
+        boardArrows={board.arrows}
+        boardArrowText={board.text}
         lineCount={lineCount}
         showRepertoireArrows={showRepertoireArrows}
         explorer={explorer}
