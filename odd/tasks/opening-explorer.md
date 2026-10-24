@@ -88,7 +88,7 @@ Building a repertoire without data means guessing which replies matter. The spec
   - Presentational `ExplorerPanel`: a table with the band label; states for loading, empty ("no games recorded"), unavailable (with a reason and a Lichess sign-in hint for unauthorized) and stale.
   - `use-explorer` hook and container wiring in the builder page.
   - Stories, registry entries and SSR tests.
-- [ ] **T6 — Add from explorer and inline band select** [T lib, O UI]: Branch `feat/chess-lab-v1-p2d6`. Route: delegated `react-staff`.
+- [x] **T6 — Add from explorer and inline band select** [T lib, O UI]: Branches `feat/chess-lab-v1-p2d6` (server and helpers) and `feat/chess-lab-v1-p2d6b` (UI). Route: delegated `react-staff`.
   - An Add button on explorer moves not in the repertoire, through the existing `addMove` flow.
   - A band select from -2 to +2 that labels the resulting band, saves via `settings.update` and refetches the explorer.
   - `repertoire.explorer` also returns `ownBand` (`ratingBandFor(perfs, 0)`), so the select can label each offset correctly, even when the band was clamped at an end.
@@ -206,4 +206,23 @@ Building a repertoire without data means guessing which replies matter. The spec
     - R3-bandlabel-unknown-band: `bandLabel` renders an inverted range for an off-bucket band.
     - R3-use-explorer-mapping-untested: the query-state to panel-state mapping in `useExplorer` is not tested.
   - Pending suggestion: R3-microtask-flush-ordering. The cross-user port test does not assert that both client calls started before gate A rejects.
-  - Next: T6.
+- 2026-10-24 T6 done (route: delegated react-staff, 21 files including the small API change).
+  - RED (tests first): `bun test apps/web/src/features/repertoire/lib packages/api/src/routers/repertoire.test.ts` -> 100 pass, 6 fail, 2 errors. The `ownBand` assertions failed; `bandLabel` gave `Expected: "1500" Received: "1500–-1"`; `Cannot find module './explorer-band-options'` and `'./explorer-state'`.
+  - GREEN: 113 pass.
+  - Focused run 188 pass (parent re-ran: 188 pass). `pnpm check-types`, `pnpm --filter web check-types` and `pnpm check` exit 0; full `bun test` 2002 pass, 0 fail.
+  - Server: `repertoire.explorer` also returns `ownBand`.
+  - Lib:
+    - `bandLabel` falls back to the bare number for an off-bucket band.
+    - `toExplorerPanelState` (`lib/explorer-state.ts`) owns the panel state type. A failed refetch that still has data stays loaded.
+    - `bandOptions(ownBand)` (`lib/explorer-band-options.ts`) clamps at the ends and drops repeated bands.
+  - UI:
+    - `ExplorerBandSelect` uses `NativeSelect` with the label "Compare with rating band". The selected option is the band in use.
+    - `use-explorer-band` calls `settings.update`; `onSuccess` awaits the invalidation of every `repertoire.explorer` query, and a failure shows the existing toast.
+    - The Add button ("Add e6 to the repertoire") appears only on moves outside the repertoire. It reuses `playMove`, the `SanInput` and board flow, so the builder moves to the new position.
+  - Add is disabled while any builder write is saving, which is broader than only that add.
+  - Not verified (needs a browser): 375 px, focus order, screen reader.
+  - Size: 479 changed lines, so `auto-chain` split it by tree. Both parts fit the 400-line budget:
+    - `a69e5dc` on `p2d6`: `ownBand`, lib helpers and fixtures, 182 lines; types and tests checked alone (180 pass).
+    - `8854292` on `p2d6b`: UI, 297 lines.
+    - The two commits together give the same tree as the original `486681b`.
+  - Review: T6 alone (base 835ec9f).
