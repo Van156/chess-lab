@@ -146,7 +146,13 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function explorerSetup(options: { token?: string | null | Error } = {}) {
+function explorerSetup(
+  options: {
+    token?: string | null | Error;
+    tokenFor?: (userId: string) => string;
+    cache?: ReturnType<typeof createExplorerCache<ExplorerStats>>;
+  } = {},
+) {
   const calls: ExplorerArgs[] = [];
   let respond: (args: ExplorerArgs) => Promise<ExplorerStats> = async () => stats;
   const client = {
@@ -156,14 +162,17 @@ function explorerSetup(options: { token?: string | null | Error } = {}) {
     },
   } as unknown as LichessClient;
   const clock = { now: 1_000_000 };
-  const cache = createExplorerCache<ExplorerStats>({
-    ttlMs: EXPLORER_CACHE_TTL_MS,
-    staleMaxMs: EXPLORER_STALE_MAX_MS,
-    maxEntries: 10,
-    now: () => clock.now,
-  });
+  const cache =
+    options.cache ??
+    createExplorerCache<ExplorerStats>({
+      ttlMs: EXPLORER_CACHE_TTL_MS,
+      staleMaxMs: EXPLORER_STALE_MAX_MS,
+      maxEntries: 10,
+      now: () => clock.now,
+    });
   const timers: { fire: () => void; ms: number; cleared: boolean }[] = [];
-  const resolveToken = async () => {
+  const resolveToken = async (userId: string) => {
+    if (options.tokenFor) return options.tokenFor(userId);
     const token = options.token === undefined ? "secret-token" : options.token;
     if (token instanceof Error) throw token;
     return token;
@@ -236,19 +245,6 @@ describe("createExplorerPort", () => {
     expect(calls).toHaveLength(3);
   });
 
-  test("concurrent identical queries share one client call", async () => {
-    const { explorer, calls, setResponder } = explorerSetup();
-    const gate = deferred<ExplorerStats>();
-    setResponder(() => gate.promise);
-    const results = Promise.all([explorer("u1", query), explorer("u2", query)]);
-    gate.resolve(stats);
-    expect(await results).toEqual([
-      { status: "ok", stats, stale: false },
-      { status: "ok", stats, stale: false },
-    ]);
-    expect(calls).toHaveLength(1);
-  });
-
   test("a null token is unauthorized and the client is not called", async () => {
     const { explorer, calls } = explorerSetup({ token: null });
     expect(await explorer("u1", query)).toEqual({
@@ -273,22 +269,61 @@ describe("createExplorerPort", () => {
   );
 
   test("an unauthorized user gets no cached data even when the position is cached", async () => {
-    const warm = explorerSetup();
-    await warm.explorer("u1", query);
-    // Same cache, different user without a token.
-    const cold = createExplorerPort({
-      client: { explorer: async () => stats } as unknown as LichessClient,
-      resolveToken: async () => null,
-      cache: createExplorerCache<ExplorerStats>({
-        ttlMs: 1,
-        staleMaxMs: 1,
-        maxEntries: 1,
-      }),
+    const cache = createExplorerCache<ExplorerStats>({
+      ttlMs: EXPLORER_CACHE_TTL_MS,
+      staleMaxMs: EXPLORER_STALE_MAX_MS,
+      maxEntries: 10,
+      now: () => 1_000_000,
     });
-    expect(await cold("u2", query)).toEqual({
+    const warm = explorerSetup({ cache });
+    const unlinked = explorerSetup({ cache, token: null });
+    await warm.explorer("u1", query);
+    // The shared cache is warm: a second identical query is served without a client call.
+    expect(await warm.explorer("u1", query)).toEqual({
+      status: "ok",
+      stats,
+      stale: false,
+    });
+    expect(warm.calls).toHaveLength(1);
+
+    expect(await unlinked.explorer("u2", query)).toEqual({
       status: "unavailable",
       reason: "unauthorized",
     });
+    expect(unlinked.calls).toHaveLength(0);
+  });
+
+  test("a failure on one user's in-flight load does not reach another user's request", async () => {
+    const { explorer, calls, setResponder } = explorerSetup({
+      tokenFor: (userId) => `token-${userId}`,
+    });
+    const gateA = deferred<ExplorerStats>();
+    const gateB = deferred<ExplorerStats>();
+    setResponder((args) => (args.token === "token-uA" ? gateA.promise : gateB.promise));
+    const a = explorer("uA", query);
+    const b = explorer("uB", query);
+    // Let both requests pass the token lookup and reach the cache.
+    await Promise.resolve();
+    await Promise.resolve();
+    gateA.reject(new LichessUnauthorized());
+    // Settle A before B stores its answer, so A cannot fall back to B's stored stats.
+    expect(await a).toEqual({ status: "unavailable", reason: "unauthorized" });
+    gateB.resolve(stats);
+    expect(await b).toEqual({ status: "ok", stats, stale: false });
+    expect(calls.map((call) => call.token).sort()).toEqual(["token-uA", "token-uB"]);
+  });
+
+  test("concurrent identical queries from one user share one client call", async () => {
+    const { explorer, calls, setResponder } = explorerSetup();
+    const gate = deferred<ExplorerStats>();
+    setResponder(() => gate.promise);
+    const results = Promise.all([explorer("u1", query), explorer("u1", query)]);
+    gate.resolve(stats);
+    expect(await results).toEqual([
+      { status: "ok", stats, stale: false },
+      { status: "ok", stats, stale: false },
+    ]);
+    expect(calls).toHaveLength(1);
   });
 
   test("any other resolver error is reported as an error", async () => {

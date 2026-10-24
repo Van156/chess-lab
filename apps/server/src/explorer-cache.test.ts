@@ -186,6 +186,73 @@ describe("createExplorerCache", () => {
     ]);
     expect(calls).toBe(1);
   });
+
+  describe("per-caller in-flight keys", () => {
+    function gated() {
+      const state = {
+        calls: 0,
+        gates: [] as {
+          resolve: (v: string) => void;
+          reject: (e: unknown) => void;
+        }[],
+      };
+      const load = () => {
+        state.calls += 1;
+        return new Promise<string>((resolve, reject) => {
+          state.gates.push({ resolve, reject });
+        });
+      };
+      return { state, load };
+    }
+
+    test("different inflight keys under one key start separate loads", async () => {
+      const { cache } = setup();
+      const g = gated();
+      const first = cache.get("k", g.load, { inflightKey: "k|a" });
+      const second = cache.get("k", g.load, { inflightKey: "k|b" });
+      expect(g.state.calls).toBe(2);
+      g.state.gates[0]?.resolve("A");
+      g.state.gates[1]?.resolve("B");
+      await Promise.all([first, second]);
+    });
+
+    test("the same inflight key still shares one load", async () => {
+      const { cache } = setup();
+      const g = gated();
+      const first = cache.get("k", g.load, { inflightKey: "k|a" });
+      const second = cache.get("k", g.load, { inflightKey: "k|a" });
+      expect(g.state.calls).toBe(1);
+      g.state.gates[0]?.resolve("A");
+      expect(await Promise.all([first, second])).toEqual([
+        { value: "A", stale: false },
+        { value: "A", stale: false },
+      ]);
+    });
+
+    test("a successful load from either caller serves later fresh hits for both", async () => {
+      const { cache } = setup();
+      await cache.get("k", async () => "A", { inflightKey: "k|a" });
+      const b = counting("B");
+      expect(await cache.get("k", b.load, { inflightKey: "k|b" })).toEqual({
+        value: "A",
+        stale: false,
+      });
+      expect(b.state.calls).toBe(0);
+    });
+
+    test("a failure on one in-flight load does not reject the other", async () => {
+      const { cache } = setup();
+      const g = gated();
+      const failing = cache.get("k", g.load, { inflightKey: "k|a" });
+      const working = cache.get("k", g.load, { inflightKey: "k|b" });
+      const failure = failing.catch((error: unknown) => error);
+      g.state.gates[0]?.reject(new Error("a failed"));
+      // Settle A before B stores its answer, so A cannot fall back to B's stored value.
+      expect(await failure).toEqual(new Error("a failed"));
+      g.state.gates[1]?.resolve("B");
+      expect(await working).toEqual({ value: "B", stale: false });
+    });
+  });
 });
 
 describe("createExplorerCache peek", () => {

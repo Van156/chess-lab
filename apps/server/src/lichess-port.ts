@@ -106,13 +106,18 @@ export function createExplorerPort({
     }
 
     const key = `${query.positionKey}|${query.band}|${query.speeds.join(",")}`;
-    const request = cache.get(key, () =>
-      client.explorer({
-        fen: query.fen,
-        ratings: [query.band],
-        speeds: [...query.speeds],
-        token,
-      }),
+    // Stored stats are shared, but the load runs on this user's token: dedupe it per user so
+    // another user's 401, rate-limit pause or import wait is never inherited.
+    const request = cache.get(
+      key,
+      () =>
+        client.explorer({
+          fen: query.fen,
+          ratings: [query.band],
+          speeds: [...query.speeds],
+          token,
+        }),
+      { inflightKey: `${key}|${userId}` },
     );
     // If the deadline wins, the load outlives this call: its failure must not go unhandled.
     request.catch(() => {});

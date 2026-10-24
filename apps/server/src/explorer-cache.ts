@@ -13,8 +13,11 @@ type Entry<T> = { value: T; loadedAt: number };
 
 /**
  * TTL + LRU cache for explorer answers. Pure: no I/O, the clock is injectable.
- * Concurrent loads for one key share a single promise, and a failed load falls
- * back to an older entry (stale) before giving up with the loader's own error.
+ * Concurrent loads that share an in-flight key (default: the cache key) share a single
+ * promise, and a failed load falls back to an older entry (stale) before giving up with the
+ * loader's own error. A caller whose load depends on who is asking (a per-user token) passes its
+ * own `inflightKey`, so it never inherits another caller's failure while the stored value stays
+ * shared under `key`.
  */
 export function createExplorerCache<T>({
   ttlMs,
@@ -40,27 +43,31 @@ export function createExplorerCache<T>({
     }
   }
 
-  async function get(key: string, load: () => Promise<T>): Promise<ExplorerCacheResult<T>> {
+  async function get(
+    key: string,
+    load: () => Promise<T>,
+    { inflightKey = key }: { inflightKey?: string } = {},
+  ): Promise<ExplorerCacheResult<T>> {
     const cached = entries.get(key);
     if (cached && now() - cached.loadedAt < ttlMs) {
       touch(key, cached);
       return { value: cached.value, stale: false };
     }
 
-    let pending = inFlight.get(key);
+    let pending = inFlight.get(inflightKey);
     if (!pending) {
       pending = load().then(
         (value) => {
-          inFlight.delete(key);
+          inFlight.delete(inflightKey);
           store(key, value);
           return value;
         },
         (error: unknown) => {
-          inFlight.delete(key);
+          inFlight.delete(inflightKey);
           throw error;
         },
       );
-      inFlight.set(key, pending);
+      inFlight.set(inflightKey, pending);
     }
 
     try {
