@@ -1,4 +1,5 @@
 import { RATE_LIMIT_MAX_PAUSE_MS, RATE_LIMIT_PAUSE_MS } from "./config";
+import { LichessRateLimited } from "./types";
 
 export type SerialGateOptions = {
   now?: () => number;
@@ -55,17 +56,30 @@ export function createSerialGate(options: SerialGateOptions = {}) {
     stateFor(key).consecutivePauses = 0;
   }
 
+  /** Throws `LichessRateLimited` while the key is paused. */
+  function assertNotPaused(key: string): void {
+    const { pausedUntil } = stateFor(key);
+    if (pausedUntil > now()) throw new LichessRateLimited(pausedUntil);
+  }
+
   /**
    * Waits for the previous holder of the key and any pause, then returns a
-   * release function that must be called exactly once.
+   * release function that must be called exactly once. With `failIfPaused` a
+   * paused key throws `LichessRateLimited` instead of sleeping, both on entry and
+   * after the previous holder is done.
    */
-  async function acquire(key: string): Promise<() => void> {
+  async function acquire(
+    key: string,
+    { failIfPaused = false }: { failIfPaused?: boolean } = {},
+  ): Promise<() => void> {
+    if (failIfPaused) assertNotPaused(key);
     const state = stateFor(key);
     const previous = state.tail;
     let release!: () => void;
     state.tail = new Promise<void>((resolve) => (release = resolve));
     await previous;
     try {
+      if (failIfPaused) assertNotPaused(key);
       await waitClear(key);
     } catch (error) {
       release();
@@ -74,8 +88,12 @@ export function createSerialGate(options: SerialGateOptions = {}) {
     return release;
   }
 
-  async function run<T>(key: string, task: () => Promise<T>): Promise<T> {
-    const release = await acquire(key);
+  async function run<T>(
+    key: string,
+    task: () => Promise<T>,
+    options?: { failIfPaused?: boolean },
+  ): Promise<T> {
+    const release = await acquire(key, options);
     try {
       return await task();
     } finally {

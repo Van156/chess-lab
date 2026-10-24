@@ -41,7 +41,10 @@ describe("createExplorerCache", () => {
     const { cache, clock } = setup();
     await cache.get("k", async () => "old");
     clock.now = TTL;
-    expect(await cache.get("k", async () => "new")).toEqual({ value: "new", stale: false });
+    expect(await cache.get("k", async () => "new")).toEqual({
+      value: "new",
+      stale: false,
+    });
   });
 
   test("concurrent gets for one key share a single load", async () => {
@@ -102,7 +105,10 @@ describe("createExplorerCache", () => {
       })
       .catch(() => {});
     const ok = counting("fine");
-    expect(await cache.get("k", ok.load)).toEqual({ value: "fine", stale: false });
+    expect(await cache.get("k", ok.load)).toEqual({
+      value: "fine",
+      stale: false,
+    });
     expect(ok.state.calls).toBe(1);
   });
 
@@ -139,5 +145,78 @@ describe("createExplorerCache", () => {
     await cache.get("b", b.load);
     expect(a.state.calls).toBe(1);
     expect(b.state.calls).toBe(2);
+  });
+
+  test("several waiters on one failing load all get the stale value from one load call", async () => {
+    const { cache, clock } = setup();
+    await cache.get("k", async () => "old");
+    clock.now = TTL + 1;
+    let calls = 0;
+    const load = async () => {
+      calls += 1;
+      throw new Error("down");
+    };
+    const results = await Promise.all([
+      cache.get("k", load),
+      cache.get("k", load),
+      cache.get("k", load),
+    ]);
+    const stale = { value: "old", stale: true };
+    expect(results).toEqual([stale, stale, stale]);
+    expect(calls).toBe(1);
+  });
+
+  test("several waiters on one failing load without an entry each get the same error", async () => {
+    const { cache } = setup();
+    const error = new Error("down");
+    let calls = 0;
+    const load = async () => {
+      calls += 1;
+      throw error;
+    };
+    const results = await Promise.allSettled([
+      cache.get("k", load),
+      cache.get("k", load),
+      cache.get("k", load),
+    ]);
+    expect(results.map((r) => (r.status === "rejected" ? r.reason : null))).toEqual([
+      error,
+      error,
+      error,
+    ]);
+    expect(calls).toBe(1);
+  });
+});
+
+describe("createExplorerCache peek", () => {
+  test("is undefined for an unknown key", () => {
+    expect(setup().cache.peek("k")).toBeUndefined();
+  });
+
+  test("returns a fresh entry as not stale and an expired one as stale", async () => {
+    const { cache, clock } = setup();
+    await cache.get("k", async () => "A");
+    clock.now = TTL - 1;
+    expect(cache.peek("k")).toEqual({ value: "A", stale: false });
+    clock.now = TTL;
+    expect(cache.peek("k")).toEqual({ value: "A", stale: true });
+  });
+
+  test("is undefined once the entry is older than the stale limit", async () => {
+    const { cache, clock } = setup();
+    await cache.get("k", async () => "A");
+    clock.now = STALE;
+    expect(cache.peek("k")).toBeUndefined();
+  });
+
+  test("does not load and does not change recency", async () => {
+    const { cache } = setup(2);
+    await cache.get("a", async () => "A");
+    await cache.get("b", async () => "B");
+    cache.peek("a");
+    await cache.get("c", async () => "C");
+    // "a" is still the least recently used, so it was evicted despite the peek.
+    expect(cache.peek("a")).toBeUndefined();
+    expect(cache.peek("b")).toEqual({ value: "B", stale: false });
   });
 });

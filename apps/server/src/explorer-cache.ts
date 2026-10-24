@@ -73,5 +73,16 @@ export function createExplorerCache<T>({
     }
   }
 
-  return { get };
+  /**
+   * Read-only lookup of an entry younger than `staleMaxMs`, fresh or expired. Never loads and
+   * never changes recency, so a caller that gave up waiting can still serve what is stored.
+   */
+  function peek(key: string): ExplorerCacheResult<T> | undefined {
+    const entry = entries.get(key);
+    if (!entry) return undefined;
+    const age = now() - entry.loadedAt;
+    return age < staleMaxMs ? { value: entry.value, stale: age >= ttlMs } : undefined;
+  }
+
+  return { get, peek };
 }

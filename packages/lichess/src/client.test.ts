@@ -54,7 +54,10 @@ function ndjsonResponse(records: unknown[], chunkSize = 40) {
       controller.close();
     },
   });
-  return new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } });
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "application/x-ndjson" },
+  });
 }
 
 async function collect(source: AsyncIterable<LichessGame>) {
@@ -279,7 +282,12 @@ describe("explorer", () => {
     const { client, calls } = setup(() =>
       Response.json({ white: 0, draws: 0, black: 0, moves: [] }),
     );
-    await client.explorer({ fen: "x", ratings: [1600], speeds: ["blitz"], token: "tok" });
+    await client.explorer({
+      fen: "x",
+      ratings: [1600],
+      speeds: ["blitz"],
+      token: "tok",
+    });
     const { searchParams } = calls[0]!.url;
     expect(searchParams.get("moves")).toBe(String(EXPLORER_MOVES));
     expect(EXPLORER_MOVES).toBe(12);
@@ -293,7 +301,14 @@ describe("explorer", () => {
       draws: 20,
       black: 20,
       moves: [
-        { uci: "e2e4", san: "e4", white: 40, draws: 10, black: 10, averageRating: 1750 },
+        {
+          uci: "e2e4",
+          san: "e4",
+          white: 40,
+          draws: 10,
+          black: 10,
+          averageRating: 1750,
+        },
         { uci: "d2d4", san: "d4", white: 20, draws: 10, black: 10 },
       ],
       opening: { eco: "A00", name: "Start" },
@@ -312,25 +327,47 @@ describe("explorer", () => {
     expect(result.opening).toEqual({ eco: "A00", name: "Start" });
   });
 
-  test("on 429 pauses a minute, then retries", async () => {
-    const stats = { white: 1, draws: 0, black: 0, moves: [] };
-    const { client, calls, clock } = setup((_, i) =>
-      i === 0 ? new Response("", { status: 429 }) : Response.json(stats),
-    );
-    const result = await client.explorer({ fen: "x", ratings: [], speeds: [], token: "tok" });
-    expect(result).toEqual(stats);
-    expect(calls).toHaveLength(2);
-    expect(clock.sleeps).toEqual([60_000]);
-  });
-
-  test("throws LichessRateLimited when every explorer retry is a 429", async () => {
+  test("on 429 fails fast with retryAt, without sleeping or retrying", async () => {
     const { client, calls, clock } = setup(() => new Response("", { status: 429 }));
     const error = await client
       .explorer({ fen: "x", ratings: [], speeds: [], token: "tok" })
       .catch((e) => e);
     expect(error).toBeInstanceOf(LichessRateLimited);
-    expect(calls).toHaveLength(4);
-    expect(clock.sleeps).toEqual([60_000, 120_000, 240_000]);
+    expect((error as LichessRateLimited).retryAt).toBe(NOW + 60_000);
+    expect(calls).toHaveLength(1);
+    expect(clock.sleeps).toEqual([]);
+  });
+
+  test("while the token is paused an explorer request throws without sending or sleeping", async () => {
+    const { client, calls, clock } = setup(() => new Response("", { status: 429 }));
+    const args = { fen: "x", ratings: [], speeds: [], token: "tok" };
+    await client.explorer(args).catch(() => {});
+    const error = await client.explorer(args).catch((e) => e);
+    expect(error).toBeInstanceOf(LichessRateLimited);
+    expect((error as LichessRateLimited).retryAt).toBe(NOW + 60_000);
+    expect(calls).toHaveLength(1);
+    expect(clock.sleeps).toEqual([]);
+  });
+
+  test("the pause from an explorer 429 still holds back the import for that token", async () => {
+    const { client, calls, clock } = setup((_, i) =>
+      i === 0 ? new Response("", { status: 429 }) : ndjsonResponse([game("a")]),
+    );
+    await client.explorer({ fen: "x", ratings: [], speeds: [], token: "tok" }).catch(() => {});
+    expect((await collect(client.exportGames(exportArgs()))).map((g) => g.id)).toEqual(["a"]);
+    expect(calls).toHaveLength(2);
+    expect(clock.sleeps).toEqual([60_000]);
+  });
+
+  test("an explorer request recovers once the pause has elapsed", async () => {
+    const stats = { white: 1, draws: 0, black: 0, moves: [] };
+    const { client, clock } = setup((_, i) =>
+      i === 0 ? new Response("", { status: 429 }) : Response.json(stats),
+    );
+    const args = { fen: "x", ratings: [], speeds: [], token: "tok" };
+    await client.explorer(args).catch(() => {});
+    clock.now += 60_000;
+    expect(await client.explorer(args)).toEqual(stats);
   });
 
   test("maps 401 to LichessUnauthorized", async () => {

@@ -21,3 +21,6 @@ export const EXPLORER_CACHE_MAX_ENTRIES = 5000;
 
 /** Oldest cached answer still served when Lichess is rate limited or failing. */
 export const EXPLORER_STALE_MAX_MS = 7 * 24 * 60 * 60_000;
+
+/** Longest an interactive explorer request waits for an answer before serving stale or giving up. */
+export const EXPLORER_WAIT_MS = 5000;

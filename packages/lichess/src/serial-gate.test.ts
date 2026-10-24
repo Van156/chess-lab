@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createSerialGate } from "./serial-gate";
+import { LichessRateLimited } from "./types";
 
 function fakeClock(start = 1_000_000) {
   const state = { now: start, sleeps: [] as number[] };
@@ -94,7 +95,11 @@ describe("createSerialGate", () => {
 
   test("doubles consecutive pauses up to the cap", async () => {
     const clock = fakeClock();
-    const gate = createSerialGate({ ...clock, basePauseMs: 60_000, maxPauseMs: 300_000 });
+    const gate = createSerialGate({
+      ...clock,
+      basePauseMs: 60_000,
+      maxPauseMs: 300_000,
+    });
     const delays: number[] = [];
     for (let i = 0; i < 5; i += 1) {
       delays.push(gate.backoff("u1") - clock.state.now);
@@ -118,5 +123,35 @@ describe("createSerialGate", () => {
     clock.state.now += 45_000;
     await gate.waitClear("u1");
     expect(clock.state.sleeps).toEqual([15_000]);
+  });
+
+  test("failIfPaused throws with the pause end instead of sleeping", async () => {
+    const clock = fakeClock();
+    const gate = createSerialGate({ ...clock, basePauseMs: 60_000 });
+    const until = gate.backoff("u1");
+    const error = await gate.acquire("u1", { failIfPaused: true }).catch((e) => e);
+    expect(error).toBeInstanceOf(LichessRateLimited);
+    expect((error as LichessRateLimited).retryAt).toBe(until);
+    expect(clock.state.sleeps).toEqual([]);
+  });
+
+  test("failIfPaused checks again after waiting for the previous holder", async () => {
+    const clock = fakeClock();
+    const gate = createSerialGate({ ...clock, basePauseMs: 60_000 });
+    const release = await gate.acquire("u1");
+    const waiting = gate.acquire("u1", { failIfPaused: true }).catch((e) => e);
+    await tick();
+    gate.backoff("u1");
+    release();
+    expect(await waiting).toBeInstanceOf(LichessRateLimited);
+    expect(clock.state.sleeps).toEqual([]);
+    // The failed attempt released its own slot, so the next caller is not stuck.
+    clock.state.now += 60_000;
+    (await gate.acquire("u1", { failIfPaused: true }))();
+  });
+
+  test("failIfPaused acquires normally when the key is not paused", async () => {
+    const gate = createSerialGate(fakeClock());
+    (await gate.acquire("u1", { failIfPaused: true }))();
   });
 });

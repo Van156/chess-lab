@@ -56,7 +56,8 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
   /**
    * Sends one request. The caller must hold the user's gate slot. A 429 pauses
    * the user's gate (60 s doubling up to 5 min) and retries up to
-   * `MAX_429_RETRIES` times before failing with `LichessRateLimited`.
+   * `MAX_429_RETRIES` times before failing with `LichessRateLimited`. With `failFast` a
+   * 429 still pauses the gate but fails at once without sleeping or retrying.
    */
   async function send(
     key: string,
@@ -64,6 +65,7 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
     token: string,
     accept: string,
     signal?: AbortSignal,
+    failFast = false,
   ): Promise<Response> {
     for (let attempt = 0; ; attempt += 1) {
       signal?.throwIfAborted();
@@ -75,7 +77,7 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
       if (response.status === 429) {
         await response.body?.cancel().catch(() => {});
         const retryAt = gate.backoff(key);
-        if (attempt >= MAX_429_RETRIES) throw new LichessRateLimited(retryAt);
+        if (failFast || attempt >= MAX_429_RETRIES) throw new LichessRateLimited(retryAt);
         await gate.waitClear(key);
         continue;
       }
@@ -87,12 +89,20 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
     }
   }
 
-  async function getJson<T>(url: URL, token: string): Promise<T> {
+  /**
+   * One JSON request through the user's gate slot. `failFast` is for interactive callers: a
+   * paused gate throws `LichessRateLimited` at once, and a 429 is not slept through.
+   */
+  async function getJson<T>(url: URL, token: string, failFast = false): Promise<T> {
     const key = gateKey(token);
-    return gate.run(key, async () => {
-      const response = await send(key, url, token, JSON_ACCEPT);
-      return (await response.json()) as T;
-    });
+    return gate.run(
+      key,
+      async () => {
+        const response = await send(key, url, token, JSON_ACCEPT, undefined, failFast);
+        return (await response.json()) as T;
+      },
+      { failIfPaused: failFast },
+    );
   }
 
   async function* exportGames(args: ExportGamesArgs): AsyncGenerator<LichessGame> {
@@ -141,7 +151,7 @@ export function createLichessClient(deps: LichessClientDeps): LichessClient {
       url.searchParams.set("moves", String(EXPLORER_MOVES));
       url.searchParams.set("topGames", "0");
       url.searchParams.set("recentGames", "0");
-      return getJson<ExplorerStats>(url, args.token);
+      return getJson<ExplorerStats>(url, args.token, true);
     },
   };
 }
