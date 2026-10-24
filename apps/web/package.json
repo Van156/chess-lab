@@ -10,6 +10,7 @@
     "check-types": "tsc -b ../../packages/api && vp build && tsc --noEmit",
     "generate-pwa-assets": "pwa-assets-generator",
     "dev:bare": "bun scripts/copy-engine.ts && vp dev",
+    "build:openings": "bun scripts/build-openings.ts",
     "env:generate": "varlock codegen"
   },
   "dependencies": {
