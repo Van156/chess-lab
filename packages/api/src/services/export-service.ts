@@ -3,6 +3,12 @@ import { user } from "@b2c-template/db/schema/auth";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { game, gameAnalysis, mistake } from "@b2c-template/db/schema/games";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
+import {
+  ideaNote,
+  repertoire,
+  repertoireMove,
+  repertoirePosition,
+} from "@b2c-template/db/schema/repertoire";
 import { userSettings } from "@b2c-template/db/schema/settings";
 import { and, asc, eq, getColumns, gt } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
@@ -13,7 +19,7 @@ export const EXPORT_PAGE_SIZE = 500;
 /**
  * JSON section name -> the table it exports. The schema meta-test requires every table with a
  * `user_id` column to appear here or in its explicit exclusion list, so a later phase cannot ship
- * a user-owned table the export forgets (FR-19). Add repertoire and drill sections here.
+ * a user-owned table the export forgets (FR-19). Repertoire sections are here; add drill sections next.
  */
 export const EXPORT_JSON_SECTIONS = {
   user: "user",
@@ -24,6 +30,10 @@ export const EXPORT_JSON_SECTIONS = {
   mistakes: "mistake",
   cards: "card",
   reviewLogs: "review_log",
+  repertoires: "repertoire",
+  repertoirePositions: "repertoire_position",
+  repertoireMoves: "repertoire_move",
+  ideaNotes: "idea_note",
 } as const;
 
 /** Runner state that is not the user's data: the import lease and its backoff bookkeeping. */
@@ -120,6 +130,15 @@ export async function* exportUserJson(db: Database, userId: string): AsyncGenera
   yield* jsonArray(db, card, "id", card.userId, userId);
   yield `,"reviewLogs":`;
   yield* jsonArray(db, reviewLog, "id", reviewLog.userId, userId);
+  yield `,"repertoires":`;
+  yield* jsonArray(db, repertoire, "id", repertoire.userId, userId);
+  yield `,"repertoirePositions":`;
+  yield* jsonArray(db, repertoirePosition, "id", repertoirePosition.userId, userId);
+  yield `,"repertoireMoves":`;
+  yield* jsonArray(db, repertoireMove, "id", repertoireMove.userId, userId);
+  // Idea notes have no `id`: the position id is their primary key, so it is the paging key.
+  yield `,"ideaNotes":`;
+  yield* jsonArray(db, ideaNote, "repertoirePositionId", ideaNote.userId, userId);
   yield "}";
 }
 

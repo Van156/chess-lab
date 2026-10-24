@@ -308,7 +308,7 @@ Deferred note: the left-repertoire deviation algorithm (FR-16: matching a game t
 - [x] P2-b Repertoire router and builder UI: `routers/repertoire.ts` (list, create, rename, delete, get, addMove, deleteMove, setIdeaNote), `features/repertoire/**`, idea notes (one line, max 140 chars), accessible builder with `SanInput`. Satisfies repertoire / Navigate and edit the tree, Idea notes, Accessible builder. [T server, O UI, react-staff]
 - [ ] P2-c Repertoire cards and left-repertoire flag (BLOCKED on design refresh): cards only where side to move equals repertoire colour, queue hydration, deviation function in `packages/chess`, `addLineFromGame`. Satisfies repertoire / Repertoire cards, Left-repertoire flag. [T]
 - [ ] P2-d Opening explorer: `packages/lichess` explorer endpoint, server LRU cache with stale-serve in the `LichessPort` adapter (`apps/server`), `ratingBandFor` and `FALLBACK_EXPLORER_BAND` in `packages/chess/src/explorer-band.ts`, `explorer_band_offset` setting, UI stats beside candidate moves with accessible text. Satisfies opening-explorer / all requirements. Depends on S0.7 explorer-auth finding. [T server, O UI, react-staff]
-- [ ] P2-e Export coverage: extend `exportUserJson` with repertoires, positions, moves, idea notes; the S11a meta-test must pass. Satisfies data-control / Export all personal data. [T]
+- [x] P2-e Export coverage: extend `exportUserJson` with repertoires, positions, moves, idea notes; the S11a meta-test must pass. Satisfies data-control / Export all personal data. [T]
 
 ## Phase 3: Blindfold drills and voice input (coarse)
 

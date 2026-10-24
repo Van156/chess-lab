@@ -4,6 +4,12 @@ import { account, session, user } from "@b2c-template/db/schema/auth";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { game, gameAnalysis, mistake } from "@b2c-template/db/schema/games";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
+import {
+  ideaNote,
+  repertoire,
+  repertoireMove,
+  repertoirePosition,
+} from "@b2c-template/db/schema/repertoire";
 import { userSettings } from "@b2c-template/db/schema/settings";
 import { createTestDatabase, requireTestDatabaseOrSkip } from "@b2c-template/db/testing";
 import type { TestDatabaseHandle } from "@b2c-template/db/testing";
@@ -23,10 +29,6 @@ const EXCLUDED_TABLES: Record<string, string> = {
   session: "Session tokens, IP addresses and user agents are credentials, not the user's data.",
   account:
     "Holds the encrypted Lichess token, refresh and id tokens and password hashes; the username is exported through lichessProfile.",
-  repertoire: "Repertoire data is exported in P2-e.",
-  repertoire_position: "Repertoire data is exported in P2-e.",
-  repertoire_move: "Repertoire data is exported in P2-e.",
-  idea_note: "Repertoire data is exported in P2-e.",
 };
 
 const PGN = "1. e4 e5 2. Nf3 Nc6 *";
@@ -114,6 +116,28 @@ describe.skipIf(!reachable)("export service", () => {
       stateBefore: { state: 0 },
       stateAfter: { state: 1 },
     });
+    const [rep] = await handle.db
+      .insert(repertoire)
+      .values({ userId, color: "white", name: `Repertoire ${userId}` })
+      .returning();
+    const [start, afterE4] = await handle.db
+      .insert(repertoirePosition)
+      .values([
+        { repertoireId: rep!.id, userId, positionKey: "start", fen: "start-fen", sideToMove: "w" },
+        { repertoireId: rep!.id, userId, positionKey: "e4", fen: "e4-fen", sideToMove: "b" },
+      ])
+      .returning();
+    await handle.db.insert(repertoireMove).values({
+      repertoireId: rep!.id,
+      userId,
+      fromPositionId: start!.id,
+      toPositionId: afterE4!.id,
+      san: "e4",
+      uci: "e2e4",
+    });
+    await handle.db
+      .insert(ideaNote)
+      .values({ repertoirePositionId: afterE4!.id, userId, plan: `Plan ${userId}` });
     await handle.db.insert(userSettings).values({ userId, timeZone: "Europe/Madrid" });
     await handle.db.insert(lichessProfile).values({
       userId,
@@ -156,6 +180,10 @@ describe.skipIf(!reachable)("export service", () => {
         "mistakes",
         "cards",
         "reviewLogs",
+        "repertoires",
+        "repertoirePositions",
+        "repertoireMoves",
+        "ideaNotes",
       ].sort(),
     );
     expect(data.user).toMatchObject({ id: "u1", name: "name-u1", lichessUsername: "Nameu1" });
@@ -167,6 +195,13 @@ describe.skipIf(!reachable)("export service", () => {
     expect(data.mistakes).toHaveLength(1);
     expect(data.cards).toHaveLength(1);
     expect(data.reviewLogs).toHaveLength(1);
+    expect(data.repertoires).toHaveLength(1);
+    expect(data.repertoires[0]).toMatchObject({ userId: "u1", name: "Repertoire u1" });
+    expect(data.repertoirePositions).toHaveLength(2);
+    expect(data.repertoireMoves).toHaveLength(1);
+    expect(data.repertoireMoves[0]).toMatchObject({ userId: "u1", san: "e4", uci: "e2e4" });
+    expect(data.ideaNotes).toHaveLength(1);
+    expect(data.ideaNotes[0]).toMatchObject({ userId: "u1", plan: "Plan u1" });
 
     for (const secret of ["SECRET", "accessToken", "refreshToken", "idToken", "password"]) {
       expect(text).not.toContain(secret);
