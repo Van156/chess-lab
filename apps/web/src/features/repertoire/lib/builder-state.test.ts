@@ -148,6 +148,21 @@ describe("resolvePosition", () => {
     expect(resolvePosition(graph, "gone")).toBe("start");
     expect(resolvePosition(graph, null)).toBe("start");
   });
+
+  test("opens at the base position when none is chosen", () => {
+    expect(resolvePosition({ ...graph, basePositionId: "p2" }, null)).toBe("p2");
+    expect(resolvePosition({ ...graph, basePositionId: "p2" }, "gone")).toBe("p2");
+  });
+
+  test("keeps a chosen position over the base, including the start", () => {
+    expect(resolvePosition({ ...graph, basePositionId: "p2" }, "p1")).toBe("p1");
+    expect(resolvePosition({ ...graph, basePositionId: "p2" }, "start")).toBe("start");
+  });
+
+  test("ignores a base the graph does not hold", () => {
+    expect(resolvePosition({ ...graph, basePositionId: "gone" }, null)).toBe("start");
+    expect(resolvePosition({ ...graph, basePositionId: null }, null)).toBe("start");
+  });
 });
 
 describe("positionAfterRemoval", () => {

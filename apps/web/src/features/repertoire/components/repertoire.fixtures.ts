@@ -276,3 +276,13 @@ export const midLinePreview: PreviewView = (() => {
   if (!view) throw new Error("The fixture preview must be showing.");
   return view;
 })();
+
+/** The base line of the open game: 1. e4, so the base position is the one after it. */
+export const openGameBaseLine = [e4Move];
+
+/** The outline rooted at that base, with 1. e4 e5 shown: only the replies to 1. e4 remain. */
+export const openGameBaseTree = buildVariationTree(
+  openGameGraph,
+  [e4Move, e5Move],
+  openGameBaseLine,
+);

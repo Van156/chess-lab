@@ -14,11 +14,16 @@ import { toMoveRows } from "../lib/move-rows";
 import type { TreeLine, TreeNode } from "../lib/variation-tree";
 
 export type VariationTreeProps = {
-  /** The whole repertoire from the start position; keep it referentially stable between edits. */
+  /**
+   * The moves after the base position (the whole repertoire when there is no base); keep it
+   * referentially stable between edits.
+   */
   tree: TreeLine;
-  startPositionId: string;
-  /** The start position is the one being shown. */
-  atStart: boolean;
+  /**
+   * The whole repertoire from the start, offered under a fold when a base hides the moves before
+   * it. Null when no base is set. Keep it referentially stable.
+   */
+  fullTree: TreeLine | null;
   /** Jumps to a move's position by the route that reached it; keep the callback stable. */
   onSelect: (positionId: string, route: string[]) => void;
   /** Asks to delete a move and its continuations; the caller confirms. Keep it stable. */
@@ -163,13 +168,16 @@ function Line({
 /**
  * The repertoire as an outline (presentational): lines read as full-move rows, alternatives at
  * a fork are indented and marked, the line being shown is highlighted, any move can be selected or
- * deleted and the alternatives of a fork can be folded. Transposition leaves point back.
+ * deleted and the alternatives of a fork can be folded. Transposition leaves point back. With a
+ * base set the tree starts after it, and the moves from before the base (other openings, other
+ * ways in) stay reachable under a fold that shows the whole repertoire from the start.
  *
- * It is memoised and takes only the tree, two ids and stable callbacks. The tree depends on the
+ * It is memoised and takes only the trees and stable callbacks. The tree depends on the
  * repertoire and the shown line, never on engine data, so engine frames do not re-render it.
  */
-function VariationTree({ tree, startPositionId, atStart, onSelect, onDelete }: VariationTreeProps) {
+function VariationTree({ tree, fullTree, onSelect, onDelete }: VariationTreeProps) {
   const [collapsed, setCollapsed] = useState<CollapsedForks>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const actions: Actions = {
     collapsed,
     onToggle: (moveId) => setCollapsed((current) => toggleCollapsed(current, moveId)),
@@ -178,24 +186,32 @@ function VariationTree({ tree, startPositionId, atStart, onSelect, onDelete }: V
   };
   return (
     <nav aria-label="Variation tree" data-slot="variation-tree" className="flex flex-col gap-1">
-      <button
-        type="button"
-        aria-current={atStart ? "location" : undefined}
-        className={cn(
-          "flex min-h-11 items-center rounded-md px-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
-          atStart && "bg-accent font-semibold",
-        )}
-        onClick={() => onSelect(startPositionId, [])}
-      >
-        Start position
-      </button>
       {tree.nodes.length === 0 ? (
         <p className="px-3 text-sm text-muted-foreground">
-          No moves yet. Play one on the board or type it.
+          {fullTree ? "No moves after the base yet." : "No moves yet."} Play one on the board or
+          type it.
         </p>
       ) : (
         <Line line={tree} actions={actions} />
       )}
+      {fullTree ? (
+        <div className="mt-2 flex flex-col gap-1 border-t pt-2">
+          <button
+            type="button"
+            aria-expanded={showAll}
+            className="flex min-h-11 items-center gap-1 rounded-md px-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={() => setShowAll((current) => !current)}
+          >
+            {showAll ? (
+              <ChevronDown aria-hidden className="size-4" />
+            ) : (
+              <ChevronRight aria-hidden className="size-4" />
+            )}
+            All lines from the start position
+          </button>
+          {showAll ? <Line line={fullTree} actions={actions} /> : null}
+        </div>
+      ) : null}
     </nav>
   );
 }

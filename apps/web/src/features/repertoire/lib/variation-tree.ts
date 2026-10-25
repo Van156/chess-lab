@@ -42,13 +42,20 @@ export type TreeLine = {
  * a position is expanded where it is first reached and any later arrival is a leaf flagged
  * `transposition`; the result has neither cycles nor duplicated subtrees.
  *
- * It depends on the graph and the current path only, never on engine data, so callers can memoise
- * it on those two inputs.
+ * With a `base` (the moves from the start to a base position) the tree is rooted there and shows
+ * only what follows it. Routes stay whole, from the start, so selecting a node works unchanged and
+ * the plies and labels stay right.
+ *
+ * It depends on the graph, the current path and the base only, never on engine data, so callers can
+ * memoise it on those inputs.
  */
 export function buildVariationTree(
   graph: RepertoireGraph,
   path: readonly RepertoireMove[],
+  base: readonly RepertoireMove[] = [],
 ): TreeLine {
+  const rootId = base.at(-1)?.toPositionId ?? graph.startPositionId;
+  const rootRoute = base.map((move) => move.id);
   const byParent = new Map<string, RepertoireMove[]>();
   for (const move of graph.moves) {
     const siblings = byParent.get(move.fromPositionId);
@@ -58,7 +65,7 @@ export function buildVariationTree(
 
   const onPath = new Set(path.map((move) => move.id));
   const currentId = path.at(-1)?.id ?? null;
-  const expanded = new Set([graph.startPositionId]);
+  const expanded = new Set([rootId]);
 
   const buildNode = (move: RepertoireMove, parentRoute: string[]): TreeNode => {
     const route = [...parentRoute, move.id];
@@ -113,8 +120,8 @@ export function buildVariationTree(
     return { depth, isAlternative: depth > 0, nodes };
   };
 
-  const [first, ...others] = byParent.get(graph.startPositionId) ?? [];
+  const [first, ...others] = byParent.get(rootId) ?? [];
   if (!first) return { depth: 0, isAlternative: false, nodes: [] };
 
-  return buildLine(first, [], 0, others);
+  return buildLine(first, rootRoute, 0, others);
 }

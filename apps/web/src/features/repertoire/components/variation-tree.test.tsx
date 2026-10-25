@@ -14,8 +14,7 @@ function render(overrides: Partial<VariationTreeProps> = {}) {
   return renderToStaticMarkup(
     <VariationTree
       tree={buildVariationTree(forkGraph, pathOf(forkGraphPath))}
-      startPositionId="p0"
-      atStart={false}
+      fullTree={null}
       onSelect={() => {}}
       onDelete={() => {}}
       {...overrides}
@@ -24,14 +23,32 @@ function render(overrides: Partial<VariationTreeProps> = {}) {
 }
 
 describe("VariationTree", () => {
-  test("starts with a Start position row, marked as current at the start", () => {
-    expect(render()).toContain(">Start position</button>");
-    expect(render({ atStart: true })).toMatch(/aria-current="location"[^>]*>Start position</);
+  test("leaves the start position to the base line header", () => {
+    expect(render()).not.toContain("Start position");
   });
 
   test("explains an empty repertoire", () => {
     const html = render({ tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []) });
     expect(html).toContain("No moves yet");
+  });
+
+  test("says no moves follow the base when a base leaves nothing below it", () => {
+    const html = render({
+      tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []),
+      fullTree: buildVariationTree(forkGraph, []),
+    });
+    expect(html).toContain("No moves after the base yet.");
+  });
+
+  test("keeps the moves from before the base under a fold, closed at first", () => {
+    const html = render({ fullTree: buildVariationTree(forkGraph, []) });
+    expect(html).toMatch(/aria-expanded="false"[^>]*>.*All lines from the start position/);
+    expect(html).not.toContain("1. d4");
+    expect(html.match(/aria-label="1\. Nf3[^"]*"/g)).toHaveLength(1);
+  });
+
+  test("offers no fold without a base", () => {
+    expect(render()).not.toContain("All lines from the start position");
   });
 
   test("marks only the last move of the shown line as the current location", () => {
@@ -56,8 +73,7 @@ describe("VariationTree", () => {
           { startPositionId: "p0", moves: openGameGraph.moves.slice(0, 2) },
           [],
         )}
-        startPositionId="p0"
-        atStart
+        fullTree={null}
         onSelect={() => {}}
         onDelete={() => {}}
       />,
@@ -79,8 +95,7 @@ describe("VariationTree", () => {
           { startPositionId: "p0", moves: openGameGraph.moves.slice(0, 2) },
           [],
         )}
-        startPositionId="p0"
-        atStart
+        fullTree={null}
         onSelect={() => {}}
         onDelete={() => {}}
       />,

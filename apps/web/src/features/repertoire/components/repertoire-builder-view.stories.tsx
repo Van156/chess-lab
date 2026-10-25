@@ -12,6 +12,8 @@ import {
   emptyNote,
   midLineArrowText,
   midLineArrows,
+  openGameBaseLine,
+  openGameBaseTree,
   openGameE5Tree,
   openGameStartTree,
   openGameTree,
@@ -37,7 +39,11 @@ const meta = {
     path: [e4Move],
     childMoves: [e5Move, c5Move],
     tree: openGameTree,
+    fullTree: null,
     startPositionId: "p0",
+    basePositionId: null,
+    baseLine: [],
+    baseSaving: false,
     opening: { eco: "B00", name: "King's Pawn Game" },
     explorer: { kind: "loaded", data: explorerOk },
     engine: engineOnView,
@@ -62,6 +68,8 @@ const meta = {
     onChangeLineCount: () => {},
     onToggleRepertoireArrows: () => {},
     onSelectNode: () => {},
+    onSetBase: () => {},
+    onClearBase: () => {},
     onDeleteNode: () => {},
     onRequestDelete: () => {},
     onNoteChange: () => {},
@@ -162,5 +170,18 @@ export const OpeningNamed: Story = {
     path: [e4Move, e5Move],
     childMoves: [],
     tree: openGameE5Tree,
+  },
+};
+
+/** A repertoire with a base of 1. e4: the tree and the strip start there. */
+export const WithBaseLine: Story = {
+  args: {
+    position: afterE5,
+    path: [e4Move, e5Move],
+    childMoves: [],
+    basePositionId: "p1",
+    baseLine: openGameBaseLine,
+    tree: openGameBaseTree,
+    fullTree: openGameStartTree,
   },
 };

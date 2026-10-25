@@ -19,6 +19,7 @@ import { useLinePreview } from "../hooks/use-line-preview";
 import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
 import { useOpeningName } from "../hooks/use-opening-name";
 import { useRepertoire } from "../hooks/use-repertoire";
+import { baseLine as baseLineOf } from "../lib/base-line";
 import { boardLinesFor } from "../lib/board-lines";
 import { findMove, lineFens, positionAfterRemoval, resolvePosition } from "../lib/builder-state";
 import { notesEqual } from "../lib/idea-note";
@@ -45,8 +46,18 @@ function reportFailure(error: unknown, fallback: string) {
  * back to the start position in that case.
  */
 export default function RepertoireBuilderPage({ id }: { id: string }) {
-  const { repertoire, error, isPending, retry, addMove, deleteMove, setIdeaNote, isSaving } =
-    useRepertoire(id);
+  const {
+    repertoire,
+    error,
+    isPending,
+    retry,
+    addMove,
+    deleteMove,
+    setIdeaNote,
+    setBase,
+    isSettingBase,
+    isSaving,
+  } = useRepertoire(id);
   const [where, setWhere] = useState<Where>({ positionId: null, route: [] });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<RepertoireMove | null>(null);
@@ -78,9 +89,20 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     [repertoire, path],
   );
   const opening = useOpeningName(fens);
+  // The moves to the base; empty when there is none, or when the graph no longer reaches it.
+  const baseMoves = useMemo(
+    () => (repertoire ? baseLineOf(repertoire, repertoire.basePositionId) : []),
+    [repertoire],
+  );
+  const basePositionId = baseMoves.length > 0 ? (repertoire?.basePositionId ?? null) : null;
   const tree = useMemo(
-    () => (repertoire && path ? buildVariationTree(repertoire, path) : null),
-    [repertoire, path],
+    () => (repertoire && path ? buildVariationTree(repertoire, path, baseMoves) : null),
+    [repertoire, path, baseMoves],
+  );
+  const fullTree = useMemo(
+    () =>
+      repertoire && path && baseMoves.length > 0 ? buildVariationTree(repertoire, path) : null,
+    [repertoire, path, baseMoves],
   );
   const preview = useLinePreview(currentFen ?? "");
   const exitPreview = preview.exit;
@@ -166,6 +188,17 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     }
   };
 
+  // The board keeps its place while the base changes: until a position is chosen the builder shows
+  // the base, so it is pinned first, or clearing the base would jump back to the start.
+  const changeBase = async (next: string | null) => {
+    setWhere({ positionId, route: routeTo(path) });
+    try {
+      await setBase({ repertoireId: id, positionId: next });
+    } catch (failure) {
+      reportFailure(failure, "The base line could not be saved.");
+    }
+  };
+
   const confirmDelete = async (move: RepertoireMove) => {
     const next = positionAfterRemoval(repertoire, move.id, positionId);
     try {
@@ -214,7 +247,11 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         path={path}
         childMoves={children}
         tree={tree}
+        fullTree={fullTree}
         startPositionId={repertoire.startPositionId}
+        basePositionId={basePositionId}
+        baseLine={baseMoves}
+        baseSaving={isSettingBase}
         opening={opening ?? null}
         engine={engine}
         boardArrows={board.arrows}
@@ -245,6 +282,8 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
           );
         }}
         onSelectNode={go}
+        onSetBase={() => void changeBase(positionId)}
+        onClearBase={() => void changeBase(null)}
         onDeleteNode={requestDeleteById}
         onRequestDelete={setDeleting}
         onNoteChange={(next) => setDraft({ positionId, note: next })}

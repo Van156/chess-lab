@@ -27,6 +27,10 @@ export function useRepertoire(id: string) {
     ...orpc.repertoire.setIdeaNote.mutationOptions(),
     onSettled: reload,
   });
+  const setBase = useMutation({
+    ...orpc.repertoire.setBase.mutationOptions(),
+    onSettled: reload,
+  });
 
   return {
     repertoire: query.data,
@@ -39,6 +43,9 @@ export function useRepertoire(id: string) {
     deleteMove: deleteMove.mutateAsync,
     /** Input: `{ repertoireId, positionId, arrows, highlights, plan }`; an empty note clears it. */
     setIdeaNote: setIdeaNote.mutateAsync,
+    /** Input: `{ repertoireId, positionId }`; a null position clears the base. */
+    setBase: setBase.mutateAsync,
+    isSettingBase: setBase.isPending,
     isSaving: addMove.isPending || deleteMove.isPending || setIdeaNote.isPending,
   };
 }

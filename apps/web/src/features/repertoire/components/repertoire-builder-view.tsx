@@ -19,6 +19,7 @@ import type {
 } from "../lib/repertoire-types";
 import type { EngineView } from "../lib/suggestion-state";
 import type { TreeLine } from "../lib/variation-tree";
+import BaseLineHeader from "./base-line-header";
 import BoardToolbar from "./board-toolbar";
 import EnginePanel from "./engine-panel";
 import EvalBar from "./eval-bar";
@@ -37,7 +38,15 @@ export type RepertoireBuilderViewProps = {
   childMoves: readonly RepertoireMove[];
   /** The whole repertoire as an outline; memoised by the caller on the graph and the path. */
   tree: TreeLine;
+  /** The whole repertoire from the start; null when no base hides the moves before it. */
+  fullTree: TreeLine | null;
   startPositionId: string;
+  /** The base position; null when none is set. */
+  basePositionId: string | null;
+  /** The moves from the start to the base; empty when none is set. Memoised by the caller. */
+  baseLine: readonly RepertoireMove[];
+  /** A base change is being saved. */
+  baseSaving: boolean;
   /** The opening name of this position or the last named one on the path; null when none is known yet. */
   opening: Opening | null;
   /** Explorer stats for this position; whatever it holds, the rest of the builder works. */
@@ -77,6 +86,9 @@ export type RepertoireBuilderViewProps = {
   onSelectPly: (ply: number) => void;
   /** Jumps to a tree move's position by its route. The tree is memoised: keep this stable. */
   onSelectNode: (positionId: string, route: string[]) => void;
+  /** Makes the position being shown the base. */
+  onSetBase: () => void;
+  onClearBase: () => void;
   /** Asks to delete a tree move by id. The tree is memoised: keep this stable. */
   onDeleteNode: (moveId: string) => void;
   onRequestDelete: (move: RepertoireMove) => void;
@@ -103,6 +115,8 @@ function previewArrows(preview: PreviewView): BoardArrow[] {
  * at the board's height; the bar is hidden while the engine is off. Every rail panel stays mounted,
  * so the tree keeps its folds and the note editor keeps its focus while another tab is shown. The
  * tree takes only its memoised model and stable callbacks, so engine frames never re-render it.
+ * Above the tree, the base line header shows the repertoire's base (or the start position) and sets
+ * or clears it; the tree and the line navigator begin at the base.
  *
  * While an engine line is previewed, the board shows the line's position instead, with the preview
  * bar in place of the lines toolbar; it takes no moves and the typed-move field is hidden, so
@@ -114,7 +128,11 @@ export default function RepertoireBuilderView({
   path,
   childMoves,
   tree,
+  fullTree,
   startPositionId,
+  basePositionId,
+  baseLine,
+  baseSaving,
   opening,
   explorer,
   engine,
@@ -139,6 +157,8 @@ export default function RepertoireBuilderView({
   onToggleRepertoireArrows,
   onSelectPly,
   onSelectNode,
+  onSetBase,
+  onClearBase,
   onDeleteNode,
   onRequestDelete,
   onNoteChange,
@@ -217,7 +237,12 @@ export default function RepertoireBuilderView({
               />
             </div>
           </div>
-          <LineNavigator path={path} onSelectPly={onSelectPly} onDelete={onRequestDelete} />
+          <LineNavigator
+            path={path}
+            basePositionId={basePositionId}
+            onSelectPly={onSelectPly}
+            onDelete={onRequestDelete}
+          />
           {preview ? null : (
             <SanInput fen={position.fen} onMove={onPlayMove} label="Type a move to add it" />
           )}
@@ -243,13 +268,24 @@ export default function RepertoireBuilderView({
               </TabsTrigger>
             </TabsList>
             <TabsContent value="tree" keepMounted className="pt-2">
-              <VariationTree
-                tree={tree}
-                startPositionId={startPositionId}
-                atStart={path.length === 0}
-                onSelect={onSelectNode}
-                onDelete={onDeleteNode}
-              />
+              <div className="flex flex-col gap-1">
+                <BaseLineHeader
+                  baseLine={baseLine}
+                  startPositionId={startPositionId}
+                  basePositionId={basePositionId}
+                  currentPositionId={position.id}
+                  saving={baseSaving}
+                  onSelect={onSelectNode}
+                  onSetBase={onSetBase}
+                  onClearBase={onClearBase}
+                />
+                <VariationTree
+                  tree={tree}
+                  fullTree={fullTree}
+                  onSelect={onSelectNode}
+                  onDelete={onDeleteNode}
+                />
+              </div>
             </TabsContent>
             <TabsContent value="engine" keepMounted className="pt-2">
               <EnginePanel

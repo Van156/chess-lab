@@ -14,8 +14,7 @@ const meta = {
   parameters: { layout: "padded" },
   args: {
     tree: buildVariationTree(forkGraph, pathOf(forkGraphPath)),
-    startPositionId: "p0",
-    atStart: false,
+    fullTree: null,
     onSelect: () => {},
     onDelete: () => {},
   },
@@ -28,9 +27,25 @@ type Story = StoryObj<typeof meta>;
 export const ForkNestedAndTransposition: Story = {};
 
 export const AtStart: Story = {
-  args: { tree: buildVariationTree(forkGraph, []), atStart: true },
+  args: { tree: buildVariationTree(forkGraph, []) },
 };
 
 export const Empty: Story = {
-  args: { tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []), atStart: true },
+  args: { tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []) },
+};
+
+/** Rooted at the base 1. e4 e5: only what follows it, with the full repertoire under a fold. */
+export const RootedAtBase: Story = {
+  args: {
+    tree: buildVariationTree(forkGraph, pathOf(["f1", "f2", "f4"]), pathOf(["f1", "f2"])),
+    fullTree: buildVariationTree(forkGraph, pathOf(["f1", "f2", "f4"])),
+  },
+};
+
+/** A base with nothing played after it yet. */
+export const NothingAfterBase: Story = {
+  args: {
+    tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []),
+    fullTree: buildVariationTree(forkGraph, []),
+  },
 };

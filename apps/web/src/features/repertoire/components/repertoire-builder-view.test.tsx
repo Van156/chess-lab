@@ -4,6 +4,7 @@ import { renderWithRouter } from "@/shared/testing/render-with-router";
 
 import {
   afterE4,
+  afterE5,
   blackRepertoire,
   c5Move,
   centreNote,
@@ -12,6 +13,8 @@ import {
   emptyNote,
   midLineArrowText,
   midLineArrows,
+  openGameBaseLine,
+  openGameBaseTree,
   openGameStartTree,
   openGameTree,
   engineOffView,
@@ -32,7 +35,11 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       path={[e4Move]}
       childMoves={[e5Move, c5Move]}
       tree={openGameTree}
+      fullTree={null}
       startPositionId="p0"
+      basePositionId={null}
+      baseLine={[]}
+      baseSaving={false}
       opening={{ eco: "B00", name: "King's Pawn Game" }}
       explorer={{ kind: "loaded", data: explorerOk }}
       engine={engineOnView}
@@ -57,6 +64,8 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       onChangeLineCount={() => {}}
       onToggleRepertoireArrows={() => {}}
       onSelectNode={() => {}}
+      onSetBase={() => {}}
+      onClearBase={() => {}}
       onDeleteNode={() => {}}
       onRequestDelete={() => {}}
       onNoteChange={() => {}}
@@ -215,5 +224,33 @@ describe("RepertoireBuilderView", () => {
   test("previewing marks the previewed line in the Engine tab", async () => {
     const html = await render({ preview: midLinePreview });
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Preview line 2/);
+  });
+
+  test("offers Set as base on a position that is not the start, and no Clear base without one", async () => {
+    const html = await render();
+    expect(html).toContain('aria-label="Set this position as the base line"');
+    expect(html).not.toContain("Clear base");
+  });
+
+  test("hides Set as base at the start position", async () => {
+    const html = await render({ position: startPosition, path: [], tree: openGameStartTree });
+    expect(html).not.toContain("Set as base");
+  });
+
+  test("with a base, heads the tree with the base line and starts the tree and the strip there", async () => {
+    const html = await render({
+      position: afterE5,
+      path: [e4Move, e5Move],
+      basePositionId: "p1",
+      baseLine: openGameBaseLine,
+      tree: openGameBaseTree,
+      fullTree: openGameStartTree,
+    });
+    expect(html).toContain("Base: 1. e4</button>");
+    expect(html).toContain("Clear base");
+    expect(html).toContain("Set as base");
+    expect(html).toContain('aria-label="Base line: 1. e4"');
+    expect(html).toContain("All lines from the start position");
+    expect(html.indexOf("Base: 1. e4")).toBeLessThan(html.indexOf('aria-label="Variation tree"'));
   });
 });

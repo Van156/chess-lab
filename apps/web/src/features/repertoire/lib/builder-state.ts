@@ -72,14 +72,19 @@ export function parseArrowInput(
   return { ok: true, arrow: { from: start, to: end } };
 }
 
-/** `positionId` when the graph still has it, else the start position (after a delete or reload). */
+/**
+ * `positionId` when the graph still has it, else the base position, else the start position (after
+ * a delete or reload). With no position chosen yet the builder opens at the base.
+ */
 export function resolvePosition(
-  graph: Pick<RepertoireData, "startPositionId" | "positions">,
+  graph: Pick<RepertoireData, "startPositionId" | "positions"> &
+    Partial<Pick<RepertoireData, "basePositionId">>,
   positionId: string | null,
 ): string {
-  return positionId !== null && graph.positions.some((position) => position.id === positionId)
-    ? positionId
-    : graph.startPositionId;
+  const has = (id: string | null | undefined): id is string =>
+    id !== null && id !== undefined && graph.positions.some((position) => position.id === id);
+  if (has(positionId)) return positionId;
+  return has(graph.basePositionId) ? graph.basePositionId : graph.startPositionId;
 }
 
 /**

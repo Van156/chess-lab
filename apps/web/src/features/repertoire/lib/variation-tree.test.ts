@@ -179,3 +179,73 @@ describe("buildVariationTree", () => {
     );
   });
 });
+
+describe("buildVariationTree rooted at a base", () => {
+  const graph = graphOf([
+    ["m1", "start", "p1", "e4"],
+    ["m2", "p1", "p2", "e5", false],
+    ["m3", "p2", "p3", "Nf3"],
+    ["m4", "p3", "p4", "Nc6", false],
+    ["m5", "p3", "p5", "d6", false],
+    ["m6", "start", "q1", "d4"],
+  ]);
+  const base = pathOf(graph, "m1", "m2");
+
+  test("shows only the moves after the base", () => {
+    const tree = buildVariationTree(graph, [], base);
+    expect(sans(tree)).toEqual(["Nf3", "Nc6"]);
+  });
+
+  test("keeps the full route from the start, and the real ply, on every node", () => {
+    const [nf3, nc6] = buildVariationTree(graph, [], base).nodes as [TreeNode, TreeNode];
+    expect(nf3).toMatchObject({ label: "2. Nf3", ply: 3, route: ["m1", "m2", "m3"] });
+    expect(nc6).toMatchObject({ label: "2... Nc6", ply: 4, route: ["m1", "m2", "m3", "m4"] });
+  });
+
+  test("keeps alternatives with their full routes", () => {
+    const tree = buildVariationTree(graph, [], base);
+    const nc6 = tree.nodes[1] as TreeNode;
+    expect(nc6.alternatives).toHaveLength(1);
+    expect(sans(alt(nc6))).toEqual(["d6"]);
+    expect(alt(nc6).nodes[0]?.route).toEqual(["m1", "m2", "m3", "m5"]);
+  });
+
+  test("marks the shown line when it runs through the base", () => {
+    const tree = buildVariationTree(graph, pathOf(graph, "m1", "m2", "m3"), base);
+    expect(tree.nodes.map((node) => [node.san, node.onPath, node.isCurrent])).toEqual([
+      ["Nf3", true, true],
+      ["Nc6", false, false],
+    ]);
+  });
+
+  test("marks nothing when the shown line is outside the base", () => {
+    const tree = buildVariationTree(graph, pathOf(graph, "m6"), base);
+    expect(tree.nodes.some((node) => node.onPath)).toBe(false);
+  });
+
+  test("still flags a transposition to a position shown earlier", () => {
+    const withTransposition = graphOf([
+      ["m1", "start", "p1", "e4"],
+      ["m3", "p1", "p3", "Nf3"],
+      ["m4", "p3", "p4", "Nc6"],
+      ["m5", "p3", "p5", "d6"],
+      ["m6", "p5", "p4", "Nc6"],
+    ]);
+    const tree = buildVariationTree(withTransposition, [], pathOf(withTransposition, "m1"));
+    const d6 = alt(tree.nodes[1] as TreeNode, 0);
+    expect(sans(tree)).toEqual(["Nf3", "Nc6"]);
+    expect(d6.nodes.map((node) => [node.san, node.transposition])).toEqual([
+      ["d6", false],
+      ["Nc6", true],
+    ]);
+  });
+
+  test("an empty base is the whole tree", () => {
+    expect(buildVariationTree(graph, [], [])).toEqual(buildVariationTree(graph, []));
+  });
+
+  test("is empty when nothing follows the base", () => {
+    const tree = buildVariationTree(graph, [], pathOf(graph, "m1", "m2", "m3", "m4"));
+    expect(tree.nodes).toEqual([]);
+  });
+});
