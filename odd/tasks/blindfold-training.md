@@ -49,8 +49,8 @@ Add a Blindfold section. It holds:
 
 ## Scope
 
-- [ ] **T1: `drill_session` schema and migration** [T]. Schema test first. The generated migration goes in its own commit.
-- [ ] **T2: `blindfold` router** [T]. `recordSession` and `stats`, behind the flag, user-scoped, with integration tests.
+- [x] **T1: `drill_session` schema and migration** [T]. Done: `d2bfbb2` and `8da2b5e` (migration). Route: delegated (preparation and writer triggers). Schema test first. The generated migration goes in its own commit.
+- [x] **T2: `blindfold` router** [T]. Done: `1a17e74`. Route: delegated, together with T1. `recordSession` and `stats`, behind the flag, user-scoped, with integration tests.
 - [ ] **T3: Drill logic `lib/`** [T]. Square colour, coordinate parsing, diagonal squares, knight distance (BFS), and seeded question generators.
 - [ ] **T4: Route, nav and guide** [O]. Add `/blindfold` (behind the flag), the nav item, and the guide view (accordion sections and a training plan), with stories and a render test.
 - [ ] **T5: Drill player and progress** [O]. A drill picker, a timed 20-question player for each drill, a results screen that saves through `recordSession`, and a stats panel from `stats`. Render tests and stories.
@@ -68,4 +68,9 @@ Add a Blindfold section. It holds:
 
 ## Progress
 
-- Branch created. T1 is next.
+- T1 and T2 are done.
+  - RED was observed first: the schema test failed (missing table) and the router test failed (missing module). Then GREEN: the schema test passes 9/9 and the router test passes 7/7.
+  - `check-types` and `check` are clean. The parent re-ran the router test: 7/7 pass.
+- **Review T1+T2:** lineage `review-9662f09c39752ce4`, range `dd6e198..cacc504`. One lens (reliability) approved it with no correction. The approval is acknowledged and its authority burned. The next boundary is `cacc504`.
+- **Environment:** the shell needs `PATH=$HOME/.local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/v24.18.1/bin:$PATH` for bun, node (lefthook) and claude (the review capture).
+- T3 is next.
