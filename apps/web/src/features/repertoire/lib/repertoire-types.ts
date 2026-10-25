@@ -9,6 +9,11 @@ export type RepertoireColor = RepertoireSummary["color"];
 /** What `repertoire.get` returns: the repertoire as a position graph plus its idea notes. */
 export type RepertoireData = Awaited<ReturnType<AppRouterClient["repertoire"]["get"]>>;
 
+/** What `repertoire.deleteMove` returns for undo: pass it back to `restoreDeleted` unchanged. */
+export type DeletionSnapshot = Awaited<
+  ReturnType<AppRouterClient["repertoire"]["deleteMove"]>
+>["snapshot"];
+
 export type RepertoirePosition = RepertoireData["positions"][number];
 
 export type RepertoireMove = RepertoireData["moves"][number];

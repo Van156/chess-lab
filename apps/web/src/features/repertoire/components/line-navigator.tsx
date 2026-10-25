@@ -14,7 +14,7 @@ export type LineNavigatorProps = {
   basePositionId: string | null;
   /** Go back to the position after the first `ply` moves of the path (0 is the start). */
   onSelectPly: (ply: number) => void;
-  /** Asks to delete a move; the caller confirms, since the continuations go with it. */
+  /** Deletes a move at once, with its continuations; the caller offers the undo. */
   onDelete: (move: RepertoireMove) => void;
   /** The arrow keys walk the tree; false while an engine line is previewed and owns them. */
   keysActive: boolean;

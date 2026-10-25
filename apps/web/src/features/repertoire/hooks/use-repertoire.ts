@@ -23,6 +23,10 @@ export function useRepertoire(id: string) {
     ...orpc.repertoire.deleteMove.mutationOptions(),
     onSettled: reload,
   });
+  const restoreDeleted = useMutation({
+    ...orpc.repertoire.restoreDeleted.mutationOptions(),
+    onSettled: reload,
+  });
   const setIdeaNote = useMutation({
     ...orpc.repertoire.setIdeaNote.mutationOptions(),
     onSettled: reload,
@@ -45,6 +49,8 @@ export function useRepertoire(id: string) {
     addMove: addMove.mutateAsync,
     /** Input: `{ repertoireId, moveId }`. */
     deleteMove: deleteMove.mutateAsync,
+    /** Input: `{ repertoireId, snapshot }`, the snapshot `deleteMove` returned; undoes that delete. */
+    restoreDeleted: restoreDeleted.mutateAsync,
     /** Input: `{ repertoireId, positionId, arrows, highlights, plan }`; an empty note clears it. */
     setIdeaNote: setIdeaNote.mutateAsync,
     /** Input: `{ repertoireId, positionId }`; a null position clears the base. */
@@ -52,6 +58,10 @@ export function useRepertoire(id: string) {
     isSettingBase: setBase.isPending,
     /** Input: `{ repertoireId, moveId, name }`; a null name clears the line's name. */
     renameLine: renameLine.mutateAsync,
-    isSaving: addMove.isPending || deleteMove.isPending || setIdeaNote.isPending,
+    isSaving:
+      addMove.isPending ||
+      deleteMove.isPending ||
+      restoreDeleted.isPending ||
+      setIdeaNote.isPending,
   };
 }

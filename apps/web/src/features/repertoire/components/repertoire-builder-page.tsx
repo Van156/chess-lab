@@ -2,17 +2,17 @@ import { buttonVariants } from "@b2c-template/ui/components/button";
 import { cn } from "@b2c-template/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { BookMarked } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SUGGESTION_DEPTH, SUGGESTION_PV_PLIES } from "@/features/engine";
-import ConfirmDialog from "@/shared/components/overlays/confirm-dialog";
 import EmptyState from "@/shared/components/feedback/empty-state";
 import LoadError from "@/shared/components/feedback/load-error";
 import Loader from "@/shared/components/feedback/loader";
 
 import { useExplorer } from "../hooks/use-explorer";
 import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
+import { useDeletionUndo } from "../hooks/use-deletion-undo";
 import { useContinuationRanking } from "../hooks/use-continuation-ranking";
 import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
@@ -28,7 +28,8 @@ import { notesEqual } from "../lib/idea-note";
 import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
 import { toEngineView } from "../lib/suggestion-state";
 import { isNotFound } from "../lib/repertoire-query";
-import { childMoves, pathTo, removalPreview } from "../lib/repertoire-tree";
+import { restoreTarget } from "../lib/deletion-undo";
+import { childMoves, pathTo } from "../lib/repertoire-tree";
 import type { IdeaNote, RepertoireMove } from "../lib/repertoire-types";
 import { buildVariationTree } from "../lib/variation-tree";
 import RepertoireBuilderView from "./repertoire-builder-view";
@@ -55,6 +56,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     retry,
     addMove,
     deleteMove,
+    restoreDeleted,
     setIdeaNote,
     setBase,
     isSettingBase,
@@ -63,7 +65,6 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   } = useRepertoire(id);
   const [where, setWhere] = useState<Where>({ positionId: null, route: [] });
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [deleting, setDeleting] = useState<RepertoireMove | null>(null);
   // Resolved before the early returns so the explorer hook runs on every render; it stays idle
   // until the repertoire has loaded.
   const currentId = repertoire ? resolvePosition(repertoire, where.positionId) : "";
@@ -141,12 +142,39 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     baseLine: baseMoves,
     onGo: go,
   });
-  const requestDeleteById = useCallback(
+  // Undoing a delete takes the board back to the restored move, along the route it was shown on.
+  const undo = useDeletionUndo({
+    repertoireId: id,
+    restore: restoreDeleted,
+    onRestored: (target) => go(target.positionId, target.route),
+  });
+  const deleteInFlight = useRef(false);
+  // Deleting is immediate: the way back is the undo toast and Ctrl/Cmd+Z, not a confirmation.
+  const deleteNow = useCallback(
+    async (move: RepertoireMove) => {
+      if (!repertoire || !path || deleteInFlight.current) return;
+      deleteInFlight.current = true;
+      const next = positionAfterRemoval(repertoire, move.id, currentId);
+      const returnTo = restoreTarget(repertoire, move, path);
+      try {
+        const { snapshot } = await deleteMove({ repertoireId: id, moveId: move.id });
+        undo.record({ snapshot, label: move.san, returnTo });
+        setDraft((current) => draftAfterDelete(current, repertoire, move.id));
+        go(next, []);
+      } catch (failure) {
+        reportFailure(failure, "The move could not be deleted.");
+      } finally {
+        deleteInFlight.current = false;
+      }
+    },
+    [repertoire, path, currentId, deleteMove, id, undo, go],
+  );
+  const deleteById = useCallback(
     (moveId: string) => {
       const move = repertoire ? findMove(repertoire, moveId) : undefined;
-      if (move) setDeleting(move);
+      if (move) void deleteNow(move);
     },
-    [repertoire],
+    [repertoire, deleteNow],
   );
 
   const renameLineById = useCallback(
@@ -235,19 +263,6 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     }
   };
 
-  const confirmDelete = async (move: RepertoireMove) => {
-    const next = positionAfterRemoval(repertoire, move.id, positionId);
-    try {
-      await deleteMove({ repertoireId: id, moveId: move.id });
-    } catch (failure) {
-      reportFailure(failure, "The move could not be deleted.");
-      throw failure;
-    }
-    setDraft((current) => draftAfterDelete(current, repertoire, move.id));
-    setDeleting(null);
-    go(next, []);
-  };
-
   const children = childMoves(repertoire, positionId);
   const engine = toEngineView({
     state: suggestions.state,
@@ -273,77 +288,54 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     showRepertoire: showRepertoireArrows,
   });
 
-  const removal = deleting ? removalPreview(repertoire, deleting.id) : null;
-
   return (
-    <>
-      <RepertoireBuilderView
-        repertoire={repertoire.repertoire}
-        position={position}
-        path={path}
-        childMoves={children}
-        tree={tree}
-        fullTree={fullTree}
-        rankings={rankings}
-        startPositionId={repertoire.startPositionId}
-        basePositionId={basePositionId}
-        baseLine={baseMoves}
-        baseSaving={isSettingBase}
-        opening={opening ?? null}
-        engine={engine}
-        boardArrows={board.arrows}
-        boardArrowText={board.text}
-        lineCount={lineCount}
-        preview={preview.view}
-        showRepertoireArrows={showRepertoireArrows}
-        explorer={explorer}
-        note={note}
-        noteDirty={!notesEqual(note, savedNote)}
-        saving={isSaving}
-        bandSaving={explorerBand.isPending}
-        onPlayMove={(san) => void playMove(san)}
-        onToggleEngine={setEngineOn}
-        onRetryEngine={suggestions.retry}
-        onPreviewLine={previewLine}
-        onPreviewPrevious={preview.previous}
-        onPreviewNext={preview.next}
-        onPreviewExit={preview.exit}
-        onChangeLineCount={setLineCount}
-        onToggleRepertoireArrows={setShowRepertoireArrows}
-        onChangeBandOffset={(offset) => void changeBandOffset(offset)}
-        onSelectPly={(ply) => {
-          const walked = path.slice(0, ply);
-          go(
-            walked[walked.length - 1]?.toPositionId ?? repertoire.startPositionId,
-            routeTo(walked),
-          );
-        }}
-        onSelectNode={go}
-        onSetBase={() => void changeBase(positionId)}
-        onClearBase={() => void changeBase(null)}
-        onDeleteNode={requestDeleteById}
-        onRenameLine={renameLineById}
-        onRequestDelete={setDeleting}
-        onNoteChange={(next) => setDraft({ positionId, note: next })}
-        onSaveNote={() => void saveNote(note, note)}
-        onClearNote={() => void saveNote(NO_NOTE, note)}
-      />
-      <ConfirmDialog
-        open={deleting !== null && removal !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
-        title={deleting ? `Delete ${deleting.san}?` : "Delete move?"}
-        description={
-          removal
-            ? `${removal.moveIds.length} ${removal.moveIds.length === 1 ? "move" : "moves"} and ${removal.positionIds.length} ${removal.positionIds.length === 1 ? "position" : "positions"} with their idea notes will be deleted. This cannot be undone.`
-            : undefined
-        }
-        confirmLabel="Delete move"
-        onConfirm={async () => {
-          if (deleting) await confirmDelete(deleting);
-        }}
-      />
-    </>
+    <RepertoireBuilderView
+      repertoire={repertoire.repertoire}
+      position={position}
+      path={path}
+      childMoves={children}
+      tree={tree}
+      fullTree={fullTree}
+      rankings={rankings}
+      startPositionId={repertoire.startPositionId}
+      basePositionId={basePositionId}
+      baseLine={baseMoves}
+      baseSaving={isSettingBase}
+      opening={opening ?? null}
+      engine={engine}
+      boardArrows={board.arrows}
+      boardArrowText={board.text}
+      lineCount={lineCount}
+      preview={preview.view}
+      showRepertoireArrows={showRepertoireArrows}
+      explorer={explorer}
+      note={note}
+      noteDirty={!notesEqual(note, savedNote)}
+      saving={isSaving}
+      bandSaving={explorerBand.isPending}
+      onPlayMove={(san) => void playMove(san)}
+      onToggleEngine={setEngineOn}
+      onRetryEngine={suggestions.retry}
+      onPreviewLine={previewLine}
+      onPreviewPrevious={preview.previous}
+      onPreviewNext={preview.next}
+      onPreviewExit={preview.exit}
+      onChangeLineCount={setLineCount}
+      onToggleRepertoireArrows={setShowRepertoireArrows}
+      onChangeBandOffset={(offset) => void changeBandOffset(offset)}
+      onSelectPly={(ply) => {
+        const walked = path.slice(0, ply);
+        go(walked[walked.length - 1]?.toPositionId ?? repertoire.startPositionId, routeTo(walked));
+      }}
+      onSelectNode={go}
+      onSetBase={() => void changeBase(positionId)}
+      onClearBase={() => void changeBase(null)}
+      onDeleteNode={deleteById}
+      onRenameLine={renameLineById}
+      onRequestDelete={(move) => void deleteNow(move)}
+      onNoteChange={(next) => setDraft({ positionId, note: next })}
+      onSaveNote={() => void saveNote(note, note)}
+      onClearNote={() => void saveNote(NO_NOTE, note)}
+    />
   );
 }
