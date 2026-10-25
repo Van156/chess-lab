@@ -119,7 +119,7 @@ describe("treeKeyTarget", () => {
       ["b", "p1", "start", "Ng1"],
     ]);
     const target = treeKeyTarget(press("End"), { graph: loop, path: [], baseLine: [] });
-    expect(target?.route.length).toBeLessThanOrEqual(2);
+    expect(target).toEqual({ positionId: "p1", route: ["a"] });
   });
 
   test("ignores a key with ctrl, meta or alt held", () => {

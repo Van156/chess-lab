@@ -88,6 +88,36 @@ describe("EngineNextMoves", () => {
     expect(render().match(/aria-pressed="true"/g)).toBeNull();
   });
 
+  test("enables every Add while no save is pending", () => {
+    const buttons = render().match(/<button[^>]*>Add [^<]+/g) ?? [];
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) expect(button).not.toMatch(/ disabled(="")?[ >]/);
+  });
+
+  test("keeps Add outside the Preview button, so each is its own control", () => {
+    const previews = render().match(
+      /<button[^>]*data-slot="engine-line-preview"[\s\S]*?<\/button>/g,
+    );
+    expect(previews).toHaveLength(3);
+    for (const preview of previews ?? []) expect(preview).not.toContain("Add ");
+  });
+
+  test("offers no Add for a move already in the repertoire", () => {
+    const html = render();
+    expect(html).not.toContain("Add e4");
+    expect(html.match(/In repertoire/g)).toHaveLength(1);
+    expect(
+      render({
+        state: {
+          kind: "done",
+          depth: 18,
+          maxDepth: 18,
+          lines: engineLines.map((line) => ({ ...line, inRepertoire: true })),
+        },
+      }),
+    ).not.toMatch(/>Add /);
+  });
+
   test("a finished search without lines says there is no suggestion", () => {
     const html = render({ state: { kind: "done", depth: 18, maxDepth: 18, lines: [] } });
     expect(html).toContain("no suggestion");
