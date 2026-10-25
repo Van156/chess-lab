@@ -18,6 +18,7 @@ import {
   engineOffView,
   engineOnView,
   explorerOk,
+  midLinePreview,
   startPosition,
   whiteRepertoire,
   blackRepertoire,
@@ -43,6 +44,7 @@ const meta = {
     boardArrows: midLineArrows,
     boardArrowText: midLineArrowText,
     lineCount: 3,
+    preview: null,
     showRepertoireArrows: true,
     note: emptyNote,
     noteDirty: false,
@@ -52,6 +54,10 @@ const meta = {
     onChangeBandOffset: () => {},
     onToggleEngine: () => {},
     onRetryEngine: () => {},
+    onPreviewLine: () => {},
+    onPreviewPrevious: () => {},
+    onPreviewNext: () => {},
+    onPreviewExit: () => {},
     onSelectPly: () => {},
     onChangeLineCount: () => {},
     onToggleRepertoireArrows: () => {},
@@ -68,6 +74,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const MidLine: Story = {};
+
+export const PreviewingALine: Story = { args: { preview: midLinePreview } };
 
 export const StartPosition: Story = {
   args: {

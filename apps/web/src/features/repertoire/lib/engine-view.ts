@@ -20,6 +20,8 @@ export type SuggestionLine = {
   /** The same score in words, for assistive technology. */
   scoreLabel: string;
   firstMove: { san: string; uci: string };
+  /** The engine's whole principal variation in UCI, which the line preview replays. */
+  pv: readonly string[];
   /** Move-numbered SAN, such as "12. Nf3 Nc6 13. Bb5". */
   moveText: string;
   /** True when the repertoire already has the first move from this position. */
@@ -137,6 +139,7 @@ export function toSuggestionLines(
       scoreText: formatScore(white),
       scoreLabel: describeScore(white),
       firstMove: { san: first.san, uci: first.uci },
+      pv: line.pv,
       moveText: pvToSan(fen, line.pv, maxPlies).text,
       inRepertoire: inRepertoire(first.san, childMoves),
     });

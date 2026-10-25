@@ -20,6 +20,7 @@ const engineLine = (multipv: number, san: string, uci: string): SuggestionLine =
   scoreText: "0.00",
   scoreLabel: "Even position",
   firstMove: { san, uci },
+  pv: [uci],
   moveText: san,
   inRepertoire: false,
 });

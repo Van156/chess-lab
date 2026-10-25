@@ -8,6 +8,12 @@ import type {
   RepertoireSummary,
 } from "../lib/repertoire-types";
 import { buildBoardArrows, describeBoardLines } from "../lib/board-lines";
+import {
+  IDLE_PREVIEW,
+  linePreviewReducer,
+  previewView,
+  type PreviewView,
+} from "../lib/line-preview";
 import type { RepertoireGraph } from "../lib/repertoire-tree";
 import type { EngineView } from "../lib/suggestion-state";
 import { buildVariationTree } from "../lib/variation-tree";
@@ -166,6 +172,7 @@ const suggestion = (
   san: string,
   uci: string,
   moveText: string,
+  pv: readonly string[],
   inRepertoire = false,
 ) => ({
   multipv,
@@ -174,6 +181,7 @@ const suggestion = (
   scoreText,
   scoreLabel,
   firstMove: { san, uci },
+  pv,
   moveText,
   inRepertoire,
 });
@@ -187,10 +195,21 @@ export const engineLines = [
     "e4",
     "e2e4",
     "1. e4 e5 2. Nf3 Nc6",
+    ["e2e4", "e7e5", "g1f3", "b8c6"],
     true,
   ),
-  suggestion(2, "+0.28", "White is better by 0.28 pawns", "d4", "d2d4", "1. d4 d5 2. c4 e6"),
-  suggestion(3, "+0.20", "White is better by 0.20 pawns", "Nf3", "g1f3", "1. Nf3 d5 2. g3 Nf6"),
+  suggestion(2, "+0.28", "White is better by 0.28 pawns", "d4", "d2d4", "1. d4 d5 2. c4 e6", [
+    "d2d4",
+    "d7d5",
+    "c2c4",
+    "e7e6",
+  ]),
+  suggestion(3, "+0.20", "White is better by 0.20 pawns", "Nf3", "g1f3", "1. Nf3 d5 2. g3 Nf6", [
+    "g1f3",
+    "d7d5",
+    "g2g3",
+    "g8f6",
+  ]),
 ];
 
 /** The builder's engine view with a finished search: three lines, and a bar share. */
@@ -231,3 +250,20 @@ export const midLineArrowText = describeBoardLines(
   boardLines.repertoireMoves,
   boardLines.showRepertoire,
 );
+
+const previewing = linePreviewReducer(
+  linePreviewReducer(IDLE_PREVIEW, {
+    type: "start",
+    rank: 1,
+    baseFen: afterE4.fen,
+    pv: ["e7e5", "g1f3", "b8c6"],
+  }),
+  { type: "next" },
+);
+
+/** Black's reply line from `afterE4`, previewed at its second move: 1... e5 2. Nf3, as line 2. */
+export const midLinePreview: PreviewView = (() => {
+  const view = previewView(previewing, afterE4.fen);
+  if (!view) throw new Error("The fixture preview must be showing.");
+  return view;
+})();

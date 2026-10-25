@@ -16,6 +16,7 @@ import {
   openGameTree,
   engineOffView,
   engineOnView,
+  midLinePreview,
   explorerOk,
   explorerOneBandAbove,
   startPosition,
@@ -38,6 +39,7 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       boardArrows={midLineArrows}
       boardArrowText={midLineArrowText}
       lineCount={3}
+      preview={null}
       showRepertoireArrows
       note={emptyNote}
       noteDirty={false}
@@ -47,6 +49,10 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       onChangeBandOffset={() => {}}
       onToggleEngine={() => {}}
       onRetryEngine={() => {}}
+      onPreviewLine={() => {}}
+      onPreviewPrevious={() => {}}
+      onPreviewNext={() => {}}
+      onPreviewExit={() => {}}
       onSelectPly={() => {}}
       onChangeLineCount={() => {}}
       onToggleRepertoireArrows={() => {}}
@@ -183,5 +189,31 @@ describe("RepertoireBuilderView", () => {
     expect(await render()).toContain("Add d4");
     const html = await render({ saving: true });
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add d4<\/button>/);
+  });
+
+  test("shows no preview bar while no line is previewed", async () => {
+    const html = await render();
+    expect(html).not.toContain('data-slot="line-preview-bar"');
+    expect(html).toContain('data-slot="board-toolbar"');
+  });
+
+  test("previewing swaps the toolbar for the preview bar and describes the previewed position", async () => {
+    const html = await render({ preview: midLinePreview });
+    expect(html).toContain('data-slot="line-preview-bar"');
+    expect(html).not.toContain('data-slot="board-toolbar"');
+    expect(html).toContain("Previewing line 2");
+    expect(html).toContain(">Back to branch start</button>");
+    expect(html).toContain("previewing engine line 2 (violet), move 2 of 3: Nf3.");
+    expect(html).not.toContain("Engine lines, best first");
+  });
+
+  test("previewing hides the typed-move field, so nothing is added from a previewed position", async () => {
+    const html = await render({ preview: midLinePreview });
+    expect(html).not.toContain(">Type a move to add it</label>");
+  });
+
+  test("previewing marks the previewed line in the Engine tab", async () => {
+    const html = await render({ preview: midLinePreview });
+    expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Preview line 2/);
   });
 });

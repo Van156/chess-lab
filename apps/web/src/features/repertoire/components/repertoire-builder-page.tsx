@@ -15,6 +15,7 @@ import { useExplorer } from "../hooks/use-explorer";
 import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
 import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
+import { useLinePreview } from "../hooks/use-line-preview";
 import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
 import { useOpeningName } from "../hooks/use-opening-name";
 import { useRepertoire } from "../hooks/use-repertoire";
@@ -81,9 +82,15 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     () => (repertoire && path ? buildVariationTree(repertoire, path) : null),
     [repertoire, path],
   );
+  const preview = useLinePreview(currentFen ?? "");
+  const exitPreview = preview.exit;
+  // Moving through the repertoire always leaves a line preview.
   const go = useCallback(
-    (positionId: string, route: string[]) => setWhere({ positionId, route }),
-    [],
+    (positionId: string, route: string[]) => {
+      exitPreview();
+      setWhere({ positionId, route });
+    },
+    [exitPreview],
   );
   const requestDeleteById = useCallback(
     (moveId: string) => {
@@ -182,6 +189,13 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     maxPlies: SUGGESTION_PV_PLIES,
   });
 
+  const previewLine = (rank: number) => {
+    const { panel } = engine;
+    const line =
+      panel.kind === "analysing" || panel.kind === "done" ? panel.lines[rank] : undefined;
+    if (line) preview.start(rank, position.fen, line.pv);
+  };
+
   const board = boardLinesFor({
     panel: engine.panel,
     noteArrows: note.arrows,
@@ -206,6 +220,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         boardArrows={board.arrows}
         boardArrowText={board.text}
         lineCount={lineCount}
+        preview={preview.view}
         showRepertoireArrows={showRepertoireArrows}
         explorer={explorer}
         note={note}
@@ -215,6 +230,10 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         onPlayMove={(san) => void playMove(san)}
         onToggleEngine={setEngineOn}
         onRetryEngine={suggestions.retry}
+        onPreviewLine={previewLine}
+        onPreviewPrevious={preview.previous}
+        onPreviewNext={preview.next}
+        onPreviewExit={preview.exit}
         onChangeLineCount={setLineCount}
         onToggleRepertoireArrows={setShowRepertoireArrows}
         onChangeBandOffset={(offset) => void changeBandOffset(offset)}

@@ -11,6 +11,8 @@ const meta = {
   args: {
     state: { kind: "done", depth: 18, maxDepth: 18, lines: engineLines },
     addPending: false,
+    previewRank: null,
+    onPreview: () => {},
     onToggle: () => {},
     onAdd: () => {},
     onRetry: () => {},
@@ -25,6 +27,8 @@ export const Done: Story = {};
 export const Analysing: Story = {
   args: { state: { kind: "analysing", depth: 11, maxDepth: 18, lines: engineLines } },
 };
+
+export const PreviewingALine: Story = { args: { previewRank: 1 } };
 
 export const Starting: Story = { args: { state: { kind: "starting" } } };
 

@@ -7,6 +7,8 @@ import PageHeader from "@/shared/components/layout/page-header";
 
 import { inRepertoire } from "../lib/explorer-view";
 import { describeNote } from "../lib/idea-note";
+import { lineColour } from "../lib/line-colours";
+import type { PreviewView } from "../lib/line-preview";
 import type { Opening } from "../lib/opening-lookup";
 import { formatLine } from "../lib/repertoire-tree";
 import type {
@@ -24,6 +26,7 @@ import ExplorerBandSelect from "./explorer-band-select";
 import ExplorerPanel, { type ExplorerPanelState } from "./explorer-panel";
 import IdeaNoteEditor from "./idea-note-editor";
 import LineNavigator from "./line-navigator";
+import LinePreviewBar from "./line-preview-bar";
 import VariationTree from "./variation-tree";
 
 export type RepertoireBuilderViewProps = {
@@ -47,6 +50,8 @@ export type RepertoireBuilderViewProps = {
   boardArrowText: string;
   /** How many engine lines the board draws, 1 to 5. */
   lineCount: number;
+  /** The engine line being previewed on the board; `null` when the board shows the position itself. */
+  preview: PreviewView | null;
   showRepertoireArrows: boolean;
   /** The note being edited; the board and the text below it show this one. */
   note: IdeaNote;
@@ -61,6 +66,12 @@ export type RepertoireBuilderViewProps = {
   /** The engine switch; the caller remembers the choice. */
   onToggleEngine: (on: boolean) => void;
   onRetryEngine: () => void;
+  /** Previews an engine line, by its rank counted from 0. */
+  onPreviewLine: (rank: number) => void;
+  onPreviewPrevious: () => void;
+  onPreviewNext: () => void;
+  /** Leaves the preview and shows the position it started from. */
+  onPreviewExit: () => void;
   onChangeLineCount: (count: number) => void;
   onToggleRepertoireArrows: (on: boolean) => void;
   onSelectPly: (ply: number) => void;
@@ -76,6 +87,11 @@ export type RepertoireBuilderViewProps = {
 
 const railTab = "min-h-11";
 
+/** While previewing, the board draws only the line's next move, in the line's colour. */
+function previewArrows(preview: PreviewView): BoardArrow[] {
+  return preview.nextArrow ? [{ ...preview.nextArrow, color: lineColour(preview.rank).color }] : [];
+}
+
 /**
  * Repertoire builder (presentational), "Board + rail": a board column with the opening name and
  * the lines toolbar above the board and the path, the typed-move field and the note text below it,
@@ -87,6 +103,10 @@ const railTab = "min-h-11";
  * at the board's height; the bar is hidden while the engine is off. Every rail panel stays mounted,
  * so the tree keeps its folds and the note editor keeps its focus while another tab is shown. The
  * tree takes only its memoised model and stable callbacks, so engine frames never re-render it.
+ *
+ * While an engine line is previewed, the board shows the line's position instead, with the preview
+ * bar in place of the lines toolbar; it takes no moves and the typed-move field is hidden, so
+ * nothing can be added from a position that is not in the tree.
  */
 export default function RepertoireBuilderView({
   repertoire,
@@ -101,6 +121,7 @@ export default function RepertoireBuilderView({
   boardArrows,
   boardArrowText,
   lineCount,
+  preview,
   showRepertoireArrows,
   note,
   noteDirty,
@@ -110,6 +131,10 @@ export default function RepertoireBuilderView({
   onChangeBandOffset,
   onToggleEngine,
   onRetryEngine,
+  onPreviewLine,
+  onPreviewPrevious,
+  onPreviewNext,
+  onPreviewExit,
   onChangeLineCount,
   onToggleRepertoireArrows,
   onSelectPly,
@@ -122,7 +147,13 @@ export default function RepertoireBuilderView({
 }: RepertoireBuilderViewProps) {
   const side = position.sideToMove === "w" ? "White" : "Black";
   const lastMove = path[path.length - 1];
+  const lastMoveSquares = lastMove
+    ? { from: lastMove.uci.slice(0, 2), to: lastMove.uci.slice(2, 4) }
+    : undefined;
   const colour = repertoire.color === "white" ? "White" : "Black";
+  const boardLabel = preview
+    ? `Chess position, previewing engine line ${preview.rank + 1} (${lineColour(preview.rank).name}), move ${preview.cursor} of ${preview.total}: ${preview.san}. ${preview.fen.split(" ")[1] === "b" ? "Black" : "White"} to move.`
+    : `Chess position, line: ${formatLine(path)}. ${side} to move. ${describeNote(note)} ${boardArrowText}`.trim();
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2">
       <PageHeader
@@ -142,12 +173,21 @@ export default function RepertoireBuilderView({
           >
             {opening ? `${opening.eco} · ${opening.name}` : null}
           </p>
-          <BoardToolbar
-            lineCount={lineCount}
-            onChangeLineCount={onChangeLineCount}
-            showRepertoireArrows={showRepertoireArrows}
-            onToggleRepertoireArrows={onToggleRepertoireArrows}
-          />
+          {preview ? (
+            <LinePreviewBar
+              view={preview}
+              onPrevious={onPreviewPrevious}
+              onNext={onPreviewNext}
+              onExit={onPreviewExit}
+            />
+          ) : (
+            <BoardToolbar
+              lineCount={lineCount}
+              onChangeLineCount={onChangeLineCount}
+              showRepertoireArrows={showRepertoireArrows}
+              onToggleRepertoireArrows={onToggleRepertoireArrows}
+            />
+          )}
           <div className="flex items-stretch gap-2">
             {engine.panel.kind === "off" ? null : (
               <EvalBar
@@ -158,26 +198,29 @@ export default function RepertoireBuilderView({
             )}
             <div className="min-w-0 flex-1">
               <ChessBoard
-                fen={position.fen}
+                fen={preview?.fen ?? position.fen}
                 orientation={repertoire.color}
-                onMove={(move) => {
-                  onPlayMove(move.san);
-                  // The board stays on the current position; it jumps once the tree has the move.
-                  return false;
-                }}
-                arrows={boardArrows}
-                highlights={note.highlights}
-                lastMove={
-                  lastMove
-                    ? { from: lastMove.uci.slice(0, 2), to: lastMove.uci.slice(2, 4) }
-                    : undefined
+                // A previewed position is not part of the tree, so the board takes no moves then.
+                onMove={
+                  preview
+                    ? undefined
+                    : (move) => {
+                        onPlayMove(move.san);
+                        // The board stays on the current position; it jumps once the tree has the move.
+                        return false;
+                      }
                 }
-                label={`Chess position, line: ${formatLine(path)}. ${side} to move. ${describeNote(note)} ${boardArrowText}`.trim()}
+                arrows={preview ? previewArrows(preview) : boardArrows}
+                highlights={preview ? undefined : note.highlights}
+                lastMove={preview?.lastMove ?? lastMoveSquares}
+                label={boardLabel}
               />
             </div>
           </div>
           <LineNavigator path={path} onSelectPly={onSelectPly} onDelete={onRequestDelete} />
-          <SanInput fen={position.fen} onMove={onPlayMove} label="Type a move to add it" />
+          {preview ? null : (
+            <SanInput fen={position.fen} onMove={onPlayMove} label="Type a move to add it" />
+          )}
           <p className="text-sm" data-slot="note-text-alternative">
             <span className="font-medium">Idea note:</span> {describeNote(note)}
           </p>
@@ -212,6 +255,8 @@ export default function RepertoireBuilderView({
               <EnginePanel
                 state={engine.panel}
                 addPending={saving}
+                previewRank={preview?.rank ?? null}
+                onPreview={onPreviewLine}
                 onToggle={onToggleEngine}
                 onAdd={onPlayMove}
                 onRetry={onRetryEngine}

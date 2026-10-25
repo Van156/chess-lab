@@ -17,6 +17,8 @@ function render(overrides: Partial<EnginePanelProps> = {}) {
     <EnginePanel
       state={doneState}
       addPending={false}
+      previewRank={null}
+      onPreview={() => {}}
       onToggle={() => {}}
       onAdd={() => {}}
       onRetry={() => {}}
@@ -59,7 +61,7 @@ describe("EnginePanel", () => {
     expect(html.match(/data-slot="engine-line-swatch"/g)).toHaveLength(3);
     for (const [rank, entry] of LINE_COLOURS.slice(0, 3).entries()) {
       expect(html).toContain(`background-color:${entry.color}`);
-      expect(html).toContain(`Line ${rank + 1}, ${entry.name} on the board`);
+      expect(html).toContain(`Preview line ${rank + 1}, ${entry.name} on the board`);
     }
   });
 
@@ -69,6 +71,26 @@ describe("EnginePanel", () => {
     expect(html).toContain("+0.34");
     expect(html).toContain("White is better by 0.34 pawns");
     expect(html).toContain("1. Nf3 d5 2. g3 Nf6");
+  });
+
+  test("makes each line a button that previews it, labelled with its number, colour, score and moves", () => {
+    const html = render();
+    expect(html.match(/data-slot="engine-line-preview"/g)).toHaveLength(3);
+    expect(html).toContain(
+      "Preview line 1, blue on the board: White is better by 0.34 pawns. 1. e4 e5 2. Nf3 Nc6",
+    );
+  });
+
+  test("marks only the previewed line as pressed", () => {
+    const html = render({ previewRank: 1 });
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Preview line 2/);
+    expect(render().match(/aria-pressed="true"/g)).toBeNull();
+  });
+
+  test("keeps Add outside the preview button, so no button holds another", () => {
+    const html = render();
+    expect(html).toMatch(/<\/button><button[^>]*>Add d4<\/button>/);
   });
 
   test("offers Add for a first move not in the repertoire and a badge for one that is", () => {
