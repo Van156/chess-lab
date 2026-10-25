@@ -63,6 +63,11 @@ Build the repertoire from the Tree tab alone:
   - Remove the ConfirmDialog from the delete flow.
   - Add the undo stack, the Ctrl/Cmd+Z hook and the toast Undo action.
   - Tests and stories.
+  - Review follow-ups from T1+T2 (accepted):
+    - R3-window-keys-under-modal: the tree keys must ignore events while focus is inside a dialog, menu, listbox or combobox, or while a modal is open.
+    - R3-hook-binding-untested: test the hook wiring (onGo, preventDefault only on a move, skip when already defaultPrevented, unbind when disabled).
+    - R3-loop-assertion-weak: assert the exact cycle-guard result.
+    - R3-add-enabled-coverage-dropped: restore the Add assertions (enabled when idle, outside the preview button, absent when the move is already in the repertoire).
 
 ## Constraints
 
@@ -74,8 +79,8 @@ Build the repertoire from the Tree tab alone:
 
 ## Tasks
 
-- [ ] **T1: Remove the Engine tab**. Route: delegated `react-staff` (React, 2+ non-trivial files).
-- [ ] **T2: Arrow-key navigation**. Route: delegated `react-staff`, the same writer as T1.
+- [x] **T1: Remove the Engine tab**. Route: delegated `react-staff` (React, 2+ non-trivial files). Commit `2e4fa01`.
+- [x] **T2: Arrow-key navigation**. Route: delegated `react-staff`, the same writer as T1. Commit `5597899`. TDD: RED (missing module), then GREEN (12 pass).
 - [ ] **T3: Deletion snapshot and restore (API)**. Route: delegated general writer (API and DB, 2+ files).
 - [ ] **T4: Delete without a dialog, with undo**. Route: delegated `react-staff`.
 
@@ -96,4 +101,11 @@ Build the repertoire from the Tree tab alone:
 
 ## Progress
 
-- Nothing started yet.
+- **T1 and T2 done.**
+  - `bun test apps/web/src/features/repertoire`: 520 pass.
+  - `check-types`: exit 0.
+  - oxlint: clean.
+- **Review of T1+T2:** medium risk, consent granted (standing), reliability lens **approved** and acknowledged (lineage `review-5377cd5b6008c197`).
+  - It raised two warnings and two suggestions, which were accepted into T4.
+  - The next boundary is `5597899`.
+- **Next:** T3.
