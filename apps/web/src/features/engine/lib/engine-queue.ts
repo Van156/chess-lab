@@ -11,6 +11,7 @@ import {
   buildPosition,
   buildStrengthOptions,
   parseUciLine,
+  sanitizeSearchMoves,
   type GoLimit,
   type UciScore,
   type UciStrength,
@@ -50,6 +51,11 @@ export interface EngineJobRequest {
   strength?: UciStrength;
   /** Number of lines to search; omitted means 1, and every job resets it so it never leaks. */
   multiPv?: number;
+  /**
+   * Restricts the search to these moves (UCI). Malformed tokens are dropped; when none is left the
+   * search is unrestricted. MultiPV defaults to the number of kept moves so each one gets a line.
+   */
+  searchMoves?: string[];
   onProgress?: (info: EngineInfo) => void;
 }
 
@@ -164,11 +170,14 @@ export const createEngineQueue = (
     if (!job) return;
     running = job;
     armSilence();
-    const { fen, limit, strength, multiPv } = job.request;
+    const { fen, limit, strength } = job.request;
+    const searchMoves = sanitizeSearchMoves(job.request.searchMoves);
+    const multiPv =
+      job.request.multiPv ?? (searchMoves.length > 0 ? searchMoves.length : undefined);
     for (const option of buildStrengthOptions(strength)) transport.send(option);
     transport.send(buildMultiPvOption(multiPv));
     transport.send(buildPosition(fen));
-    transport.send(buildGo(limit));
+    transport.send(buildGo(limit, searchMoves));
   };
 
   const finishRunning = (move: string | null) => {

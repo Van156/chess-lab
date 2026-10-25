@@ -102,8 +102,18 @@ export const parseUciLine = (raw: string): UciLine => {
   }
 };
 
-export const buildGo = (limit: GoLimit): string =>
-  "depth" in limit ? `go depth ${limit.depth}` : `go movetime ${limit.movetimeMs}`;
+const UCI_MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
+
+/** Keeps the well-formed UCI moves (first occurrence only); anything else is dropped. */
+export const sanitizeSearchMoves = (moves: readonly string[] | undefined): string[] => [
+  ...new Set((moves ?? []).filter((move) => UCI_MOVE.test(move))),
+];
+
+/** `go` with the search limit, restricted to `searchMoves` when given (already sanitized). */
+export const buildGo = (limit: GoLimit, searchMoves: readonly string[] = []): string => {
+  const base = "depth" in limit ? `go depth ${limit.depth}` : `go movetime ${limit.movetimeMs}`;
+  return searchMoves.length > 0 ? `${base} searchmoves ${searchMoves.join(" ")}` : base;
+};
 
 export const buildSetOption = (name: string, value?: string | number | boolean): string =>
   value === undefined ? `setoption name ${name}` : `setoption name ${name} value ${value}`;

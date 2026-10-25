@@ -180,6 +180,63 @@ describe("engine queue", () => {
     expect(fake.take()).toContain("setoption name MultiPV value 1");
   });
 
+  test("searchMoves restricts the search and sets MultiPV to their count", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    queue.submit({
+      fen: FEN_A,
+      limit: { depth: 12 },
+      priority: "interactive",
+      searchMoves: ["e2e4", "d2d4"],
+    });
+    expect(fake.take()).toEqual([
+      "setoption name UCI_LimitStrength value false",
+      "setoption name Skill Level value 20",
+      "setoption name MultiPV value 2",
+      `position fen ${FEN_A}`,
+      "go depth 12 searchmoves e2e4 d2d4",
+    ]);
+  });
+
+  test("an explicit multiPv wins over the searchMoves count", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    queue.submit({
+      fen: FEN_A,
+      limit: { depth: 12 },
+      priority: "interactive",
+      multiPv: 1,
+      searchMoves: ["e2e4", "d2d4"],
+    });
+    expect(fake.take()).toContain("setoption name MultiPV value 1");
+  });
+
+  test("invalid searchMoves are dropped, and all-invalid means an unrestricted search", () => {
+    const fake = createFakeTransport();
+    const queue = createEngineQueue(fake.transport);
+    queue.submit({
+      fen: FEN_A,
+      limit: { depth: 12 },
+      priority: "interactive",
+      searchMoves: ["e2e4", "nope"],
+    });
+    const mixed = fake.take();
+    expect(mixed).toContain("setoption name MultiPV value 1");
+    expect(mixed).toContain("go depth 12 searchmoves e2e4");
+    fake.emit("bestmove e2e4");
+
+    queue.submit({
+      fen: FEN_B,
+      limit: { depth: 12 },
+      priority: "interactive",
+      searchMoves: ["nope", "e9e9"],
+    });
+    const none = fake.take();
+    expect(none).toContain("setoption name MultiPV value 1");
+    expect(none).toContain("go depth 12");
+    expect(none.some((command) => command.includes("searchmoves"))).toBe(false);
+  });
+
   test("lines from a stopping search are ignored", async () => {
     const fake = createFakeTransport();
     const queue = createEngineQueue(fake.transport);

@@ -8,6 +8,7 @@ import {
   buildStrengthOptions,
   clampElo,
   parseUciLine,
+  sanitizeSearchMoves,
 } from "./uci";
 
 describe("parseUciLine: info", () => {
@@ -184,5 +185,35 @@ describe("strength options", () => {
     expect(clampElo(range, 1000)).toBe(1320);
     expect(clampElo(range, 4000)).toBe(3190);
     expect(clampElo(range, 1800.4)).toBe(1800);
+  });
+});
+
+describe("searchmoves", () => {
+  test("go without searchMoves is unchanged", () => {
+    expect(buildGo({ depth: 12 })).toBe("go depth 12");
+    expect(buildGo({ movetimeMs: 500 }, [])).toBe("go movetime 500");
+  });
+
+  test("go appends searchmoves after the limit", () => {
+    expect(buildGo({ depth: 12 }, ["e2e4", "d2d4"])).toBe("go depth 12 searchmoves e2e4 d2d4");
+  });
+
+  test("sanitizeSearchMoves keeps valid UCI moves, promotions included, without duplicates", () => {
+    expect(sanitizeSearchMoves(["e2e4", "e7e8q", "e2e4", "a1h8"])).toEqual([
+      "e2e4",
+      "e7e8q",
+      "a1h8",
+    ]);
+  });
+
+  test("sanitizeSearchMoves drops malformed tokens", () => {
+    expect(sanitizeSearchMoves(["e2e4", "e9e4", "e2", "E2E4", "e2e4 x", "e7e8k", ""])).toEqual([
+      "e2e4",
+    ]);
+  });
+
+  test("sanitizeSearchMoves returns an empty list when nothing is usable", () => {
+    expect(sanitizeSearchMoves(["zz", "e2e9"])).toEqual([]);
+    expect(sanitizeSearchMoves(undefined)).toEqual([]);
   });
 });
