@@ -21,15 +21,21 @@ const conflict = Object.assign(new Error("conflict"), {
 });
 const outage = Object.assign(new Error("down"), { code: "INTERNAL_SERVER_ERROR", status: 500 });
 
-function setup(restore: UndoPorts<Snapshot>["restore"] = async () => {}) {
+const landed = { restoredToPositionId: "landed" };
+
+function setup(restore: UndoPorts<Snapshot>["restore"] = async () => landed) {
   const log: string[] = [];
   const restored: UndoEntry<Snapshot>[] = [];
+  const positions: string[] = [];
   const controller = createUndoController<Snapshot>({
     restore: (snapshot) => {
       log.push(`restore ${snapshot.name}`);
       return restore(snapshot);
     },
-    onRestored: (entry) => void restored.push(entry),
+    onRestored: (entry, positionId) => {
+      restored.push(entry);
+      positions.push(positionId);
+    },
     notify: {
       deleted: (entry) => void log.push(`deleted ${entry.label}`),
       restored: (entry) => void log.push(`restored ${entry.label}`),
@@ -43,7 +49,7 @@ function setup(restore: UndoPorts<Snapshot>["restore"] = async () => {}) {
       label: name,
       returnTo: { positionId: `p-${name}`, route: [name] },
     });
-  return { controller, log, restored, record };
+  return { controller, log, restored, positions, record };
 }
 
 describe("createUndoController", () => {
@@ -95,7 +101,7 @@ describe("createUndoController", () => {
 
   test("ignores undo while a restore is pending, so there are no double restores", async () => {
     const gate = deferred();
-    const { controller, log, record } = setup(() => gate.promise);
+    const { controller, log, record } = setup(() => gate.promise.then(() => landed));
     record("e4");
     record("d4");
     expect(controller.undo()).toBe(true);
@@ -122,6 +128,7 @@ describe("createUndoController", () => {
     let calls = 0;
     const { controller, log, restored, record } = setup(async () => {
       if (calls++ === 0) throw outage;
+      return landed;
     });
     record("e4");
     controller.undo();
@@ -132,6 +139,51 @@ describe("createUndoController", () => {
     await new Promise((done) => setTimeout(done, 0));
     expect(controller.size()).toBe(0);
     expect(restored.map((entry) => entry.label)).toEqual(["e4"]);
+  });
+
+  test("navigates to the position the server says the move landed on", async () => {
+    const { controller, positions, record } = setup(async () => ({
+      restoredToPositionId: "remapped",
+    }));
+    record("e4");
+    controller.undo();
+    await new Promise((done) => setTimeout(done, 0));
+    expect(positions).toEqual(["remapped"]);
+  });
+
+  test("a retry that finds the move already restored counts as restored", async () => {
+    const moveExists = Object.assign(new Error("exists"), {
+      code: "CONFLICT",
+      status: 409,
+      data: { reason: "move_exists" },
+    });
+    let calls = 0;
+    const { controller, log, positions, record } = setup(async () => {
+      if (calls++ === 0) throw outage;
+      throw moveExists;
+    });
+    record("e4");
+    controller.undo();
+    await new Promise((done) => setTimeout(done, 0));
+    controller.undo();
+    await new Promise((done) => setTimeout(done, 0));
+    expect(controller.size()).toBe(0);
+    expect(log.at(-1)).toBe("restored e4");
+    expect(positions).toEqual(["p-e4"]);
+  });
+
+  test("move_exists on a first attempt is a real conflict", async () => {
+    const moveExists = Object.assign(new Error("exists"), {
+      code: "CONFLICT",
+      status: 409,
+      data: { reason: "move_exists" },
+    });
+    const { controller, log, record } = setup(async () => Promise.reject(moveExists));
+    record("e4");
+    controller.undo();
+    await new Promise((done) => setTimeout(done, 0));
+    expect(controller.size()).toBe(0);
+    expect(log.at(-1)).toBe("failed Can't undo: that move already exists.");
   });
 
   test("a restored entry dismisses its toast and announces the restore", async () => {
@@ -146,7 +198,7 @@ describe("createUndoController", () => {
 
   test("clear forgets everything and ignores a restore still in flight", async () => {
     const gate = deferred();
-    const { controller, restored, record } = setup(() => gate.promise);
+    const { controller, restored, record } = setup(() => gate.promise.then(() => landed));
     record("e4");
     controller.undo();
     controller.clear();

@@ -5,7 +5,7 @@ import {
   removeEntry,
   type RestoreTarget,
 } from "./deletion-undo";
-import { describeRestoreFailure } from "./restore-failure";
+import { describeRestoreFailure, isMoveExistsConflict } from "./restore-failure";
 
 /** One undoable deletion: what the server returned for it, how to name it and where to go back. */
 export type UndoEntry<Snapshot> = {
@@ -18,9 +18,10 @@ export type UndoEntry<Snapshot> = {
 
 /** What the controller needs from the outside: the restore call, the navigation and the messages. */
 export type UndoPorts<Snapshot> = {
-  restore: (snapshot: Snapshot) => Promise<unknown>;
-  /** Called after a restore succeeded; the page goes back to `entry.returnTo`. */
-  onRestored: (entry: UndoEntry<Snapshot>) => void;
+  /** Resolves with the position the restored move lands on, which the server may have remapped. */
+  restore: (snapshot: Snapshot) => Promise<{ restoredToPositionId: string }>;
+  /** Called after a restore succeeded; the page goes to `positionId` along `entry.returnTo.route`. */
+  onRestored: (entry: UndoEntry<Snapshot>, positionId: string) => void;
   notify: {
     deleted: (entry: UndoEntry<Snapshot>) => void;
     restored: (entry: UndoEntry<Snapshot>) => void;
@@ -41,6 +42,8 @@ export function createUndoController<Snapshot>(ports: UndoPorts<Snapshot>) {
   let stack: UndoEntry<Snapshot>[] = [];
   let pending = false;
   let epoch = 0;
+  /** Entries whose restore failed in a way that may have committed or may pass. */
+  let retried = new Set<string>();
 
   const drop = (id: string) => {
     stack = removeEntry(stack, id);
@@ -49,16 +52,29 @@ export function createUndoController<Snapshot>(ports: UndoPorts<Snapshot>) {
 
   async function run(entry: UndoEntry<Snapshot>) {
     const started = epoch;
-    try {
-      await ports.restore(entry.snapshot);
-      if (started !== epoch) return;
+    const finish = (positionId: string) => {
       drop(entry.id);
+      retried.delete(entry.id);
       ports.notify.restored(entry);
-      ports.onRestored(entry);
+      ports.onRestored(entry, positionId);
+    };
+    try {
+      const { restoredToPositionId } = await ports.restore(entry.snapshot);
+      if (started !== epoch) return;
+      finish(restoredToPositionId);
     } catch (failure) {
       if (started !== epoch) return;
+      // After an earlier failed attempt, "the move exists" means that attempt did commit.
+      if (retried.has(entry.id) && isMoveExistsConflict(failure)) {
+        finish(entry.returnTo.positionId);
+        return;
+      }
       const { message, retryable } = describeRestoreFailure(failure);
-      if (!retryable) drop(entry.id);
+      if (retryable) retried.add(entry.id);
+      else {
+        drop(entry.id);
+        retried.delete(entry.id);
+      }
       ports.notify.failed(message);
     } finally {
       if (started === epoch) pending = false;
@@ -87,6 +103,7 @@ export function createUndoController<Snapshot>(ports: UndoPorts<Snapshot>) {
     /** Forgets every entry, e.g. when the repertoire changes; a restore in flight is ignored. */
     clear() {
       stack = [];
+      retried = new Set();
       pending = false;
       epoch++;
     },

@@ -433,6 +433,35 @@ describe.skipIf(!reachable)("repertoire router", () => {
       expect(after.positions).toHaveLength(1 + 3 + 3 - 1);
     });
 
+    test("reports the position the restored move lands on, after remapping", async () => {
+      const { id, startId } = await newRepertoire();
+      const a = await line(id, startId, ["d4", "Nf6", "Nf3"]);
+      const nf3 = (await treeOf(id)).moves.find((m) => m.fromPositionId === a[2]!)!;
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: nf3.id },
+        as("u1"),
+      );
+      // Without a re-add the original position id comes back.
+      const plain = await call(
+        repertoireRouter.restoreDeleted,
+        { repertoireId: id, snapshot: removed.snapshot },
+        as("u1"),
+      );
+      expect(plain.restoredToPositionId).toBe(a[3]!);
+
+      await call(repertoireRouter.deleteMove, { repertoireId: id, moveId: nf3.id }, as("u1"));
+      // The same position is reached again by another move order, under a new id.
+      const again = await line(id, startId, ["Nf3", "Nf6", "d4"]);
+      expect(again[3]).not.toBe(a[3]);
+      const remapped = await call(
+        repertoireRouter.restoreDeleted,
+        { repertoireId: id, snapshot: removed.snapshot },
+        as("u1"),
+      );
+      expect(remapped.restoredToPositionId).toBe(again[3]!);
+    });
+
     test("restore is a CONFLICT with a reason, and inserts nothing", async () => {
       const reason = async (promise: Promise<unknown>) => {
         try {

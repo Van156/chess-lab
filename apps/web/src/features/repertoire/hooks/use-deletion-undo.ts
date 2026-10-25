@@ -83,7 +83,10 @@ export function useDeletionUndo({
   onRestored,
 }: {
   repertoireId: string;
-  restore: (input: { repertoireId: string; snapshot: DeletionSnapshot }) => Promise<unknown>;
+  restore: (input: {
+    repertoireId: string;
+    snapshot: DeletionSnapshot;
+  }) => Promise<{ restoredToPositionId: string }>;
   onRestored: (target: RestoreTarget) => void;
 }): DeletionUndo {
   // The controller outlives renders, so it reads the latest callbacks through a ref.
@@ -97,7 +100,8 @@ export function useDeletionUndo({
     const self: { current: UndoController<DeletionSnapshot> | null } = { current: null };
     const created = createUndoController<DeletionSnapshot>({
       restore: (snapshot) => latest.current.restore({ repertoireId, snapshot }),
-      onRestored: (entry: UndoEntry<DeletionSnapshot>) => latest.current.onRestored(entry.returnTo),
+      onRestored: (entry: UndoEntry<DeletionSnapshot>, positionId: string) =>
+        latest.current.onRestored({ positionId, route: entry.returnTo.route }),
       notify: toastNotifier((id) => void self.current?.undo(id), shortcut),
     });
     self.current = created;

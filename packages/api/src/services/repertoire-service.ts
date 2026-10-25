@@ -512,8 +512,12 @@ export function createRepertoireService(db: Database) {
           .set({ basePositionId: plan.basePositionId })
           .where(and(eq(repertoire.id, input.repertoireId), eq(repertoire.userId, userId)));
       }
+      // `planRestore` may have remapped the target to a position that exists again, and it only
+      // succeeds when the snapshot holds the deleted move.
+      const restoredMove = plan.moves.find((m) => m.id === snapshot.deletedMoveId)!;
       return {
         restoredMoveId: snapshot.deletedMoveId,
+        restoredToPositionId: restoredMove.toPositionId,
         restoredMoves: plan.moves.length,
         restoredPositions: plan.positions.length,
       };

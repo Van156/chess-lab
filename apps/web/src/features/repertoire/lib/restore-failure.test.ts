@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { describeRestoreFailure } from "./restore-failure";
+import { describeRestoreFailure, isMoveExistsConflict } from "./restore-failure";
 
 const orpc = (code: string, status: number, data?: unknown) =>
   Object.assign(new Error(code), { code, status, data });
@@ -53,10 +53,45 @@ describe("describeRestoreFailure", () => {
     expect(describeRestoreFailure(null).retryable).toBe(true);
   });
 
-  test("any other client error is final", () => {
-    expect(describeRestoreFailure(orpc("UNAUTHORIZED", 401))).toEqual({
-      message: "Can't undo: you are not allowed to change this repertoire.",
+  test("rate limits and timeouts are transient", () => {
+    for (const [code, status] of [
+      ["TOO_MANY_REQUESTS", 429],
+      ["TIMEOUT", 408],
+    ] as const) {
+      expect(describeRestoreFailure(orpc(code, status))).toEqual({
+        message: "Couldn't undo. Try again.",
+        retryable: true,
+      });
+    }
+  });
+
+  test("a clear authorization error is final and says so", () => {
+    for (const [code, status] of [
+      ["UNAUTHORIZED", 401],
+      ["FORBIDDEN", 403],
+    ] as const) {
+      expect(describeRestoreFailure(orpc(code, status))).toEqual({
+        message: "Can't undo: you are not allowed to change this repertoire.",
+        retryable: false,
+      });
+    }
+  });
+
+  test("any other client error is final with a neutral message", () => {
+    expect(describeRestoreFailure(orpc("PAYLOAD_TOO_LARGE", 413))).toEqual({
+      message: "Can't undo right now.",
       retryable: false,
     });
+    expect(describeRestoreFailure(orpc("SOMETHING_NEW", 418)).retryable).toBe(false);
+  });
+});
+
+describe("isMoveExistsConflict", () => {
+  test("is true only for a CONFLICT whose reason is move_exists", () => {
+    expect(isMoveExistsConflict(orpc("CONFLICT", 409, { reason: "move_exists" }))).toBe(true);
+    expect(isMoveExistsConflict(orpc("CONFLICT", 409, { reason: "edge_exists" }))).toBe(false);
+    expect(isMoveExistsConflict(orpc("CONFLICT", 409))).toBe(false);
+    expect(isMoveExistsConflict(orpc("BAD_REQUEST", 400, { reason: "move_exists" }))).toBe(false);
+    expect(isMoveExistsConflict(null)).toBe(false);
   });
 });

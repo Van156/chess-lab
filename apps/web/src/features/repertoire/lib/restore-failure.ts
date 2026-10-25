@@ -13,15 +13,28 @@ const field = (error: unknown, key: string): unknown =>
     ? (error as Record<string, unknown>)[key]
     : undefined;
 
+const TRANSIENT_CODES = new Set(["TOO_MANY_REQUESTS", "TIMEOUT"]);
+
+/** True for the `CONFLICT` that says the deleted move is already back in the tree. */
+export function isMoveExistsConflict(error: unknown): boolean {
+  return (
+    field(error, "code") === "CONFLICT" && field(field(error, "data"), "reason") === "move_exists"
+  );
+}
+
 /**
  * Maps a `restoreDeleted` error to a short message. Only a failure that may pass is retryable: a
- * network error (no code) or a 5xx. Everything the server answered with a 4xx is final, so the
+ * network error (no code), a 5xx, a rate limit or a timeout. Every other answer is final, so the
  * snapshot is dropped instead of failing again.
  */
 export function describeRestoreFailure(error: unknown): RestoreFailure {
   const code = field(error, "code");
   const status = field(error, "status");
-  if (typeof code !== "string" || (typeof status === "number" && status >= 500)) {
+  if (
+    typeof code !== "string" ||
+    TRANSIENT_CODES.has(code) ||
+    (typeof status === "number" && status >= 500)
+  ) {
     return { message: "Couldn't undo. Try again.", retryable: true };
   }
   switch (code) {
@@ -41,10 +54,13 @@ export function describeRestoreFailure(error: unknown): RestoreFailure {
       };
     case "NOT_FOUND":
       return { message: "Can't undo: this repertoire is no longer available.", retryable: false };
-    default:
+    case "UNAUTHORIZED":
+    case "FORBIDDEN":
       return {
         message: "Can't undo: you are not allowed to change this repertoire.",
         retryable: false,
       };
+    default:
+      return { message: "Can't undo right now.", retryable: false };
   }
 }
