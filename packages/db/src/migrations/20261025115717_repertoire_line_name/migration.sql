@@ -1,0 +1,2 @@
+ALTER TABLE "repertoire_move" ADD COLUMN "name" text;--> statement-breakpoint
+ALTER TABLE "repertoire_move" ADD CONSTRAINT "repertoire_move_name_check" CHECK ("name" is null or (btrim("name") <> '' and char_length("name") <= 80));

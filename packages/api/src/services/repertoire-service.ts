@@ -66,6 +66,7 @@ async function loadRows(tx: Tx, repertoireId: string, userId: string) {
       toPositionId: repertoireMove.toPositionId,
       san: repertoireMove.san,
       uci: repertoireMove.uci,
+      name: repertoireMove.name,
     })
     .from(repertoireMove)
     .where(and(eq(repertoireMove.repertoireId, repertoireId), eq(repertoireMove.userId, userId)))
@@ -172,6 +173,7 @@ export function createRepertoireService(db: Database) {
           toPositionId: m.toPositionId,
           san: m.san,
           uci: m.uci,
+          name: m.name,
           isUserMove: isUserMove(meta.color, side),
         };
       }),
@@ -355,6 +357,29 @@ export function createRepertoireService(db: Database) {
     });
   }
 
+  /** Names a move (a study line), or clears the name with `null`. Blank input is cleared by the router. */
+  async function renameLine(
+    userId: string,
+    input: { repertoireId: string; moveId: string; name: string | null },
+  ) {
+    return db.transaction(async (tx) => {
+      await lockRepertoire(tx, input.repertoireId, userId);
+      const rows = await tx
+        .update(repertoireMove)
+        .set({ name: input.name })
+        .where(
+          and(
+            eq(repertoireMove.id, input.moveId),
+            eq(repertoireMove.repertoireId, input.repertoireId),
+            eq(repertoireMove.userId, userId),
+          ),
+        )
+        .returning({ id: repertoireMove.id });
+      if (rows.length === 0) throw notFound("Move");
+      return { moveId: input.moveId, name: input.name };
+    });
+  }
+
   async function setIdeaNote(
     userId: string,
     input: { repertoireId: string; positionId: string } & IdeaNoteInput,
@@ -403,6 +428,7 @@ export function createRepertoireService(db: Database) {
     addMove,
     deleteMove,
     setBase,
+    renameLine,
     setIdeaNote,
   };
 }

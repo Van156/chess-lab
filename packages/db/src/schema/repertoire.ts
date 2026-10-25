@@ -134,6 +134,8 @@ export const repertoireMove = pgTable(
     toPositionId: text("to_position_id").notNull(),
     san: text("san").notNull(),
     uci: text("uci").notNull(),
+    /** Optional study line name; blank is stored as null and the limit mirrors the API one. */
+    name: text("name"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -165,6 +167,10 @@ export const repertoireMove = pgTable(
         repertoirePosition.userId,
       ],
     }).onDelete("cascade"),
+    check(
+      "repertoire_move_name_check",
+      sql`${table.name} is null or (btrim(${table.name}) <> '' and char_length(${table.name}) <= 80)`,
+    ),
   ],
 );
 

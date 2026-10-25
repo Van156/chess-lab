@@ -1,7 +1,12 @@
 import { truncateAllTables, resolveTestDatabaseUrl } from "@b2c-template/auth/testing";
 import { user } from "@b2c-template/db/schema/auth";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
-import { ideaNote, repertoirePosition } from "@b2c-template/db/schema/repertoire";
+import {
+  ideaNote,
+  repertoire,
+  repertoireMove,
+  repertoirePosition,
+} from "@b2c-template/db/schema/repertoire";
 import { userSettings } from "@b2c-template/db/schema/settings";
 import { createTestDatabase, requireTestDatabaseOrSkip } from "@b2c-template/db/testing";
 import type { TestDatabaseHandle } from "@b2c-template/db/testing";
@@ -380,6 +385,113 @@ describe.skipIf(!reachable)("repertoire router", () => {
       const d4 = tree.moves.find((m) => m.fromPositionId === startId && m.san === "d4")!;
       await call(repertoireRouter.deleteMove, { repertoireId: id, moveId: d4.id }, as("u1"));
       expect(await baseOf(id)).toBe(e4[2]!);
+    });
+  });
+
+  describe("renameLine", () => {
+    const nameOf = async (id: string, moveId: string, userId = "u1") =>
+      (await call(repertoireRouter.get, { id }, as(userId))).moves.find((m) => m.id === moveId)!
+        .name;
+    const firstMove = async (id: string) =>
+      (await call(repertoireRouter.get, { id }, as("u1"))).moves[0]!.id;
+    const rename = (repertoireId: string, moveId: string, name: string | null, userId = "u1") =>
+      call(repertoireRouter.renameLine, { repertoireId, moveId, name }, as(userId));
+
+    test("names a move, trims it and get returns it", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4", "e5"]);
+      const moveId = await firstMove(id);
+      expect(await nameOf(id, moveId)).toBeNull();
+      expect(await rename(id, moveId, "  Scotch gambit  ")).toEqual({
+        moveId,
+        name: "Scotch gambit",
+      });
+      expect(await nameOf(id, moveId)).toBe("Scotch gambit");
+    });
+
+    test("a blank or null name clears it", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4"]);
+      const moveId = await firstMove(id);
+      await rename(id, moveId, "Open game");
+      expect(await rename(id, moveId, "   ")).toEqual({ moveId, name: null });
+      expect(await nameOf(id, moveId)).toBeNull();
+      await rename(id, moveId, "Open game");
+      expect(await rename(id, moveId, null)).toEqual({ moveId, name: null });
+      expect(await nameOf(id, moveId)).toBeNull();
+    });
+
+    test("accepts the limit and rejects a longer name", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4"]);
+      const moveId = await firstMove(id);
+      await rename(id, moveId, "x".repeat(80));
+      expect(await codeOf(rename(id, moveId, "x".repeat(81)))).toBe("BAD_REQUEST");
+      expect(await nameOf(id, moveId)).toBe("x".repeat(80));
+    });
+
+    test("rejects a move of another repertoire and another user's repertoire", async () => {
+      const a = await newRepertoire();
+      const b = await newRepertoire();
+      await line(a.id, a.startId, ["e4"]);
+      await line(b.id, b.startId, ["d4"]);
+      const aMove = await firstMove(a.id);
+      const bMove = await firstMove(b.id);
+      expect(await codeOf(rename(a.id, bMove, "x"))).toBe("NOT_FOUND");
+      expect(await codeOf(rename(a.id, "nope", "x"))).toBe("NOT_FOUND");
+      expect(await codeOf(rename(a.id, aMove, "x", "u2"))).toBe("NOT_FOUND");
+      expect(await nameOf(a.id, aMove)).toBeNull();
+      expect(await nameOf(b.id, bMove)).toBeNull();
+    });
+
+    test("deleting the move deletes its name", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4"]);
+      const moveId = await firstMove(id);
+      await rename(id, moveId, "Open game");
+      await call(repertoireRouter.deleteMove, { repertoireId: id, moveId }, as("u1"));
+      expect((await call(repertoireRouter.get, { id }, as("u1"))).moves).toEqual([]);
+    });
+  });
+
+  describe("delete with a base", () => {
+    test("deleting a repertoire whose base is set removes every row", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5", "Nf3"]);
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: ids[3]! }, as("u1"));
+
+      await call(repertoireRouter.delete, { id }, as("u1"));
+
+      expect(await call(repertoireRouter.list, undefined, as("u1"))).toEqual([]);
+      expect(await codeOf(call(repertoireRouter.get, { id }, as("u1")))).toBe("NOT_FOUND");
+      expect(
+        await handle.db
+          .select()
+          .from(repertoirePosition)
+          .where(eq(repertoirePosition.repertoireId, id)),
+      ).toEqual([]);
+      expect(
+        await handle.db.select().from(repertoireMove).where(eq(repertoireMove.repertoireId, id)),
+      ).toEqual([]);
+    });
+
+    test("deleting the user whose repertoire has a base removes the repertoire rows", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5"]);
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: ids[2]! }, as("u1"));
+
+      await handle.db.delete(user).where(eq(user.id, "u1"));
+
+      expect(await handle.db.select().from(repertoire).where(eq(repertoire.id, id))).toEqual([]);
+      expect(
+        await handle.db
+          .select()
+          .from(repertoirePosition)
+          .where(eq(repertoirePosition.repertoireId, id)),
+      ).toEqual([]);
+      expect(
+        await handle.db.select().from(repertoireMove).where(eq(repertoireMove.repertoireId, id)),
+      ).toEqual([]);
     });
   });
 

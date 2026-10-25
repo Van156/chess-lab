@@ -29,6 +29,7 @@ const graph: Pick<RepertoireData, "startPositionId" | "positions" | "moves"> = {
       toPositionId: "p1",
       san: "e4",
       uci: "e2e4",
+      name: null,
       isUserMove: true,
     },
     {
@@ -37,6 +38,7 @@ const graph: Pick<RepertoireData, "startPositionId" | "positions" | "moves"> = {
       toPositionId: "p2",
       san: "e5",
       uci: "e7e5",
+      name: null,
       isUserMove: false,
     },
     {
@@ -45,6 +47,7 @@ const graph: Pick<RepertoireData, "startPositionId" | "positions" | "moves"> = {
       toPositionId: "p3",
       san: "d4",
       uci: "d2d4",
+      name: null,
       isUserMove: true,
     },
   ],

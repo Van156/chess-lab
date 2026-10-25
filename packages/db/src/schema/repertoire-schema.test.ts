@@ -244,6 +244,24 @@ describe.skipIf(!reachable)("repertoire schema", () => {
       await setBase(own.id);
     });
 
+    test("a move name must be non-blank and at most 80 characters when set", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      const from = await createPosition(userId, rep.id);
+      const to = await createPosition(userId, rep.id, "other-key");
+      const withName = (name: string | null, uci: string) =>
+        run(() =>
+          handle.db
+            .insert(schema.repertoireMove)
+            .values({ ...moveValues(userId, rep.id, from.id, to.id, uci), name }),
+        );
+      await withName(null, "a2a3");
+      await withName("x".repeat(80), "a2a4");
+      await expect(withName("", "b2b3")).rejects.toThrow();
+      await expect(withName("   ", "b2b4")).rejects.toThrow();
+      await expect(withName("x".repeat(81), "c2c3")).rejects.toThrow();
+    });
+
     test("deleting the base position nulls only the base column", async () => {
       const userId = await createUser("u1");
       const rep = await createRepertoire(userId);

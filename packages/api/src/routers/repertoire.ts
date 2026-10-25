@@ -7,6 +7,7 @@ import { featureProcedure } from "../index";
 import {
   IDEA_NOTE_MAX_ITEMS,
   IDEA_NOTE_PLAN_MAX_LENGTH,
+  MAX_LINE_NAME_LENGTH,
   REPERTOIRE_NAME_MAX_LENGTH,
 } from "../lib/repertoire-limits";
 import { createRepertoireService } from "../services/repertoire-service";
@@ -15,6 +16,13 @@ const repertoireProcedure = featureProcedure("repertoire");
 
 const id = z.string().min(1);
 const name = z.string().trim().min(1).max(REPERTOIRE_NAME_MAX_LENGTH);
+/** A study line name: trimmed, at most the limit; blank or null clears it. */
+const lineName = z
+  .string()
+  .trim()
+  .max(MAX_LINE_NAME_LENGTH)
+  .nullable()
+  .transform((value) => (value === null || value === "" ? null : value));
 const color = z.enum(["white", "black"]);
 const square = z.string().regex(/^[a-h][1-8]$/);
 
@@ -112,6 +120,10 @@ export const repertoireRouter = {
   setBase: repertoireProcedure
     .input(z.object({ repertoireId: id, positionId: id.nullable() }))
     .handler(({ input, context }) => service(context).setBase(context.session.user.id, input)),
+  /** Names a move as a study line; blank or `null` clears the name. */
+  renameLine: repertoireProcedure
+    .input(z.object({ repertoireId: id, moveId: id, name: lineName }))
+    .handler(({ input, context }) => service(context).renameLine(context.session.user.id, input)),
   /** Saves the note of a position; an empty note deletes it. */
   setIdeaNote: repertoireProcedure
     .input(ideaNoteInput)

@@ -16,6 +16,7 @@ const treeOf = (specs: Spec[]): TreeLine => {
       toPositionId: to,
       san,
       uci: san,
+      name: null,
       isUserMove: true,
     })),
   };

@@ -14,6 +14,7 @@ const graphOf = (specs: Spec[]): RepertoireGraph => ({
     toPositionId: to,
     san,
     uci: san,
+    name: null,
     isUserMove,
   })),
 });

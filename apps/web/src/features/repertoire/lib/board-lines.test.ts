@@ -39,6 +39,7 @@ const repertoireMove = (san: string, uci: string): RepertoireMove => ({
   toPositionId: `to-${san}`,
   san,
   uci,
+  name: null,
   isUserMove: true,
 });
 

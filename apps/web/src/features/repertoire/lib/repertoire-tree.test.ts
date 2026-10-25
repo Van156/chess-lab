@@ -20,6 +20,7 @@ function tree(): RepertoireData {
     toPositionId: to,
     san,
     uci: san,
+    name: null,
     isUserMove: true,
   });
   return {

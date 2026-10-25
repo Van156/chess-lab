@@ -5,6 +5,9 @@
 /** Longest repertoire name, in characters, after trimming. */
 export const REPERTOIRE_NAME_MAX_LENGTH = 80;
 
+/** Longest study line name, in characters, after trimming. */
+export const MAX_LINE_NAME_LENGTH = 80;
+
 /** Longest one-line plan of an idea note, in characters, after trimming. */
 export const IDEA_NOTE_PLAN_MAX_LENGTH = 140;
 

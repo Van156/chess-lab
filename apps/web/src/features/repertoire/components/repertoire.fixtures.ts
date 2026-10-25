@@ -43,7 +43,15 @@ const move = (
   san: string,
   uci: string,
   isUserMove: boolean,
-): FixtureMove => ({ id, fromPositionId: from, toPositionId: to, san, uci, isUserMove });
+): FixtureMove => ({
+  id,
+  fromPositionId: from,
+  toPositionId: to,
+  san,
+  uci,
+  name: null,
+  isUserMove,
+});
 
 /** 1. e4 e5 2. Nf3 (your move), with 1... c5 as a second reply to 1. e4. */
 export const startPosition = {
