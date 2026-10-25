@@ -159,6 +159,19 @@ describe("resolvePosition", () => {
     expect(resolvePosition({ ...graph, basePositionId: "p2" }, "start")).toBe("start");
   });
 
+  test("ignores a base the start position cannot reach, as the base header does", () => {
+    const orphaned = {
+      ...graph,
+      positions: [...graph.positions, { ...graph.positions[0], id: "orphan" }],
+    } as typeof graph;
+    expect(resolvePosition({ ...orphaned, basePositionId: "orphan" }, null)).toBe("start");
+    expect(resolvePosition({ ...orphaned, basePositionId: "orphan" }, "gone")).toBe("start");
+  });
+
+  test("treats the start position as no base", () => {
+    expect(resolvePosition({ ...graph, basePositionId: "start" }, "gone")).toBe("start");
+  });
+
   test("ignores a base the graph does not hold", () => {
     expect(resolvePosition({ ...graph, basePositionId: "gone" }, null)).toBe("start");
     expect(resolvePosition({ ...graph, basePositionId: null }, null)).toBe("start");

@@ -96,6 +96,7 @@ describe("toMoveRows", () => {
     const black = (ply: number, san: string): TreeNode => ({
       moveId: `m${ply}`,
       san,
+      name: null,
       label: `${Math.ceil(ply / 2)}${ply % 2 === 1 ? "." : "..."} ${san}`,
       side: "reply",
       positionId: `p${ply}`,

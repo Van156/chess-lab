@@ -17,6 +17,7 @@ function render(overrides: Partial<VariationTreeProps> = {}) {
       fullTree={null}
       onSelect={() => {}}
       onDelete={() => {}}
+      onRename={() => {}}
       {...overrides}
     />,
   );
@@ -59,7 +60,6 @@ describe("VariationTree", () => {
 
   test("shows alternatives in a labelled group and names them as alternatives", () => {
     const html = render();
-    expect(html).toContain('aria-label="Alternatives to 1. e4"');
     expect(html).toContain('aria-label="1... c5, opponent reply, alternative to 1... e5"');
     // The nested alternative at 1... c5 is a second level of the same grouping.
     expect(html).toContain('aria-label="Alternatives to 2. Nf3"');
@@ -76,6 +76,7 @@ describe("VariationTree", () => {
         fullTree={null}
         onSelect={() => {}}
         onDelete={() => {}}
+        onRename={() => {}}
       />,
     );
     expect(html.match(/<li>/g)).toHaveLength(1);
@@ -83,12 +84,12 @@ describe("VariationTree", () => {
     expect(html).not.toContain(">1...</span>");
   });
 
-  test("continues Black's reply on a `N...` row after a White fork", () => {
+  test("starts an alternative that opens with Black on a `N...` row", () => {
     const html = render();
-    expect(html).toMatch(/1\.\.\.<\/span>.*aria-label="1\.\.\. e5, opponent reply"/);
+    expect(html).toMatch(/1\.\.\.<\/span>.*aria-label="1\.\.\. c5, opponent reply, alternative to/);
   });
 
-  test("keeps only-child chains flat, without a group", () => {
+  test("keeps only-child chains flat, without nested alternatives", () => {
     const html = renderToStaticMarkup(
       <VariationTree
         tree={buildVariationTree(
@@ -98,6 +99,7 @@ describe("VariationTree", () => {
         fullTree={null}
         onSelect={() => {}}
         onDelete={() => {}}
+        onRename={() => {}}
       />,
     );
     expect(html).toContain('aria-label="1... e5, opponent reply"');
@@ -112,16 +114,102 @@ describe("VariationTree", () => {
 
   test("offers a fold toggle on a fork and a delete button on every move", () => {
     const html = render();
-    expect(html).toContain('aria-label="Hide alternatives to 1. e4"');
+    expect(html).toContain('aria-label="Hide alternatives to 1... e5"');
     expect(html).toContain('aria-label="Delete 1. e4 and its continuations"');
     expect(html).toContain('aria-label="Delete 2. Nc3 and its continuations"');
   });
 
   test("cannot fold a fork the shown line runs through, but can fold the others", () => {
-    const html = render();
-    const toggle = (label: string) =>
+    const toggleOf = (html: string, label: string) =>
       html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0] ?? "";
-    expect(toggle("Hide alternatives to 1\\. e4")).not.toContain('disabled=""');
-    expect(toggle("Hide alternatives to 1\\.\\.\\. e5")).toContain('disabled=""');
+    expect(toggleOf(render(), "Hide alternatives to 2\\. Nf3")).toContain('disabled=""');
+    const atE5 = render({ tree: buildVariationTree(forkGraph, pathOf(["f1", "f2"])) });
+    expect(toggleOf(atE5, "Hide alternatives to 1\\.\\.\\. e5")).not.toContain('disabled=""');
+  });
+
+  describe("study lines", () => {
+    const named = {
+      ...forkGraph,
+      moves: forkGraph.moves.map((move) =>
+        move.id === "f1" ? { ...move, name: "King's pawn" } : move,
+      ),
+    };
+
+    test("lists each move leaving the start position as a study line, not as an alternative", () => {
+      const html = render();
+      expect(html).toContain('aria-label="Study lines"');
+      expect(html.match(/Unnamed line/g)).toHaveLength(2);
+      expect(html).not.toContain('aria-label="Alternatives to 1. e4"');
+      expect(html).not.toContain("alternative to 1. e4");
+      expect(html).toContain('aria-label="1. Nf3, your move"');
+    });
+
+    test("names a line, and keeps the first move as a hint", () => {
+      const html = render({ tree: buildVariationTree(named, pathOf(forkGraphPath)) });
+      expect(html).toContain("King&#x27;s pawn");
+      expect(html).toContain(">1. e4</span>");
+      expect(html.match(/Unnamed line/g)).toHaveLength(1);
+    });
+
+    test("offers a 44px rename button for each line", () => {
+      const html = render();
+      expect(html).toMatch(
+        /<button[^>]*aria-label="Rename the line starting 1\. e4"[^>]*class="[^"]*\bh-11\b[^"]*\bw-11\b/,
+      );
+      expect(html).toContain('aria-label="Rename the line starting 1. Nf3"');
+    });
+
+    test("marks the group that holds the shown line, and only that one", () => {
+      const html = render();
+      expect(html.match(/Current line/g)).toHaveLength(1);
+      expect(html.indexOf("Current line")).toBeLessThan(
+        html.indexOf("Rename the line starting 1. Nf3"),
+      );
+    });
+
+    test("groups a single move after the base, and the group can be named", () => {
+      const graph = { startPositionId: "p0", moves: forkGraph.moves.slice(0, 2) };
+      const html = render({
+        tree: buildVariationTree(graph, [], graph.moves.slice(0, 1)),
+        fullTree: buildVariationTree(graph, []),
+      });
+      expect(html.match(/Unnamed line/g)).toHaveLength(1);
+      expect(html).toContain('aria-label="Rename the line starting 1... e5"');
+    });
+  });
+
+  describe("the fold with the whole repertoire", () => {
+    const base = pathOf(["f1", "f2"]);
+    const shown = pathOf(["f1", "f2", "f4"]);
+    // The container builds the full tree with the shown line, so the fold receives its marks.
+    const open = () =>
+      render({
+        tree: buildVariationTree(forkGraph, shown, base),
+        fullTree: buildVariationTree(forkGraph, shown),
+        foldOpenByDefault: true,
+      });
+
+    test("announces the current move once while the fold is open", () => {
+      const html = open();
+      expect(html).toContain('aria-label="All lines from the start position"');
+      expect(html.match(/aria-current="location"/g)).toHaveLength(1);
+      expect(html.match(/aria-label="2\. Nf3, your move[^"]*"/g)?.length).toBeGreaterThan(1);
+    });
+
+    test("does not highlight the shown line inside the fold", () => {
+      const html = open();
+      const fold = html.slice(html.indexOf('role="group"'));
+      expect(fold).not.toContain("bg-accent");
+      expect(fold).not.toContain("font-semibold");
+    });
+
+    test("folds its alternatives apart from the study lines", () => {
+      const html = open();
+      const fold = html.slice(html.indexOf('role="group"'));
+      expect(fold).toContain('aria-label="Alternatives to 1. e4"');
+      expect(html.slice(0, html.indexOf('role="group"'))).not.toContain(
+        'aria-label="Alternatives to 1. e4"',
+      );
+    });
   });
 });

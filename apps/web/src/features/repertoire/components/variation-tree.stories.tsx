@@ -17,6 +17,7 @@ const meta = {
     fullTree: null,
     onSelect: () => {},
     onDelete: () => {},
+    onRename: () => {},
   },
 } satisfies Meta<typeof VariationTree>;
 
@@ -48,4 +49,24 @@ export const NothingAfterBase: Story = {
     tree: buildVariationTree({ startPositionId: "p0", moves: [] }, []),
     fullTree: buildVariationTree(forkGraph, []),
   },
+};
+
+const named = (name: string) => ({
+  ...forkGraph,
+  moves: forkGraph.moves.map((move) => (move.id === "f1" ? { ...move, name } : move)),
+});
+
+/** A named line and an unnamed one; the line being shown is marked. */
+export const NamedAndUnnamedLines: Story = {
+  args: { tree: buildVariationTree(named("King's pawn"), pathOf(forkGraphPath)) },
+};
+
+/** The line being shown is the second group, so the first is not marked. */
+export const CurrentLineIsSecond: Story = {
+  args: { tree: buildVariationTree(named("King's pawn"), pathOf(["f7", "f8"])) },
+};
+
+/** The fold open: it lists the whole repertoire as a plain outline, with no second current move. */
+export const FoldOpen: Story = {
+  args: { ...RootedAtBase.args, foldOpenByDefault: true },
 };

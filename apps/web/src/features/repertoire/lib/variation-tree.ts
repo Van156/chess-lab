@@ -5,6 +5,8 @@ import type { RepertoireMove } from "./repertoire-types";
 export type TreeNode = {
   moveId: string;
   san: string;
+  /** The study line name stored on this move, null when it has none. Only a line's first move is named. */
+  name: string | null;
   /** Move-numbered SAN: "1. e4" for White, "1... e5" for Black. */
   label: string;
   /** "you" for the repertoire owner's moves, "reply" for the opponent's. */
@@ -75,6 +77,7 @@ export function buildVariationTree(
     return {
       moveId: move.id,
       san: move.san,
+      name: move.name,
       label: `${Math.ceil(ply / 2)}${ply % 2 === 1 ? "." : "..."} ${move.san}`,
       side: move.isUserMove ? "you" : "reply",
       positionId: move.toPositionId,
@@ -124,4 +127,21 @@ export function buildVariationTree(
   if (!first) return { depth: 0, isAlternative: false, nodes: [] };
 
   return buildLine(first, rootRoute, 0, others);
+}
+
+/**
+ * The same tree with the shown line's marks removed (`onPath`, `isCurrent`), for an outline that
+ * only lists moves and must not claim the current location a second time. Pure; the input is not
+ * changed.
+ */
+export function clearPath(line: TreeLine): TreeLine {
+  return {
+    ...line,
+    nodes: line.nodes.map((node) => ({
+      ...node,
+      onPath: false,
+      isCurrent: false,
+      alternatives: node.alternatives.map(clearPath),
+    })),
+  };
 }

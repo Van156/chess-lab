@@ -31,6 +31,10 @@ export function useRepertoire(id: string) {
     ...orpc.repertoire.setBase.mutationOptions(),
     onSettled: reload,
   });
+  const renameLine = useMutation({
+    ...orpc.repertoire.renameLine.mutationOptions(),
+    onSettled: reload,
+  });
 
   return {
     repertoire: query.data,
@@ -46,6 +50,8 @@ export function useRepertoire(id: string) {
     /** Input: `{ repertoireId, positionId }`; a null position clears the base. */
     setBase: setBase.mutateAsync,
     isSettingBase: setBase.isPending,
+    /** Input: `{ repertoireId, moveId, name }`; a null name clears the line's name. */
+    renameLine: renameLine.mutateAsync,
     isSaving: addMove.isPending || deleteMove.isPending || setIdeaNote.isPending,
   };
 }

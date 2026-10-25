@@ -1,5 +1,6 @@
 import { IDEA_NOTE_MAX_ITEMS } from "@b2c-template/api/lib/repertoire-limits";
 
+import { baseLine } from "./base-line";
 import { removalPreview, type RepertoireGraph } from "./repertoire-tree";
 import type { NoteArrow, RepertoireData, RepertoireMove } from "./repertoire-types";
 
@@ -74,17 +75,19 @@ export function parseArrowInput(
 
 /**
  * `positionId` when the graph still has it, else the base position, else the start position (after
- * a delete or reload). With no position chosen yet the builder opens at the base.
+ * a delete or reload). With no position chosen yet the builder opens at the base. A base counts only
+ * when the start position reaches it, the same rule the base header follows (`baseLine`).
  */
 export function resolvePosition(
-  graph: Pick<RepertoireData, "startPositionId" | "positions"> &
+  graph: Pick<RepertoireData, "startPositionId" | "positions" | "moves"> &
     Partial<Pick<RepertoireData, "basePositionId">>,
   positionId: string | null,
 ): string {
   const has = (id: string | null | undefined): id is string =>
     id !== null && id !== undefined && graph.positions.some((position) => position.id === id);
   if (has(positionId)) return positionId;
-  return has(graph.basePositionId) ? graph.basePositionId : graph.startPositionId;
+  const base = graph.basePositionId ?? null;
+  return has(base) && baseLine(graph, base).length > 0 ? base : graph.startPositionId;
 }
 
 /**

@@ -56,6 +56,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     setIdeaNote,
     setBase,
     isSettingBase,
+    renameLine,
     isSaving,
   } = useRepertoire(id);
   const [where, setWhere] = useState<Where>({ positionId: null, route: [] });
@@ -120,6 +121,15 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
       if (move) setDeleting(move);
     },
     [repertoire],
+  );
+
+  const renameLineById = useCallback(
+    (moveId: string, name: string | null) => {
+      renameLine({ repertoireId: id, moveId, name }).catch((failure: unknown) =>
+        reportFailure(failure, "The line could not be renamed."),
+      );
+    },
+    [renameLine, id],
   );
 
   if (isPending) {
@@ -285,6 +295,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         onSetBase={() => void changeBase(positionId)}
         onClearBase={() => void changeBase(null)}
         onDeleteNode={requestDeleteById}
+        onRenameLine={renameLineById}
         onRequestDelete={setDeleting}
         onNoteChange={(next) => setDraft({ positionId, note: next })}
         onSaveNote={() => void saveNote(note, note)}

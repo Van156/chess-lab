@@ -72,4 +72,5 @@ export const APP_PRESENTATIONAL_COMPONENTS: readonly string[] = [
   "features/repertoire/components/engine-panel.tsx",
   "features/repertoire/components/eval-bar.tsx",
   "features/repertoire/components/repertoire-builder-view.tsx",
+  "features/repertoire/components/study-line-name.tsx",
 ];

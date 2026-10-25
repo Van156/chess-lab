@@ -6,6 +6,7 @@ import type { TreeLine, TreeNode } from "./variation-tree";
 const node = (overrides: Partial<TreeNode> = {}): TreeNode => ({
   moveId: "m1",
   san: "e4",
+  name: null,
   label: "1. e4",
   side: "you",
   positionId: "p1",

@@ -71,6 +71,7 @@ const meta = {
     onSetBase: () => {},
     onClearBase: () => {},
     onDeleteNode: () => {},
+    onRenameLine: () => {},
     onRequestDelete: () => {},
     onNoteChange: () => {},
     onSaveNote: () => {},

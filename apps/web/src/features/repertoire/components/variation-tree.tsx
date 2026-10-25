@@ -1,7 +1,7 @@
 import { Button } from "@b2c-template/ui/components/button";
 import { cn } from "@b2c-template/ui/lib/utils";
 import { ChevronDown, ChevronRight, Repeat, Trash2 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 
 import {
   describeTreeNode,
@@ -11,7 +11,9 @@ import {
   type CollapsedForks,
 } from "../lib/tree-outline";
 import { toMoveRows } from "../lib/move-rows";
-import type { TreeLine, TreeNode } from "../lib/variation-tree";
+import { studyLines } from "../lib/study-lines";
+import { clearPath, type TreeLine, type TreeNode } from "../lib/variation-tree";
+import StudyLineName from "./study-line-name";
 
 export type VariationTreeProps = {
   /**
@@ -21,13 +23,18 @@ export type VariationTreeProps = {
   tree: TreeLine;
   /**
    * The whole repertoire from the start, offered under a fold when a base hides the moves before
-   * it. Null when no base is set. Keep it referentially stable.
+   * it. Null when no base is set. Keep it referentially stable. The fold only lists moves: the
+   * shown line is not marked there, so the current move is announced once, in `tree`.
    */
   fullTree: TreeLine | null;
   /** Jumps to a move's position by the route that reached it; keep the callback stable. */
   onSelect: (positionId: string, route: string[]) => void;
   /** Asks to delete a move and its continuations; the caller confirms. Keep it stable. */
   onDelete: (moveId: string) => void;
+  /** Names the study line that starts with a move; null clears the name. Keep it stable. */
+  onRename: (moveId: string, name: string | null) => void;
+  /** Starts with the full-repertoire fold open (it is closed otherwise). */
+  foldOpenByDefault?: boolean;
 };
 
 type Actions = {
@@ -166,18 +173,110 @@ function Line({
 }
 
 /**
- * The repertoire as an outline (presentational): lines read as full-move rows, alternatives at
- * a fork are indented and marked, the line being shown is highlighted, any move can be selected or
- * deleted and the alternatives of a fork can be folded. Transposition leaves point back. With a
- * base set the tree starts after it, and the moves from before the base (other openings, other
- * ways in) stay reachable under a fold that shows the whole repertoire from the start.
+ * The whole repertoire from the start under a disclosure. It is a plain outline: the shown line is
+ * not marked in it (that would announce the current move twice) and its alternatives fold on their
+ * own state, apart from the study lines above.
+ */
+function FullTreeFold({
+  fullTree,
+  defaultOpen,
+  onSelect,
+  onDelete,
+}: Pick<VariationTreeProps, "onSelect" | "onDelete"> & {
+  fullTree: TreeLine;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [collapsed, setCollapsed] = useState<CollapsedForks>(new Set());
+  const plain = useMemo(() => clearPath(fullTree), [fullTree]);
+  const actions: Actions = {
+    collapsed,
+    onToggle: (moveId) => setCollapsed((current) => toggleCollapsed(current, moveId)),
+    onSelect,
+    onDelete,
+  };
+  return (
+    <div className="mt-2 flex flex-col gap-1 border-t pt-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        className="flex min-h-11 items-center gap-1 rounded-md px-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={() => setOpen((current) => !current)}
+      >
+        {open ? (
+          <ChevronDown aria-hidden className="size-4" />
+        ) : (
+          <ChevronRight aria-hidden className="size-4" />
+        )}
+        All lines from the start position
+      </button>
+      {open ? (
+        <div role="group" aria-label="All lines from the start position">
+          <Line line={plain} actions={actions} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The study lines of a tree: each first move after the base is a group with a name to edit. */
+function StudyLines({
+  tree,
+  actions,
+  onRename,
+}: {
+  tree: TreeLine;
+  actions: Actions;
+  onRename: VariationTreeProps["onRename"];
+}) {
+  const lines = useMemo(() => studyLines(tree), [tree]);
+  return (
+    <ul aria-label="Study lines" className="flex flex-col gap-2">
+      {lines.map(({ firstMove, name, line, isCurrent }) => (
+        <li
+          key={firstMove.moveId}
+          className={cn(
+            "flex flex-col gap-1 rounded-lg border p-2",
+            isCurrent && "border-primary bg-accent/20",
+          )}
+        >
+          <div className="flex items-center gap-1">
+            <StudyLineName
+              name={name}
+              firstMoveLabel={firstMove.label}
+              onRename={(next) => onRename(firstMove.moveId, next)}
+            />
+            {isCurrent ? <span className="sr-only">Current line</span> : null}
+          </div>
+          <Line line={line} actions={actions} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The repertoire as an outline (presentational): the moves after the base are grouped into study
+ * lines, one per first move, each with its name and an inline rename; inside a line the moves read
+ * as full-move rows, alternatives at a deeper fork are indented and marked, the line being shown
+ * is highlighted, any move can be selected or deleted and the alternatives of a fork can be
+ * folded. Transposition leaves point back. With a base set the tree starts after it, and the moves
+ * from before the base (other openings, other ways in) stay reachable under a fold that lists the
+ * whole repertoire from the start: a plain outline with its own folds, without the current-line
+ * marks, so no move is announced as the current location twice.
  *
  * It is memoised and takes only the trees and stable callbacks. The tree depends on the
  * repertoire and the shown line, never on engine data, so engine frames do not re-render it.
  */
-function VariationTree({ tree, fullTree, onSelect, onDelete }: VariationTreeProps) {
+function VariationTree({
+  tree,
+  fullTree,
+  onSelect,
+  onDelete,
+  onRename,
+  foldOpenByDefault = false,
+}: VariationTreeProps) {
   const [collapsed, setCollapsed] = useState<CollapsedForks>(new Set());
-  const [showAll, setShowAll] = useState(false);
   const actions: Actions = {
     collapsed,
     onToggle: (moveId) => setCollapsed((current) => toggleCollapsed(current, moveId)),
@@ -192,25 +291,15 @@ function VariationTree({ tree, fullTree, onSelect, onDelete }: VariationTreeProp
           type it.
         </p>
       ) : (
-        <Line line={tree} actions={actions} />
+        <StudyLines tree={tree} actions={actions} onRename={onRename} />
       )}
       {fullTree ? (
-        <div className="mt-2 flex flex-col gap-1 border-t pt-2">
-          <button
-            type="button"
-            aria-expanded={showAll}
-            className="flex min-h-11 items-center gap-1 rounded-md px-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-            onClick={() => setShowAll((current) => !current)}
-          >
-            {showAll ? (
-              <ChevronDown aria-hidden className="size-4" />
-            ) : (
-              <ChevronRight aria-hidden className="size-4" />
-            )}
-            All lines from the start position
-          </button>
-          {showAll ? <Line line={fullTree} actions={actions} /> : null}
-        </div>
+        <FullTreeFold
+          fullTree={fullTree}
+          defaultOpen={foldOpenByDefault}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
       ) : null}
     </nav>
   );

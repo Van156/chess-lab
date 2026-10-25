@@ -91,6 +91,8 @@ export type RepertoireBuilderViewProps = {
   onClearBase: () => void;
   /** Asks to delete a tree move by id. The tree is memoised: keep this stable. */
   onDeleteNode: (moveId: string) => void;
+  /** Names the study line that starts with a tree move; null clears it. The tree is memoised: keep this stable. */
+  onRenameLine: (moveId: string, name: string | null) => void;
   onRequestDelete: (move: RepertoireMove) => void;
   onNoteChange: (note: IdeaNote) => void;
   onSaveNote: () => void;
@@ -160,6 +162,7 @@ export default function RepertoireBuilderView({
   onSetBase,
   onClearBase,
   onDeleteNode,
+  onRenameLine,
   onRequestDelete,
   onNoteChange,
   onSaveNote,
@@ -284,6 +287,7 @@ export default function RepertoireBuilderView({
                   fullTree={fullTree}
                   onSelect={onSelectNode}
                   onDelete={onDeleteNode}
+                  onRename={onRenameLine}
                 />
               </div>
             </TabsContent>

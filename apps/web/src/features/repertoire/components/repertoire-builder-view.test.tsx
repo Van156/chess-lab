@@ -67,6 +67,7 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       onSetBase={() => {}}
       onClearBase={() => {}}
       onDeleteNode={() => {}}
+      onRenameLine={() => {}}
       onRequestDelete={() => {}}
       onNoteChange={() => {}}
       onSaveNote={() => {}}

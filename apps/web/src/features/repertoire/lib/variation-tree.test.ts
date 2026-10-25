@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { RepertoireGraph } from "./repertoire-tree";
 import type { RepertoireMove } from "./repertoire-types";
-import { buildVariationTree, type TreeLine, type TreeNode } from "./variation-tree";
+import { buildVariationTree, clearPath, type TreeLine, type TreeNode } from "./variation-tree";
 
 type Spec = [id: string, from: string, to: string, san: string, isUserMove?: boolean];
 
@@ -247,5 +247,66 @@ describe("buildVariationTree rooted at a base", () => {
   test("is empty when nothing follows the base", () => {
     const tree = buildVariationTree(graph, [], pathOf(graph, "m1", "m2", "m3", "m4"));
     expect(tree.nodes).toEqual([]);
+  });
+});
+
+describe("buildVariationTree names", () => {
+  test("carries the name of each move, null when it has none", () => {
+    const graph: RepertoireGraph = {
+      startPositionId: "start",
+      moves: [
+        {
+          id: "m1",
+          fromPositionId: "start",
+          toPositionId: "p1",
+          san: "e4",
+          uci: "e4",
+          name: "King's pawn",
+          isUserMove: true,
+        },
+        {
+          id: "m2",
+          fromPositionId: "p1",
+          toPositionId: "p2",
+          san: "e5",
+          uci: "e5",
+          name: null,
+          isUserMove: false,
+        },
+      ],
+    };
+    expect(buildVariationTree(graph, []).nodes.map((node) => node.name)).toEqual([
+      "King's pawn",
+      null,
+    ]);
+  });
+});
+
+describe("clearPath", () => {
+  const graph = graphOf([
+    ["m1", "start", "p1", "e4"],
+    ["m2", "p1", "p2", "e5", false],
+    ["m3", "p1", "p3", "c5", false],
+  ]);
+
+  test("drops the on-path and current marks, in alternatives too", () => {
+    const tree = buildVariationTree(graph, pathOf(graph, "m1", "m3"));
+    const cleared = clearPath(tree);
+    const marks = (line: TreeLine): boolean[] =>
+      line.nodes.flatMap((node) => [
+        node.onPath,
+        node.isCurrent,
+        ...node.alternatives.flatMap(marks),
+      ]);
+    expect(marks(tree)).toContain(true);
+    expect(marks(cleared)).not.toContain(true);
+  });
+
+  test("keeps everything else and leaves its input untouched", () => {
+    const tree = buildVariationTree(graph, pathOf(graph, "m1", "m3"));
+    const cleared = clearPath(tree);
+    expect(sans(cleared)).toEqual(sans(tree));
+    expect(alt(cleared.nodes[1] as TreeNode).nodes[0]?.san).toBe("c5");
+    expect(tree.nodes[0]?.onPath).toBe(true);
   });
 });
