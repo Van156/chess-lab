@@ -1,3 +1,4 @@
+import type { MoveRank } from "./continuation-ranking";
 import type { TreeNode } from "./variation-tree";
 
 /** The move ids whose alternatives are folded away in the outline. */
@@ -27,12 +28,18 @@ export function isForkOpen(collapsed: CollapsedForks, node: TreeNode): boolean {
  * The accessible name of a move in the outline. Colour and indentation never carry the meaning
  * alone: an alternative says what it is an alternative to, and a transposition says it points back.
  */
-export function describeTreeNode(node: TreeNode, options: { alternativeTo?: string } = {}): string {
+export function describeTreeNode(
+  node: TreeNode,
+  options: { alternativeTo?: string; rank?: MoveRank } = {},
+): string {
   return [
     node.label,
     node.side === "you" ? "your move" : "opponent reply",
     options.alternativeTo ? `alternative to ${options.alternativeTo}` : "",
     node.transposition ? "transposition to a position shown above" : "",
+    options.rank
+      ? `ranked ${options.rank.rank} of ${options.rank.of} by the engine, ${options.rank.scoreLabel}`
+      : "",
   ]
     .filter(Boolean)
     .join(", ");

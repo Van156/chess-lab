@@ -13,6 +13,7 @@ import Loader from "@/shared/components/feedback/loader";
 
 import { useExplorer } from "../hooks/use-explorer";
 import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
+import { useContinuationRanking } from "../hooks/use-continuation-ranking";
 import { useEngineToggle } from "../hooks/use-engine-toggle";
 import { useExplorerBand } from "../hooks/use-explorer-band";
 import { useLinePreview } from "../hooks/use-line-preview";
@@ -78,6 +79,22 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     engineOn && currentFen !== undefined,
     lineCount,
   );
+  // The stored continuations of the shown position, ranked by one restricted search while the
+  // engine is on. Computed before the early returns, like the other engine hooks; the hook runs
+  // after the suggestions so the Engine tab's search is queued first.
+  const continuations = useMemo(
+    () =>
+      repertoire
+        ? childMoves(repertoire, currentId).map(({ id: moveId, uci }) => ({ id: moveId, uci }))
+        : [],
+    [repertoire, currentId],
+  );
+  const rankings = useContinuationRanking({
+    positionId: currentId,
+    fen: currentFen ?? "",
+    moves: continuations,
+    enabled: engineOn && currentFen !== undefined,
+  });
   // The outline depends on the graph and the shown line only, so it is rebuilt on those two and
   // never on an engine frame; the callbacks below are stable for the same reason (the tree is memoised).
   const path = useMemo(
@@ -258,6 +275,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
         childMoves={children}
         tree={tree}
         fullTree={fullTree}
+        rankings={rankings}
         startPositionId={repertoire.startPositionId}
         basePositionId={basePositionId}
         baseLine={baseMoves}

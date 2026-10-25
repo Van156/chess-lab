@@ -10,6 +10,7 @@ import { describeNote } from "../lib/idea-note";
 import { lineColour } from "../lib/line-colours";
 import type { PreviewView } from "../lib/line-preview";
 import type { Opening } from "../lib/opening-lookup";
+import type { MoveRank } from "../lib/continuation-ranking";
 import { formatLine } from "../lib/repertoire-tree";
 import type {
   IdeaNote,
@@ -40,6 +41,8 @@ export type RepertoireBuilderViewProps = {
   tree: TreeLine;
   /** The whole repertoire from the start; null when no base hides the moves before it. */
   fullTree: TreeLine | null;
+  /** The engine's ranking of the analysed continuations by move id; changes once per finished search. */
+  rankings: ReadonlyMap<string, MoveRank>;
   startPositionId: string;
   /** The base position; null when none is set. */
   basePositionId: string | null;
@@ -131,6 +134,7 @@ export default function RepertoireBuilderView({
   childMoves,
   tree,
   fullTree,
+  rankings,
   startPositionId,
   basePositionId,
   baseLine,
@@ -285,6 +289,7 @@ export default function RepertoireBuilderView({
                 <VariationTree
                   tree={tree}
                   fullTree={fullTree}
+                  rankings={rankings}
                   onSelect={onSelectNode}
                   onDelete={onDeleteNode}
                   onRename={onRenameLine}

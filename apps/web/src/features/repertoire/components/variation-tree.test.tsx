@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { MoveRank } from "../lib/continuation-ranking";
 import { buildVariationTree } from "../lib/variation-tree";
 import { forkGraph, forkGraphPath, openGameGraph } from "./repertoire.fixtures";
 import VariationTree, { type VariationTreeProps } from "./variation-tree";
@@ -210,6 +211,66 @@ describe("VariationTree", () => {
       expect(html.slice(0, html.indexOf('role="group"'))).not.toContain(
         'aria-label="Alternatives to 1. e4"',
       );
+    });
+  });
+  describe("engine rankings", () => {
+    const rank = (rankNo: number, scoreLabel: string): MoveRank => ({
+      rank: rankNo,
+      of: 2,
+      score: { kind: "cp", value: 0 },
+      scoreLabel,
+    });
+    // 1. Nf3 beats 1. e4 at the start; 1... e5 beats 1... c5 after 1. e4.
+    const rankings = new Map<string, MoveRank>([
+      ["f7", rank(1, "+0.30")],
+      ["f1", rank(2, "+0.20")],
+      ["f3", rank(1, "-0.10")],
+      ["f2", rank(2, "-0.40")],
+    ]);
+    const atE4 = () => buildVariationTree(forkGraph, pathOf(["f1", "f2"]));
+
+    test("lists the ranked study lines best first", () => {
+      const html = render({ tree: atE4(), rankings });
+      expect(html.indexOf('aria-label="1. Nf3')).toBeLessThan(html.indexOf('aria-label="1. e4'));
+    });
+
+    test("keeps the stored order without rankings", () => {
+      const html = render({ tree: atE4() });
+      expect(html.indexOf('aria-label="1. e4')).toBeLessThan(html.indexOf('aria-label="1. Nf3'));
+    });
+
+    test("shows a rank and score badge on each ranked move and says so in its label", () => {
+      const html = render({ tree: atE4(), rankings });
+      expect(html).toContain("#1 +0.30");
+      expect(html).toContain("#2 +0.20");
+      expect(html).toContain('aria-label="1. Nf3, your move, ranked 1 of 2 by the engine, +0.30"');
+    });
+
+    test("sorts the alternatives of a fork best first while the continuing move keeps its place", () => {
+      const html = render({ tree: atE4(), rankings });
+      const alternatives = html.slice(html.indexOf('aria-label="Alternatives to 1... e5"'));
+      expect(alternatives).toContain("ranked 1 of 2 by the engine, -0.10");
+      // The line continues with 1... e5 (ranked 2); 1... c5 (ranked 1) is its listed alternative.
+      expect(html.indexOf('aria-label="1... e5, opponent reply, ranked 2')).toBeLessThan(
+        html.indexOf('aria-label="Alternatives to 1... e5"'),
+      );
+    });
+
+    test("shows nothing on moves the engine has not ranked", () => {
+      const html = render({ tree: atE4(), rankings: new Map([["f7", rank(1, "+0.30")]]) });
+      expect(html.match(/ranked \d+ of/g)).toHaveLength(1);
+      expect(html).not.toContain("#2");
+    });
+
+    test("leaves the full-repertoire fold unranked", () => {
+      const html = render({
+        tree: buildVariationTree(forkGraph, pathOf(["f1", "f2", "f4"]), pathOf(["f1", "f2"])),
+        fullTree: buildVariationTree(forkGraph, []),
+        foldOpenByDefault: true,
+        rankings,
+      });
+      const fold = html.slice(html.indexOf('role="group"'));
+      expect(fold).not.toContain("by the engine");
     });
   });
 });

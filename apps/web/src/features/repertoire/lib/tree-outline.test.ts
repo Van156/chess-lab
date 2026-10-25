@@ -87,4 +87,11 @@ describe("describeTreeNode", () => {
       "1. e4, your move, transposition to a position shown above",
     );
   });
+
+  test("says where the engine ranks the move", () => {
+    const rank = { rank: 1, of: 2, score: { kind: "cp" as const, value: 40 }, scoreLabel: "+0.40" };
+    expect(describeTreeNode(node(), { rank })).toBe(
+      "1. e4, your move, ranked 1 of 2 by the engine, +0.40",
+    );
+  });
 });

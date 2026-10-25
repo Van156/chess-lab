@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import type { MoveRank } from "../lib/continuation-ranking";
 import { buildVariationTree } from "../lib/variation-tree";
 import { forkGraph, forkGraphPath } from "./repertoire.fixtures";
 import VariationTree from "./variation-tree";
@@ -69,4 +70,24 @@ export const CurrentLineIsSecond: Story = {
 /** The fold open: it lists the whole repertoire as a plain outline, with no second current move. */
 export const FoldOpen: Story = {
   args: { ...RootedAtBase.args, foldOpenByDefault: true },
+};
+
+const ranked = (rank: number, scoreLabel: string): MoveRank => ({
+  rank,
+  of: 2,
+  score: { kind: "cp", value: 0 },
+  scoreLabel,
+});
+
+/** Engine ranking: 1. Nf3 is listed before 1. e4, and 1... c5 before 1... e5 in the fork. */
+export const WithEngineRanks: Story = {
+  args: {
+    tree: buildVariationTree(forkGraph, pathOf(["f1", "f2"])),
+    rankings: new Map([
+      ["f7", ranked(1, "+0.30")],
+      ["f1", ranked(2, "+0.20")],
+      ["f3", ranked(1, "-0.10")],
+      ["f2", ranked(2, "-0.40")],
+    ]),
+  },
 };

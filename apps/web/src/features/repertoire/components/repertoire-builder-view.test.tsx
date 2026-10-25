@@ -36,6 +36,7 @@ function render(overrides: Partial<RepertoireBuilderViewProps> = {}) {
       childMoves={[e5Move, c5Move]}
       tree={openGameTree}
       fullTree={null}
+      rankings={new Map()}
       startPositionId="p0"
       basePositionId={null}
       baseLine={[]}

@@ -11,6 +11,12 @@ export const CONFIRM_DEPTH = 18;
 export const SUGGESTION_LINES = 3;
 /** Depth the builder suggestions search to. */
 export const SUGGESTION_DEPTH = 18;
+/**
+ * Depth of the search that ranks the stored continuations of a position. Shallower than the
+ * suggestions: it only has to order a handful of known moves, and it queues at the same priority
+ * as the suggestions, so a deep search would hold up the Engine tab (and the next position).
+ */
+export const RANKING_DEPTH = 12;
 /** Plies of each suggested line shown in the builder. */
 export const SUGGESTION_PV_PLIES = 8;
 /** Evaluations are submitted to the server every this many plies. */

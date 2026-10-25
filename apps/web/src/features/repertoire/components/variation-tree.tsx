@@ -3,6 +3,7 @@ import { cn } from "@b2c-template/ui/lib/utils";
 import { ChevronDown, ChevronRight, Repeat, Trash2 } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 
+import { sortByRank, type MoveRank } from "../lib/continuation-ranking";
 import {
   describeTreeNode,
   isForkOpen,
@@ -33,12 +34,22 @@ export type VariationTreeProps = {
   onDelete: (moveId: string) => void;
   /** Names the study line that starts with a move; null clears the name. Keep it stable. */
   onRename: (moveId: string, name: string | null) => void;
+  /**
+   * The engine's ranking of the continuations it has analysed, by move id. Ranked study lines and
+   * alternatives are listed best first and each ranked move carries a badge; unranked moves keep
+   * their stored order. Pass only settled results and keep it referentially stable between them,
+   * so engine frames do not re-render the tree. The full-repertoire fold stays unranked.
+   */
+  rankings?: ReadonlyMap<string, MoveRank>;
   /** Starts with the full-repertoire fold open (it is closed otherwise). */
   foldOpenByDefault?: boolean;
 };
 
+const NO_RANKINGS: ReadonlyMap<string, MoveRank> = new Map();
+
 type Actions = {
   collapsed: CollapsedForks;
+  rankings: ReadonlyMap<string, MoveRank>;
   onToggle: (moveId: string) => void;
   onSelect: VariationTreeProps["onSelect"];
   onDelete: VariationTreeProps["onDelete"];
@@ -57,8 +68,9 @@ function HalfMove({
   alternativeTo?: string;
   actions: Actions;
 }) {
-  const { collapsed, onToggle, onSelect, onDelete } = actions;
+  const { collapsed, rankings, onToggle, onSelect, onDelete } = actions;
   const open = isForkOpen(collapsed, node);
+  const rank = rankings.get(node.moveId);
   return (
     <div
       className={cn(
@@ -85,12 +97,17 @@ function HalfMove({
       ) : null}
       <button
         type="button"
-        aria-label={describeTreeNode(node, { alternativeTo })}
+        aria-label={describeTreeNode(node, { alternativeTo, rank })}
         aria-current={node.isCurrent ? "location" : undefined}
         className="flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
         onClick={() => onSelect(node.positionId, node.route)}
       >
         <span className={cn("font-mono", node.onPath && "font-semibold")}>{node.san}</span>
+        {rank ? (
+          <span className="rounded-sm bg-muted px-1.5 font-mono text-xs tabular-nums text-muted-foreground">
+            #{rank.rank} {rank.scoreLabel}
+          </span>
+        ) : null}
         {alternativeTo ? (
           <span className="rounded-sm bg-primary/10 px-1.5 text-xs font-medium text-primary">
             alternative
@@ -158,7 +175,10 @@ function Line({
                 aria-label={`Alternatives to ${fork.label}`}
                 className="my-1 ml-5 flex flex-col gap-1 border-l-2 border-dashed border-primary/50 pl-2"
               >
-                {fork.alternatives.map((alternative) => (
+                {sortByRank(
+                  fork.alternatives,
+                  (alternative) => actions.rankings.get(alternative.nodes[0]?.moveId ?? "")?.rank,
+                ).map((alternative) => (
                   <li key={alternative.nodes[0]?.moveId}>
                     <Line line={alternative} alternativeTo={fork.label} actions={actions} />
                   </li>
@@ -191,6 +211,7 @@ function FullTreeFold({
   const plain = useMemo(() => clearPath(fullTree), [fullTree]);
   const actions: Actions = {
     collapsed,
+    rankings: NO_RANKINGS,
     onToggle: (moveId) => setCollapsed((current) => toggleCollapsed(current, moveId)),
     onSelect,
     onDelete,
@@ -229,7 +250,11 @@ function StudyLines({
   actions: Actions;
   onRename: VariationTreeProps["onRename"];
 }) {
-  const lines = useMemo(() => studyLines(tree), [tree]);
+  const { rankings } = actions;
+  const lines = useMemo(
+    () => sortByRank(studyLines(tree), (line) => rankings.get(line.firstMove.moveId)?.rank),
+    [tree, rankings],
+  );
   return (
     <ul aria-label="Study lines" className="flex flex-col gap-2">
       {lines.map(({ firstMove, name, line, isCurrent }) => (
@@ -265,8 +290,14 @@ function StudyLines({
  * whole repertoire from the start: a plain outline with its own folds, without the current-line
  * marks, so no move is announced as the current location twice.
  *
- * It is memoised and takes only the trees and stable callbacks. The tree depends on the
- * repertoire and the shown line, never on engine data, so engine frames do not re-render it.
+ * Where the engine has ranked the continuations of a position, its study lines and alternatives are
+ * listed best first, each move shows a `#rank score` badge (the score is from the mover's side) and
+ * says the same in its label; the move that continues a line keeps its place and still shows its
+ * badge.
+ *
+ * It is memoised and takes only the trees, the settled rankings and stable callbacks. The tree
+ * depends on the repertoire and the shown line, and the rankings change once per finished search,
+ * never on an engine frame, so engine frames do not re-render it.
  */
 function VariationTree({
   tree,
@@ -274,11 +305,13 @@ function VariationTree({
   onSelect,
   onDelete,
   onRename,
+  rankings = NO_RANKINGS,
   foldOpenByDefault = false,
 }: VariationTreeProps) {
   const [collapsed, setCollapsed] = useState<CollapsedForks>(new Set());
   const actions: Actions = {
     collapsed,
+    rankings,
     onToggle: (moveId) => setCollapsed((current) => toggleCollapsed(current, moveId)),
     onSelect,
     onDelete,
