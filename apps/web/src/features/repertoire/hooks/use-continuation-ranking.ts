@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 import { RANKING_DEPTH, engine, type EngineLine } from "@/features/engine";
 
 import {
   createRankingCache,
+  emptyRankingState,
   rankContinuations,
   rankingKey,
+  rankingReducer,
+  selectRanks,
   type MoveRank,
   type RankableMove,
 } from "../lib/continuation-ranking";
@@ -14,11 +17,6 @@ import {
 const CACHE_LIMIT = 200;
 
 const searches = createRankingCache<EngineLine[]>(CACHE_LIMIT);
-
-type ByPosition = ReadonlyMap<string, ReadonlyMap<string, MoveRank>>;
-
-const NO_RANKS: ReadonlyMap<string, MoveRank> = new Map();
-const NO_POSITIONS: ByPosition = new Map();
 
 /**
  * Ranks the stored continuations of the shown position by engine evaluation. With at least two
@@ -43,7 +41,7 @@ export function useContinuationRanking(input: {
   enabled: boolean;
 }): ReadonlyMap<string, MoveRank> {
   const { positionId, fen, moves, enabled } = input;
-  const [byPosition, setByPosition] = useState<ByPosition>(NO_POSITIONS);
+  const [state, dispatch] = useReducer(rankingReducer, emptyRankingState);
 
   // The moves are a new array on every render; the effect depends on their content instead.
   const ids = moves.map((move) => move.id).join(",");
@@ -52,23 +50,25 @@ export function useContinuationRanking(input: {
   useEffect(() => {
     const rankable = ids === "" ? [] : ids.split(",");
     if (!enabled || rankable.length < 2 || fen === "") {
-      // Fewer than two continuations left (a delete): the old ranks no longer mean anything.
-      setByPosition((current) => {
-        if (!current.has(positionId)) return current;
-        const next = new Map(current);
-        next.delete(positionId);
-        return next;
-      });
+      // Fewer than two continuations left, or the engine is off: the old ranks mean nothing.
+      dispatch({ type: "positionDropped", positionId });
       return;
     }
     const uciList = ucis.split(",");
     const candidates = rankable.map((id, index) => ({ id, uci: uciList[index] ?? "" }));
     const key = rankingKey(fen, uciList);
 
-    const store = (lines: EngineLine[]) => {
-      const ranks = rankContinuations(candidates, lines);
-      setByPosition((current) => new Map(current).set(positionId, ranks));
-    };
+    // The ranks held for this position are dropped now if they came from another set of moves.
+    // The ranks are filed by move id, so the ids belong to what they are valid for.
+    const validFor = `${key}#${ids}`;
+    dispatch({ type: "searchStarted", positionId, key: validFor });
+    const store = (lines: EngineLine[]) =>
+      dispatch({
+        type: "searchFinished",
+        positionId,
+        key: validFor,
+        ranks: rankContinuations(candidates, lines),
+      });
 
     const cached = searches.get(key);
     if (cached) {
@@ -97,12 +97,5 @@ export function useContinuationRanking(input: {
     };
   }, [positionId, fen, ids, ucis, enabled]);
 
-  return useMemo(() => {
-    if (!enabled || byPosition.size === 0) return NO_RANKS;
-    const all = new Map<string, MoveRank>();
-    for (const ranks of byPosition.values()) {
-      for (const [id, rank] of ranks) all.set(id, rank);
-    }
-    return all;
-  }, [enabled, byPosition]);
+  return enabled ? selectRanks(state) : selectRanks(emptyRankingState);
 }

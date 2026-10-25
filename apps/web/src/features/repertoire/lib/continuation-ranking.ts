@@ -106,3 +106,85 @@ export function createRankingCache<V>(limit: number) {
     },
   };
 }
+
+type RankingEntry = {
+  /** The exact set of moves the position's search was restricted to ({@link rankingKey}). */
+  key: string;
+  /** Null until the search for `key` finishes. */
+  ranks: ReadonlyMap<string, MoveRank> | null;
+};
+
+/**
+ * The ranks of every fork analysed so far, each valid only for the set of moves it was computed
+ * from. `ranks` is the merged, published view; it keeps its identity while no rank changes.
+ */
+export type RankingState = {
+  entries: ReadonlyMap<string, RankingEntry>;
+  ranks: ReadonlyMap<string, MoveRank>;
+};
+
+export type RankingAction =
+  | { type: "searchStarted"; positionId: string; key: string }
+  | {
+      type: "searchFinished";
+      positionId: string;
+      key: string;
+      ranks: ReadonlyMap<string, MoveRank>;
+    }
+  | { type: "positionDropped"; positionId: string };
+
+const NO_RANKS: ReadonlyMap<string, MoveRank> = new Map();
+
+export const emptyRankingState: RankingState = { entries: new Map(), ranks: NO_RANKS };
+
+const merge = (entries: ReadonlyMap<string, RankingEntry>): ReadonlyMap<string, MoveRank> => {
+  const all = new Map<string, MoveRank>();
+  for (const entry of entries.values()) {
+    for (const [id, rank] of entry.ranks ?? NO_RANKS) all.set(id, rank);
+  }
+  return all.size === 0 ? NO_RANKS : all;
+};
+
+/** The entries changed; republish the merged ranks only when the position had ranks before or has them now. */
+const withEntries = (
+  state: RankingState,
+  entries: Map<string, RankingEntry>,
+  ranksChanged: boolean,
+): RankingState => ({ entries, ranks: ranksChanged ? merge(entries) : state.ranks });
+
+/**
+ * Keeps each position's ranks valid for the exact set of moves they were computed from. A search
+ * for a different set drops the old ranks at once (the tree falls back to the stored order), and a
+ * result whose set is no longer current is ignored, so a cancelled, failed or late search can never
+ * leave or bring back stale ranks. Pure.
+ */
+export function rankingReducer(state: RankingState, action: RankingAction): RankingState {
+  const current = state.entries.get(action.positionId);
+  switch (action.type) {
+    case "searchStarted": {
+      if (current?.key === action.key) return state;
+      const entries = new Map(state.entries).set(action.positionId, {
+        key: action.key,
+        ranks: null,
+      });
+      return withEntries(state, entries, (current?.ranks?.size ?? 0) > 0);
+    }
+    case "searchFinished": {
+      if (current?.key !== action.key) return state;
+      const entries = new Map(state.entries).set(action.positionId, {
+        key: action.key,
+        ranks: action.ranks,
+      });
+      return withEntries(state, entries, action.ranks.size > 0 || (current.ranks?.size ?? 0) > 0);
+    }
+    case "positionDropped": {
+      if (!current) return state;
+      const entries = new Map(state.entries);
+      entries.delete(action.positionId);
+      return withEntries(state, entries, (current.ranks?.size ?? 0) > 0);
+    }
+  }
+}
+
+/** The ranks of all positions by move id; the same empty map while nothing is ranked. */
+export const selectRanks = (state: RankingState): ReadonlyMap<string, MoveRank> => state.ranks;

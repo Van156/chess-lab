@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { MoveRank } from "../lib/continuation-ranking";
+import type { RepertoireGraph } from "../lib/repertoire-tree";
 import { buildVariationTree } from "../lib/variation-tree";
 import { forkGraph, forkGraphPath, openGameGraph } from "./repertoire.fixtures";
 import VariationTree, { type VariationTreeProps } from "./variation-tree";
@@ -254,6 +255,37 @@ describe("VariationTree", () => {
       expect(html.indexOf('aria-label="1... e5, opponent reply, ranked 2')).toBeLessThan(
         html.indexOf('aria-label="Alternatives to 1... e5"'),
       );
+    });
+
+    test("lists three alternatives in rank order, the reverse of the stored order", () => {
+      const wide = {
+        ...forkGraph,
+        moves: [
+          ...forkGraph.moves,
+          { ...forkGraph.moves[2], id: "f10", toPositionId: "p10", san: "e6", uci: "e7e6" },
+          { ...forkGraph.moves[2], id: "f11", toPositionId: "p11", san: "d6", uci: "d7d6" },
+        ],
+      } satisfies RepertoireGraph;
+      const tree = buildVariationTree(
+        wide,
+        ["f1", "f2"].flatMap((id) => wide.moves.filter((move) => move.id === id)),
+      );
+      const reversed = new Map<string, MoveRank>([
+        ["f2", rank(4, "-0.50")],
+        ["f3", rank(3, "-0.30")],
+        ["f10", rank(2, "-0.20")],
+        ["f11", rank(1, "-0.10")],
+      ]);
+      const order = (html: string) =>
+        ["1... d6", "1... e6", "1... c5"].map((san) =>
+          html.indexOf(`aria-label="${san}, opponent reply, alternative to 1... e5`),
+        );
+      const stored = order(render({ tree }));
+      expect(stored.every((at) => at >= 0)).toBe(true);
+      expect(stored).toEqual([...stored].sort((a, b) => b - a));
+      const ranked = order(render({ tree, rankings: reversed }));
+      expect(ranked.every((at) => at >= 0)).toBe(true);
+      expect(ranked).toEqual([...ranked].sort((a, b) => a - b));
     });
 
     test("shows nothing on moves the engine has not ranked", () => {

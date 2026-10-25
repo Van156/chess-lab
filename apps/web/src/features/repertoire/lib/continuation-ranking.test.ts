@@ -4,9 +4,14 @@ import type { EngineLine } from "@/features/engine";
 
 import {
   createRankingCache,
+  emptyRankingState,
   rankContinuations,
   rankingKey,
+  rankingReducer,
+  selectRanks,
   sortByRank,
+  type MoveRank,
+  type RankingState,
 } from "./continuation-ranking";
 
 const line = (multipv: number, first: string, score: EngineLine["score"]): EngineLine => ({
@@ -143,5 +148,93 @@ describe("createRankingCache", () => {
     expect(cache.get("b")).toBeUndefined();
     expect(cache.get("a")).toBe(1);
     expect(cache.get("c")).toBe(3);
+  });
+});
+
+describe("rankingReducer", () => {
+  const rank = (n: number): MoveRank => ({
+    rank: n,
+    of: 2,
+    score: cp(0),
+    scoreLabel: "+0.00",
+  });
+  const ranksOf = (...ids: string[]) => new Map(ids.map((id, index) => [id, rank(index + 1)]));
+  const apply = (state: RankingState, ...actions: Parameters<typeof rankingReducer>[1][]) =>
+    actions.reduce(rankingReducer, state);
+
+  const ranked = apply(
+    emptyRankingState,
+    { type: "searchStarted", positionId: "p1", key: "k2" },
+    { type: "searchFinished", positionId: "p1", key: "k2", ranks: ranksOf("a", "b") },
+  );
+
+  test("publishes the ranks of a finished search", () => {
+    expect([...selectRanks(ranked).keys()]).toEqual(["a", "b"]);
+  });
+
+  test("drops the ranks at once when the set of moves changes but still has two or more", () => {
+    const next = apply(ranked, { type: "searchStarted", positionId: "p1", key: "k3" });
+    expect(selectRanks(next).size).toBe(0);
+  });
+
+  test("a cancelled search for the new set leaves no stale ranks", () => {
+    const next = apply(ranked, { type: "searchStarted", positionId: "p1", key: "k3" });
+    // No searchFinished ever arrives: still unranked.
+    expect(selectRanks(next).size).toBe(0);
+  });
+
+  test("ignores a late result for a set that is no longer current", () => {
+    const next = apply(
+      ranked,
+      { type: "searchStarted", positionId: "p1", key: "k3" },
+      { type: "searchFinished", positionId: "p1", key: "k2", ranks: ranksOf("a", "b") },
+    );
+    expect(selectRanks(next).size).toBe(0);
+  });
+
+  test("ranks the new set once its own search finishes", () => {
+    const next = apply(
+      ranked,
+      { type: "searchStarted", positionId: "p1", key: "k3" },
+      { type: "searchFinished", positionId: "p1", key: "k3", ranks: ranksOf("a", "b", "c") },
+    );
+    expect([...selectRanks(next).keys()]).toEqual(["a", "b", "c"]);
+  });
+
+  test("ignores a result for a position that was dropped", () => {
+    const next = apply(
+      ranked,
+      { type: "positionDropped", positionId: "p1" },
+      { type: "searchFinished", positionId: "p1", key: "k2", ranks: ranksOf("a", "b") },
+    );
+    expect(selectRanks(next).size).toBe(0);
+  });
+
+  test("drops the ranks when the position falls below two moves", () => {
+    expect(selectRanks(apply(ranked, { type: "positionDropped", positionId: "p1" })).size).toBe(0);
+  });
+
+  test("merges the ranks of every position", () => {
+    const next = apply(
+      ranked,
+      { type: "searchStarted", positionId: "p2", key: "x" },
+      { type: "searchFinished", positionId: "p2", key: "x", ranks: ranksOf("c", "d") },
+    );
+    expect([...selectRanks(next).keys()].sort()).toEqual(["a", "b", "c", "d"]);
+    const after = apply(next, { type: "positionDropped", positionId: "p2" });
+    expect([...selectRanks(after).keys()].sort()).toEqual(["a", "b"]);
+  });
+
+  test("keeps the same state and published map when nothing changed", () => {
+    const again = apply(ranked, { type: "searchStarted", positionId: "p1", key: "k2" });
+    expect(again).toBe(ranked);
+    const fresh = apply(ranked, { type: "searchStarted", positionId: "p2", key: "y" });
+    expect(selectRanks(fresh)).toBe(selectRanks(ranked));
+    expect(apply(ranked, { type: "positionDropped", positionId: "nowhere" })).toBe(ranked);
+  });
+
+  test("publishes the same empty map when nothing is ranked, such as with the engine off", () => {
+    const off = apply(ranked, { type: "positionDropped", positionId: "p1" });
+    expect(selectRanks(off)).toBe(selectRanks(emptyRankingState));
   });
 });
