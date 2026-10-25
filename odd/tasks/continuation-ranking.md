@@ -45,8 +45,8 @@ Out of scope:
 
 ## Tasks
 
-- [ ] **T1: `searchMoves` in engine requests** [T lib]. Route: delegated `react-staff` together with T2 (same writer, separate commit).
-- [ ] **T2: Rank continuations in the tree** [T lib, O UI]. Route: delegated `react-staff` (hook, lib, tree components; 2+ non-trivial files).
+- [x] **T1: `searchMoves` in engine requests** [T lib]. Route: delegated `react-staff` together with T2 (same writer, separate commit).
+- [x] **T2: Rank continuations in the tree** [T lib, O UI]. Route: delegated `react-staff` (hook, lib, tree components; 2+ non-trivial files).
 
 ## Acceptance criteria
 
@@ -63,4 +63,34 @@ Out of scope:
 
 ## Progress
 
-- Feature document created; next: T1 and T2 by one writer.
+- Feature document created (`ddffa2f`).
+- **T1 done** (`a489271`, delegated to `react-staff`; 4 files, +111/-4).
+  - `sanitizeSearchMoves` validates the UCI moves and drops duplicates.
+  - `buildGo(limit, searchMoves)` appends `searchmoves`. The queue sets MultiPV to the number of moves kept, unless a value is given explicitly. If every move is invalid, the search runs unrestricted.
+  - RED: `Export named 'sanitizeSearchMoves' not found`, plus `go depth 12` was sent without `searchmoves`. GREEN: 64 pass.
+- **T2 done** (`b65e5e2`, delegated to `react-staff`; 14 files, +531/-7).
+  - `lib/continuation-ranking.ts`:
+    - `rankContinuations` uses competition ranking for ties, and mates rank first.
+    - `sortByRank` keeps unranked moves in stored order.
+    - The LRU cache holds 200 entries, keyed by FEN plus the set of UCI moves.
+  - `hooks/use-continuation-ranking.ts`:
+    - Runs an interactive depth-12 search (`RANKING_DEPTH`), queued after the Engine tab's search.
+    - The search is cancelled when the position changes or the engine is turned off.
+    - Only a finished result is published.
+  - Tree:
+    - Study-line groups and alternatives are sorted best first.
+    - The move that continues a line keeps its place.
+    - Badges read `#1 +0.30`, and the aria-label says "ranked 1 of 2 by the engine".
+  - RED: `Cannot find module './continuation-ranking'`. GREEN: 14 pass.
+  - Checks:
+    - `pnpm check-types`: exit 0.
+    - `pnpm check`: clean.
+    - Required `bun test`: 638 pass, 0 fail.
+  - Parent checks:
+    - lib tests: 43 pass.
+    - Real Stockfish 19 (`stockfish-19-lite-single.js`, Scotch position after 3... exd4, `go depth 12 searchmoves c2c3 f1c4`, MultiPV 2) analysed only those two moves: c3 -4cp ahead of Bc4 -22cp.
+  - Unverified:
+    - No browser run, including the 375px badge wrap.
+    - Hidden-tab policy is not wired in, the same as for engine suggestions.
+    - No direct test for the hook.
+- Next: review T1+T2.
