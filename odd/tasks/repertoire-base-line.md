@@ -4,7 +4,7 @@
 - **Branch:** `feat/repertoire-base-line`, branched from `feat/engine-line-preview` at `d9f2331` (the earlier features are not on `main` yet).
 - **Delivery:** `auto-chain`, `feature-branch-chain` (cached from earlier features). The forecast is about 900–1200 authored changed lines across T1–T5, so it will be sliced per task group.
 - **TDD:** the source is `openspec/config.yaml` (`strict_tdd: false`; TDD applies to pure logic). Pure `lib/` and service helpers are written test-first; components and DB-backed routers get ordinary checks. Runner: `bun test`.
-- **Review (RDD):** on (global). User policy: review every two tasks, with auto-consent. Groups: T1+T2, T3+T4, then T5. First boundary: `d9f2331`.
+- **Review (RDD):** on (global). User policy: review every two tasks, with auto-consent. Groups: T1+T2, T3+T4, then T5. First boundary: `d9f2331`; after T1+T2: `a4e4fe6`.
 
 ## Objective
 
@@ -126,4 +126,11 @@ Out of scope:
     - DB tests ran against Postgres on :5437: 61 pass, 0 skipped.
   - Parent spot check: router tests 38 pass.
   - Unverified: the migration was not run on a DB with existing repertoires (the column is nullable, so no backfill is needed).
-- Next: review T1+T2, then T3.
+- **Review T1+T2.**
+  - Range: base `d9f2331` through `a4e4fe6`, committed-only, untracked `.codegraph/` excluded.
+  - Consent granted (standing). One lens (reliability). **Approved** and acknowledged (lineage `review-b7a909f48b9f762e`, authority burned).
+  - Non-blocking findings:
+    - R3-remove-with-base-untested (WARNING): no test deletes a repertoire or user whose base is set. There is an FK cycle, with cascade from repertoire to position and SET NULL back. **Accepted into T3** as a router test.
+    - R3-unreachable-base-branch-untested (SUGGESTION): the `setBase` guard against an orphan, unreachable position has no test. Left as a follow-up.
+  - Next review boundary: `a4e4fe6`.
+- Next: T3.
