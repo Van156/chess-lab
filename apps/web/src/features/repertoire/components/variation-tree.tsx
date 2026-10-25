@@ -3,7 +3,7 @@ import { cn } from "@b2c-template/ui/lib/utils";
 import { ChevronDown, ChevronRight, Repeat, Trash2 } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 
-import { sortByRank, type MoveRank } from "../lib/continuation-ranking";
+import { sortByRank, type EngineBest, type MoveRank } from "../lib/continuation-ranking";
 import {
   describeTreeNode,
   isForkOpen,
@@ -35,9 +35,10 @@ export type VariationTreeProps = {
   /** Names the study line that starts with a move; null clears the name. Keep it stable. */
   onRename: (moveId: string, name: string | null) => void;
   /**
-   * The engine's ranking of the continuations it has analysed, by move id. Ranked study lines and
-   * alternatives are listed best first and each ranked move carries a badge; unranked moves keep
-   * their stored order. Pass only settled results and keep it referentially stable between them,
+   * The engine's grades of the continuations it has analysed, by move id. Graded study lines and
+   * alternatives are listed best first and each graded move carries a badge, even when it is the
+   * only stored move; where the engine prefers a move the repertoire lacks, a graded position also
+   * names it (`MoveRank.engineBest`). Ungraded moves keep their stored order. Pass only settled results and keep it referentially stable between them,
    * so engine frames do not re-render the tree. The full-repertoire fold stays unranked.
    */
   rankings?: ReadonlyMap<string, MoveRank>;
@@ -58,19 +59,36 @@ type Actions = {
 const iconButton =
   "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50";
 
-/** One half-move: its select button, the fold toggle when it forks and a delete button. */
+/** The engine's better move at a position, in words so that no colour carries the meaning. */
+function EngineBestText({ best }: { best: EngineBest }) {
+  return (
+    <>
+      Engine best: <span className="font-mono">{best.san}</span>{" "}
+      <span className="font-mono tabular-nums">{best.scoreLabel}</span>
+    </>
+  );
+}
+
+/**
+ * One half-move: its select button, the fold toggle when it forks and a delete button. When the
+ * engine grades the position it continues and the repertoire lacks the engine's best move, `hint`
+ * adds that move to the button and to its label.
+ */
 function HalfMove({
   node,
   alternativeTo,
+  hint,
   actions,
 }: {
   node: TreeNode;
   alternativeTo?: string;
+  hint: boolean;
   actions: Actions;
 }) {
   const { collapsed, rankings, onToggle, onSelect, onDelete } = actions;
   const open = isForkOpen(collapsed, node);
   const rank = rankings.get(node.moveId);
+  const engineBest = hint ? rank?.engineBest : undefined;
   return (
     <div
       className={cn(
@@ -97,9 +115,9 @@ function HalfMove({
       ) : null}
       <button
         type="button"
-        aria-label={describeTreeNode(node, { alternativeTo, rank })}
+        aria-label={describeTreeNode(node, { alternativeTo, rank, engineBest })}
         aria-current={node.isCurrent ? "location" : undefined}
-        className="flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex min-h-11 min-w-11 flex-wrap items-center gap-x-1.5 rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
         onClick={() => onSelect(node.positionId, node.route)}
       >
         <span className={cn("font-mono", node.onPath && "font-semibold")}>{node.san}</span>
@@ -117,6 +135,11 @@ function HalfMove({
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Repeat aria-hidden className="size-3" />
             transposition
+          </span>
+        ) : null}
+        {engineBest ? (
+          <span className="w-full text-xs text-muted-foreground">
+            <EngineBestText best={engineBest} />
           </span>
         ) : null}
       </button>
@@ -137,14 +160,20 @@ function HalfMove({
  * A line as full-move rows (`1. e4 e5`). A row that forks is followed by its alternatives, in a
  * bracket of their own (a left rule, dashed, with an "alternative" tag), before the row that
  * continues the line: an alternative can never be read as the next move of the line above it.
+ *
+ * The engine's better move is shown once per position, on the move that continues the line. The
+ * first move of an alternative is its sibling, so it never repeats the hint, and `hintFirst` is
+ * off where the caller shows the first position's hint itself.
  */
 function Line({
   line,
   alternativeTo,
+  hintFirst = true,
   actions,
 }: {
   line: TreeLine;
   alternativeTo?: string;
+  hintFirst?: boolean;
   actions: Actions;
 }) {
   return (
@@ -154,6 +183,7 @@ function Line({
         const key = (white ?? black)?.moveId;
         // Only the first half-move of an alternative is marked as the alternative.
         const markFirst = index === 0 ? alternativeTo : undefined;
+        const hintWhite = index > 0 || (hintFirst && !alternativeTo);
         return (
           <li key={key}>
             <div className="flex flex-wrap items-center gap-x-1">
@@ -161,11 +191,19 @@ function Line({
                 {row.moveNumber}
                 {white ? "." : "..."}
               </span>
-              {white ? <HalfMove node={white} alternativeTo={markFirst} actions={actions} /> : null}
+              {white ? (
+                <HalfMove
+                  node={white}
+                  alternativeTo={markFirst}
+                  hint={hintWhite}
+                  actions={actions}
+                />
+              ) : null}
               {black ? (
                 <HalfMove
                   node={black}
                   alternativeTo={white ? undefined : markFirst}
+                  hint={white ? true : hintWhite}
                   actions={actions}
                 />
               ) : null}
@@ -255,28 +293,39 @@ function StudyLines({
     () => sortByRank(studyLines(tree), (line) => rankings.get(line.firstMove.moveId)?.rank),
     [tree, rankings],
   );
+  // Every study line starts at the same position, so one hint serves them all.
+  const engineBest = lines
+    .map((studyLine) => rankings.get(studyLine.firstMove.moveId)?.engineBest)
+    .find((best) => best !== undefined);
   return (
-    <ul aria-label="Study lines" className="flex flex-col gap-2">
-      {lines.map(({ firstMove, name, line, isCurrent }) => (
-        <li
-          key={firstMove.moveId}
-          className={cn(
-            "flex flex-col gap-1 rounded-lg border p-2",
-            isCurrent && "border-primary bg-accent/20",
-          )}
-        >
-          <div className="flex items-center gap-1">
-            <StudyLineName
-              name={name}
-              firstMoveLabel={firstMove.label}
-              onRename={(next) => onRename(firstMove.moveId, next)}
-            />
-            {isCurrent ? <span className="sr-only">Current line</span> : null}
-          </div>
-          <Line line={line} actions={actions} />
-        </li>
-      ))}
-    </ul>
+    <>
+      {engineBest ? (
+        <p className="px-3 text-sm text-muted-foreground">
+          <EngineBestText best={engineBest} />
+        </p>
+      ) : null}
+      <ul aria-label="Study lines" className="flex flex-col gap-2">
+        {lines.map(({ firstMove, name, line, isCurrent }) => (
+          <li
+            key={firstMove.moveId}
+            className={cn(
+              "flex flex-col gap-1 rounded-lg border p-2",
+              isCurrent && "border-primary bg-accent/20",
+            )}
+          >
+            <div className="flex items-center gap-1">
+              <StudyLineName
+                name={name}
+                firstMoveLabel={firstMove.label}
+                onRename={(next) => onRename(firstMove.moveId, next)}
+              />
+              {isCurrent ? <span className="sr-only">Current line</span> : null}
+            </div>
+            <Line line={line} hintFirst={false} actions={actions} />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -290,10 +339,11 @@ function StudyLines({
  * whole repertoire from the start: a plain outline with its own folds, without the current-line
  * marks, so no move is announced as the current location twice.
  *
- * Where the engine has ranked the continuations of a position, its study lines and alternatives are
+ * Where the engine has graded the continuations of a position, its study lines and alternatives are
  * listed best first, each move shows a `#rank score` badge (the score is from the mover's side) and
  * says the same in its label; the move that continues a line keeps its place and still shows its
- * badge.
+ * badge. A position whose best engine move is not stored also shows "Engine best: Bc4 +0.40", once:
+ * above the study lines for the first position, otherwise on the move that continues the line.
  *
  * It is memoised and takes only the trees, the settled rankings and stable callbacks. The tree
  * depends on the repertoire and the shown line, and the rankings change once per finished search,

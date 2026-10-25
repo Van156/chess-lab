@@ -41,7 +41,7 @@ export type RepertoireBuilderViewProps = {
   tree: TreeLine;
   /** The whole repertoire from the start; null when no base hides the moves before it. */
   fullTree: TreeLine | null;
-  /** The engine's ranking of the analysed continuations by move id; changes once per finished search. */
+  /** The engine's grades of the analysed continuations by move id; change once per finished search. */
   rankings: ReadonlyMap<string, MoveRank>;
   startPositionId: string;
   /** The base position; null when none is set. */

@@ -94,4 +94,13 @@ describe("describeTreeNode", () => {
       "1. e4, your move, ranked 1 of 2 by the engine, +0.40",
     );
   });
+
+  test("adds the engine's better move after the rank", () => {
+    const rank = { rank: 2, of: 4, score: { kind: "cp" as const, value: 10 }, scoreLabel: "+0.10" };
+    expect(
+      describeTreeNode(node(), { rank, engineBest: { san: "Bc4", scoreLabel: "+0.40" } }),
+    ).toBe(
+      "1. e4, your move, ranked 2 of 4 by the engine, +0.10, engine best move here is Bc4, +0.40",
+    );
+  });
 });

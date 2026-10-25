@@ -91,3 +91,30 @@ export const WithEngineRanks: Story = {
     ]),
   },
 };
+
+const graded = (rank: number, of: number, scoreLabel: string): MoveRank => ({
+  rank,
+  of,
+  score: { kind: "cp", value: 10 },
+  scoreLabel,
+  engineBest: { san: "Bc4", scoreLabel: "+0.40" },
+});
+
+/** A single stored move graded against the engine: 1. e4 is #2 of 4 and the engine prefers Bc4. */
+export const GradedSingleMove: Story = {
+  args: {
+    tree: buildVariationTree({ startPositionId: "p0", moves: forkGraph.moves.slice(0, 2) }, []),
+    rankings: new Map([["f1", graded(2, 4, "+0.10")]]),
+  },
+};
+
+/** Two moves graded in one field: both ranked among the engine's top moves, one hint for the position. */
+export const GradedTwoMoves: Story = {
+  args: {
+    tree: buildVariationTree(forkGraph, pathOf(["f1", "f2"])),
+    rankings: new Map([
+      ["f7", graded(2, 4, "+0.30")],
+      ["f1", graded(3, 4, "+0.20")],
+    ]),
+  },
+};

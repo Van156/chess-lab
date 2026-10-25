@@ -294,6 +294,72 @@ describe("VariationTree", () => {
       expect(html).not.toContain("#2");
     });
 
+    describe("engine grades", () => {
+      const better = { san: "Bc4", scoreLabel: "+0.40" };
+      const graded = (
+        rankNo: number,
+        of: number,
+        scoreLabel: string,
+        withHint = true,
+      ): MoveRank => ({
+        rank: rankNo,
+        of,
+        score: { kind: "cp", value: 0 },
+        scoreLabel,
+        ...(withHint ? { engineBest: better } : {}),
+      });
+      // One stored move at the start and one reply: 1. e4 e5.
+      const single = buildVariationTree(
+        { startPositionId: "p0", moves: forkGraph.moves.slice(0, 2) },
+        [],
+      );
+
+      test("grades a lone study line and names the engine's better move above it", () => {
+        const html = render({ tree: single, rankings: new Map([["f1", graded(2, 4, "+0.10")]]) });
+        expect(html).toContain("#2 +0.10");
+        expect(html).toContain('aria-label="1. e4, your move, ranked 2 of 4 by the engine, +0.10"');
+        expect(html.match(/Engine best:/g)).toHaveLength(1);
+        expect(html.indexOf("Engine best:")).toBeLessThan(html.indexOf('aria-label="Study lines"'));
+        expect(html).toMatch(/Engine best: <span[^>]*>Bc4<\/span> <span[^>]*>\+0\.40<\/span>/);
+      });
+
+      test("puts the hint of a deeper position on the move that continues the line, label included", () => {
+        const html = render({ tree: single, rankings: new Map([["f2", graded(1, 3, "-0.20")]]) });
+        expect(html).toContain(
+          'aria-label="1... e5, opponent reply, ranked 1 of 3 by the engine, -0.20, engine best move here is Bc4, +0.40"',
+        );
+        expect(html.match(/Engine best:/g)).toHaveLength(1);
+        expect(html.indexOf("Engine best:")).toBeGreaterThan(
+          html.indexOf('aria-label="Study lines"'),
+        );
+      });
+
+      test("shows the hint of a fork once, not on its alternatives", () => {
+        const html = render({
+          tree: atE4(),
+          rankings: new Map([
+            ["f2", graded(2, 3, "-0.40")],
+            ["f3", graded(1, 3, "-0.10")],
+          ]),
+        });
+        expect(html.match(/Engine best:/g)).toHaveLength(1);
+        expect(html).toContain("ranked 2 of 3 by the engine, -0.40, engine best move here is Bc4");
+        expect(html).toContain(
+          'aria-label="1... c5, opponent reply, alternative to 1... e5, ranked 1 of 3 by the engine, -0.10"',
+        );
+      });
+
+      test("shows no hint when the engine's best move is stored", () => {
+        const html = render({
+          tree: single,
+          rankings: new Map([["f1", graded(1, 3, "+0.40", false)]]),
+        });
+        expect(html).toContain("#1 +0.40");
+        expect(html).not.toContain("Engine best");
+        expect(html).not.toContain("engine best move");
+      });
+    });
+
     test("leaves the full-repertoire fold unranked", () => {
       const html = render({
         tree: buildVariationTree(forkGraph, pathOf(["f1", "f2", "f4"]), pathOf(["f1", "f2"])),

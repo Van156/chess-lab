@@ -17,6 +17,8 @@ export const SUGGESTION_DEPTH = 18;
  * as the suggestions, so a deep search would hold up the Engine tab (and the next position).
  */
 export const RANKING_DEPTH = 12;
+/** Lines (MultiPV) of the unrestricted search that grades stored moves against the engine's best. */
+export const RANKING_TOP_LINES = 3;
 /** Plies of each suggested line shown in the builder. */
 export const SUGGESTION_PV_PLIES = 8;
 /** Evaluations are submitted to the server every this many plies. */
