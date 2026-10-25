@@ -204,4 +204,11 @@ Out of scope:
     - No browser run.
     - Rename edit interactions have no DOM test, since no DOM test library is installed.
     - No container test for `renameLineById`.
-- Next: review T5 alone.
+- **Review T5.**
+  - Range: base `0afe2ac` through `360463b`, committed-only, `.codegraph/` excluded.
+  - Consent granted (standing). One lens (reliability). **Approved** and acknowledged (lineage `review-854e34d048c04877`, authority burned).
+  - Non-blocking follow-ups, not accepted yet:
+    - R3-rename-edit-state-untested (WARNING): the Enter, Escape and blur finish logic and the `finished` ref in `study-line-name.tsx` have no test.
+    - R3-fold-slice-anchor-fragile (SUGGESTION): the fold test splits at the first `role="group"`. It should anchor on the fold's aria-label.
+    - R3-rename-wiring-untested (SUGGESTION): no test covers the container wiring from `renameLineById` to `renameLine`. `renameLine.isPending` is not part of `isSaving`.
+- **Status:** all tasks are done and every review is acknowledged. Still pending: a browser run of the feature. Push and PR are the user's call.
