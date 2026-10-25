@@ -60,7 +60,9 @@ describe.skipIf(!reachable)("drill_session schema", () => {
 
   test("rejects an unknown drill kind", async () => {
     await expect(
-      run(() => handle.db.insert(schema.drillSession).values({ ...valid, drill: "nope" })),
+      run(() =>
+        handle.db.insert(schema.drillSession).values({ ...valid, drill: "nope" as "diagonals" }),
+      ),
     ).rejects.toThrow();
   });
 

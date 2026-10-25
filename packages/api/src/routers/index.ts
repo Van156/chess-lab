@@ -3,6 +3,7 @@ import type { RouterClient } from "@orpc/server";
 import { publicProcedure } from "../index";
 import { analysisRouter } from "./analysis";
 import { auditRouter } from "./audit";
+import { blindfoldRouter } from "./blindfold";
 import { gamesRouter } from "./games";
 import { lichessRouter } from "./lichess";
 import { mistakesRouter } from "./mistakes";
@@ -30,6 +31,8 @@ export const appRouter = {
   mistakes: mistakesRouter,
   // Opening repertoires: per-colour move graphs with idea notes (flag: repertoire).
   repertoire: repertoireRouter,
+  // Blindfold drill sessions and per-drill progress (flag: blindfold).
+  blindfold: blindfoldRouter,
   // Review queue and idempotent grading.
   review: reviewRouter,
   // Per-user settings (daily new-card limit, time zone).
