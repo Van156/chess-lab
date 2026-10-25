@@ -20,6 +20,7 @@ import { useLinePreview } from "../hooks/use-line-preview";
 import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
 import { useOpeningName } from "../hooks/use-opening-name";
 import { useRepertoire } from "../hooks/use-repertoire";
+import { useTreeKeyNavigation } from "../hooks/use-tree-key-navigation";
 import { baseLine as baseLineOf } from "../lib/base-line";
 import { boardLinesFor } from "../lib/board-lines";
 import { findMove, lineFens, positionAfterRemoval, resolvePosition } from "../lib/builder-state";
@@ -132,6 +133,14 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
     },
     [exitPreview],
   );
+  // ←, →, Home and End walk the tree; during a preview the preview's own keys take them.
+  useTreeKeyNavigation({
+    enabled: preview.view === null,
+    graph: repertoire,
+    path,
+    baseLine: baseMoves,
+    onGo: go,
+  });
   const requestDeleteById = useCallback(
     (moveId: string) => {
       const move = repertoire ? findMove(repertoire, moveId) : undefined;

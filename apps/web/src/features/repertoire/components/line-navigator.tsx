@@ -16,13 +16,16 @@ export type LineNavigatorProps = {
   onSelectPly: (ply: number) => void;
   /** Asks to delete a move; the caller confirms, since the continuations go with it. */
   onDelete: (move: RepertoireMove) => void;
+  /** The arrow keys walk the tree; false while an engine line is previewed and owns them. */
+  keysActive: boolean;
 };
 
 const stepClass =
   "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
- * Where you are in the tree: breadcrumbs back to the start and a delete for the last move. When the
+ * Where you are in the tree: breadcrumbs back to the start and a delete for the last move; a one-line
+ * hint says that ←, →, Home and End walk the tree while `keysActive`. When the
  * line passes through the base, its moves collapse into one "Base" chip after "Start", so the strip
  * begins at the base and the true start stays one tap away. A line that does not pass through the
  * base shows all its moves. The moves that continue from here are in the variation tree and drawn
@@ -33,13 +36,17 @@ export default function LineNavigator({
   basePositionId,
   onSelectPly,
   onDelete,
+  keysActive,
 }: LineNavigatorProps) {
   const incoming = path[path.length - 1];
   const baseEnd = basePly(path, basePositionId);
   const folded = baseEnd ?? 0;
   return (
     <div data-slot="line-navigator" className="flex flex-col gap-4">
-      <nav aria-label="Path to this position">
+      <nav
+        aria-label="Path to this position"
+        aria-keyshortcuts={keysActive ? "ArrowLeft ArrowRight Home End" : undefined}
+      >
         <ol className="flex flex-wrap items-center gap-1">
           <li>
             <button
@@ -82,6 +89,11 @@ export default function LineNavigator({
           })}
         </ol>
       </nav>
+      {keysActive ? (
+        <p data-slot="line-navigator-keys" className="text-xs text-muted-foreground">
+          Use ← and → to step through the line, Home and End to jump.
+        </p>
+      ) : null}
 
       {incoming ? (
         <Button

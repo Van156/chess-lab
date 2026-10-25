@@ -15,6 +15,7 @@ const meta = {
     basePositionId: null,
     onSelectPly: () => {},
     onDelete: () => {},
+    keysActive: true,
   },
 } satisfies Meta<typeof LineNavigator>;
 
@@ -33,3 +34,5 @@ export const PastTheBase: Story = {
 };
 
 export const AtTheBase: Story = { args: { path: [e4Move, e5Move], basePositionId: "p2" } };
+
+export const WhilePreviewing: Story = { args: { path: [e4Move, e5Move], keysActive: false } };

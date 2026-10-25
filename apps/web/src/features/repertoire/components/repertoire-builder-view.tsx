@@ -249,6 +249,7 @@ export default function RepertoireBuilderView({
             basePositionId={basePositionId}
             onSelectPly={onSelectPly}
             onDelete={onRequestDelete}
+            keysActive={preview === null}
           />
           {preview ? null : (
             <SanInput fen={position.fen} onMove={onPlayMove} label="Type a move to add it" />

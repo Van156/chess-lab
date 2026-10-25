@@ -11,6 +11,7 @@ function render(overrides: Partial<LineNavigatorProps> = {}) {
       basePositionId={null}
       onSelectPly={() => {}}
       onDelete={() => {}}
+      keysActive
       {...overrides}
     />,
   );
@@ -72,5 +73,17 @@ describe("LineNavigator", () => {
       expect(html).toContain("1... c5");
       expect(html).not.toContain(">Base</button>");
     });
+  });
+
+  test("hints at the arrow keys and declares them while they walk the tree", () => {
+    const html = render();
+    expect(html).toContain('aria-keyshortcuts="ArrowLeft ArrowRight Home End"');
+    expect(html).toContain("Use ← and → to step through the line, Home and End to jump.");
+  });
+
+  test("drops the hint and the shortcuts while a preview owns the arrows", () => {
+    const html = render({ keysActive: false });
+    expect(html).not.toContain("aria-keyshortcuts");
+    expect(html).not.toContain("Home and End");
   });
 });

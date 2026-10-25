@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
+import { usesArrows } from "../lib/arrow-controls";
 import {
   IDLE_PREVIEW,
   linePreviewReducer,
@@ -7,14 +8,6 @@ import {
   previewView,
   type PreviewView,
 } from "../lib/line-preview";
-
-/** Controls that read ← and → for themselves: text fields, tab lists, sliders and the like. */
-const ARROW_CONTROLS =
-  'input, textarea, select, [contenteditable="true"], [role="tab"], [role="slider"], [role="radio"], [role="spinbutton"]';
-
-function usesArrows(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(ARROW_CONTROLS) !== null;
-}
 
 /**
  * The engine line being previewed on the board, if any. Its state is the pure reducer's; while a

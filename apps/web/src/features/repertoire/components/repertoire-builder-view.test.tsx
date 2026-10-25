@@ -225,6 +225,13 @@ describe("RepertoireBuilderView", () => {
     expect(html).not.toContain("Engine lines, best first");
   });
 
+  test("shows the arrow-key hint, except while a preview owns the arrows", async () => {
+    expect(await render()).toContain('data-slot="line-navigator-keys"');
+    expect(await render({ preview: midLinePreview })).not.toContain(
+      'data-slot="line-navigator-keys"',
+    );
+  });
+
   test("previewing hides the typed-move field, so nothing is added from a previewed position", async () => {
     const html = await render({ preview: midLinePreview });
     expect(html).not.toContain(">Type a move to add it</label>");
