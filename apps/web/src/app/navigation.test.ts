@@ -70,6 +70,7 @@ describe("navGroups visibility", () => {
       "/games",
       "/mistakes",
       "/repertoire",
+      "/blindfold",
     ]);
   });
 
@@ -94,6 +95,15 @@ describe("navGroups visibility", () => {
         ?.items.map((item) => item.label);
     expect(labels(NO_FEATURES)).not.toContain("Repertoire");
     expect(labels({ ...NO_FEATURES, repertoire: true })).toEqual(["Today", "Games", "Repertoire"]);
+  });
+
+  test("Blindfold follows the blindfold pillar flag", () => {
+    const labels = (features: NavContext["features"]) =>
+      filterNavGroups(navGroups, { ...member, features })
+        .find((group) => group.id === "chess-lab")
+        ?.items.map((item) => item.label);
+    expect(labels(NO_FEATURES)).not.toContain("Blindfold");
+    expect(labels({ ...NO_FEATURES, blindfold: true })).toEqual(["Today", "Games", "Blindfold"]);
   });
 
   test("breadcrumbs resolve through the real config", () => {

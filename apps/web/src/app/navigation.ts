@@ -2,6 +2,7 @@ import {
   BookMarked,
   BookOpenCheck,
   Crosshair,
+  EyeOff,
   History,
   House,
   ShieldCheck,
@@ -31,7 +32,7 @@ export function pillarEnabled(pillar: PillarFlag) {
  *
  * The admin group is not part of this list; see `adminNavGroup`.
  *
- * Chess Lab entries are added together with their routes (Review shipped in S8, Games and Mistakes in S10, Repertoire in P2-b; the other pillars
+ * Chess Lab entries are added together with their routes (Review shipped in S8, Games and Mistakes in S10, Repertoire in P2-b, Blindfold with its route; the other pillars
  * follow with `visible: pillarEnabled(...)`), so the sidebar never links to a route that does not exist yet.
  */
 export const navGroups: NavGroup<NavContext>[] = [
@@ -49,6 +50,7 @@ export const navGroups: NavGroup<NavContext>[] = [
         icon: BookMarked,
         visible: pillarEnabled("repertoire"),
       },
+      { label: "Blindfold", to: "/blindfold", icon: EyeOff, visible: pillarEnabled("blindfold") },
     ],
   },
   {
