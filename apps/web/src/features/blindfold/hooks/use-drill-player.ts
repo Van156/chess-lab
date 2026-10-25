@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   answerQuestion,
@@ -19,6 +19,8 @@ const SEED_RANGE = 2 ** 31;
  */
 export function useDrillPlayer({ onFinish }: { onFinish?: (session: DrillSession) => void } = {}) {
   const [session, setSession] = useState<DrillSession | null>(null);
+  // The session value `next` last acted on: a double click on "Finish" must save only once.
+  const advancedFrom = useRef<DrillSession | null>(null);
   const now = useClock(session !== null && session.phase !== "finished");
 
   return {
@@ -36,7 +38,8 @@ export function useDrillPlayer({ onFinish }: { onFinish?: (session: DrillSession
     answer: (answer: Answer) =>
       setSession((current) => (current ? answerQuestion(current, answer) : current)),
     next: () => {
-      if (!session) return;
+      if (!session || advancedFrom.current === session) return;
+      advancedFrom.current = session;
       const advanced = nextQuestion(session, Date.now());
       setSession(advanced);
       if (advanced.phase === "finished") onFinish?.(advanced);

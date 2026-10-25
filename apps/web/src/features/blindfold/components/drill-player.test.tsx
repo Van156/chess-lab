@@ -91,12 +91,41 @@ describe("BlindfoldDrills", () => {
 describe("DrillResults", () => {
   test("shows correct, accuracy and time with the follow-up actions", async () => {
     const html = await renderWithRouter(
-      <DrillResults label="Drill" summary={FINISHED_SUMMARY} onPlayAgain={noop} onBack={noop} />,
+      <DrillResults
+        label="Drill"
+        summary={FINISHED_SUMMARY}
+        saveStatus="saved"
+        onRetrySave={noop}
+        onPlayAgain={noop}
+        onBack={noop}
+      />,
     );
     expect(html).toContain(">17/20<");
     expect(html).toContain(">85%<");
     expect(html).toContain(">1:23<");
     expect(html).toContain("Play again");
     expect(html).toContain("Back to drills");
+    expect(html).toContain("Result saved.");
+  });
+
+  test("shows saving progress and a retry after a failed save", async () => {
+    const render = (saveStatus: "saving" | "error") =>
+      renderWithRouter(
+        <DrillResults
+          label="Drill"
+          summary={FINISHED_SUMMARY}
+          saveStatus={saveStatus}
+          onRetrySave={noop}
+          onPlayAgain={noop}
+          onBack={noop}
+        />,
+      );
+    const saving = await render("saving");
+    expect(saving).toContain("Saving your result");
+    expect(saving).not.toContain(">Retry<");
+    const failed = await render("error");
+    expect(failed).toContain('role="alert"');
+    expect(failed).toContain("could not be saved");
+    expect(failed).toContain(">Retry<");
   });
 });

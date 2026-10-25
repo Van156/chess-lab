@@ -14,6 +14,8 @@ const meta = {
   args: {
     label: "Square colour",
     summary: FINISHED_SUMMARY,
+    saveStatus: "saved",
+    onRetrySave: () => {},
     onPlayAgain: () => {},
     onBack: () => {},
   },
@@ -23,3 +25,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const Saving: Story = { args: { saveStatus: "saving" } };
+
+export const SaveFailed: Story = { args: { saveStatus: "error" } };

@@ -1,17 +1,25 @@
+import { useDrillPlayer } from "../hooks/use-drill-player";
+import { useSaveSession } from "../hooks/use-save-session";
 import type { DrillInfo } from "../lib/drill-catalog";
 import { sessionSummary } from "../lib/drill-session";
-import { useDrillPlayer } from "../hooks/use-drill-player";
 import BlindfoldDrills from "./blindfold-drills";
+import BlindfoldProgress from "./blindfold-progress";
 import DrillPlayer from "./drill-player";
 import DrillResults from "./drill-results";
 
-/** Drills tab (container): shows the picker, the running drill or its results. */
+/** Drills tab (container): the picker with progress, the running drill, or its saved results. */
 export default function BlindfoldDrillsPanel({ drills }: { drills: readonly DrillInfo[] }) {
-  const player = useDrillPlayer();
+  const saver = useSaveSession();
+  const player = useDrillPlayer({ onFinish: saver.save });
   const { session } = player;
 
   if (!session) {
-    return <BlindfoldDrills drills={drills} onStart={player.start} />;
+    return (
+      <div className="flex flex-col gap-8">
+        <BlindfoldDrills drills={drills} onStart={player.start} />
+        <BlindfoldProgress drills={drills} />
+      </div>
+    );
   }
   const label = drills.find((drill) => drill.kind === session.kind)?.label ?? session.kind;
 
@@ -20,6 +28,8 @@ export default function BlindfoldDrillsPanel({ drills }: { drills: readonly Dril
       <DrillResults
         label={label}
         summary={sessionSummary(session)}
+        saveStatus={saver.status}
+        onRetrySave={saver.retry}
         onPlayAgain={() => player.start(session.kind, session.level)}
         onBack={player.quit}
       />
