@@ -1,11 +1,9 @@
-import { Badge } from "@b2c-template/ui/components/badge";
 import { Button } from "@b2c-template/ui/components/button";
 import { Skeleton } from "@b2c-template/ui/components/skeleton";
 import { Switch } from "@b2c-template/ui/components/switch";
-import { cn } from "@b2c-template/ui/lib/utils";
 
-import { lineColour } from "../lib/line-colours";
 import type { EnginePanelState } from "../lib/suggestion-state";
+import EngineLineList from "./engine-line-list";
 
 export type { EnginePanelState };
 
@@ -107,61 +105,13 @@ export default function EnginePanel({
               <Skeleton className="h-6 w-full" />
             )
           ) : (
-            <ol data-slot="engine-lines" className="flex flex-col gap-2">
-              {search.lines.map((line, rank) => (
-                <li
-                  key={line.multipv}
-                  className="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-md border p-2"
-                >
-                  <button
-                    type="button"
-                    data-slot="engine-line-preview"
-                    aria-pressed={previewRank === rank}
-                    aria-label={`Preview line ${rank + 1}, ${lineColour(rank).name} on the board: ${line.scoreLabel}. ${line.moveText}`}
-                    onClick={() => onPreview(rank)}
-                    className={cn(
-                      "-m-1 flex min-h-11 min-w-0 flex-1 basis-56 flex-wrap items-start gap-x-3 gap-y-1 rounded-md p-1 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
-                      previewRank === rank && "bg-accent",
-                    )}
-                  >
-                    <span
-                      data-slot="engine-line-rank"
-                      className="flex shrink-0 items-center gap-1.5 font-mono text-sm font-semibold"
-                    >
-                      <span
-                        aria-hidden="true"
-                        data-slot="engine-line-swatch"
-                        className="size-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: lineColour(rank).color }}
-                      />
-                      {rank + 1}
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      className="w-14 shrink-0 font-mono text-sm font-semibold"
-                    >
-                      {line.scoreText}
-                    </span>
-                    <span className="min-w-0 flex-1 basis-32 font-mono text-sm break-words">
-                      {line.moveText}
-                    </span>
-                  </button>
-                  {line.inRepertoire ? (
-                    <Badge variant="secondary">In repertoire</Badge>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={addPending}
-                      onClick={() => onAdd(line.firstMove.san)}
-                    >
-                      Add {line.firstMove.san}
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ol>
+            <EngineLineList
+              lines={search.lines}
+              addPending={addPending}
+              previewRank={previewRank}
+              onPreview={onPreview}
+              onAdd={onAdd}
+            />
           )}
         </>
       ) : null}

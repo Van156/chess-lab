@@ -22,6 +22,7 @@ import type { EngineView } from "../lib/suggestion-state";
 import type { TreeLine } from "../lib/variation-tree";
 import BaseLineHeader from "./base-line-header";
 import BoardToolbar from "./board-toolbar";
+import EngineNextMoves from "./engine-next-moves";
 import EnginePanel from "./engine-panel";
 import EvalBar from "./eval-bar";
 import ExplorerBandSelect from "./explorer-band-select";
@@ -293,6 +294,13 @@ export default function RepertoireBuilderView({
                   onSelect={onSelectNode}
                   onDelete={onDeleteNode}
                   onRename={onRenameLine}
+                />
+                <EngineNextMoves
+                  state={engine.panel}
+                  addPending={saving}
+                  previewRank={preview?.rank ?? null}
+                  onPreview={onPreviewLine}
+                  onAdd={onPlayMove}
                 />
               </div>
             </TabsContent>

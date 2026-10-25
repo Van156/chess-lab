@@ -255,4 +255,14 @@ describe("RepertoireBuilderView", () => {
     expect(html).toContain("All lines from the start position");
     expect(html.indexOf("Base: 1. e4")).toBeLessThan(html.indexOf('aria-label="Variation tree"'));
   });
+
+  test("shows the engine's next moves under the tree, as well as in the Engine tab", async () => {
+    const html = await render();
+    expect(html).toContain('data-slot="engine-next-moves"');
+    expect(html.match(/data-slot="engine-lines"/g)).toHaveLength(1);
+    expect(html.match(/data-slot="engine-next-lines"/g)).toHaveLength(1);
+    expect(html.indexOf('data-slot="engine-next-moves"')).toBeGreaterThan(
+      html.indexOf('data-slot="variation-tree"'),
+    );
+  });
 });
