@@ -118,4 +118,11 @@ Out of scope:
   - Unverified:
     - The hook's effect wiring has no direct test.
     - No browser run.
-- Next: review T3 alone.
+- **Review T3.**
+  - Range: base `2b4f636` through `6cfb28a`. Consent was granted under the standing consent. One lens (reliability).
+  - **Approved** and acknowledged (lineage `review-ef2afa77c636d141`, authority burned).
+  - Non-blocking follow-ups, none accepted yet:
+    - R3-hook-key-wiring-untested (WARNING): the hook's key and dispatch wiring has no test.
+    - R3-duplicate-cancel-test (SUGGESTION): one test in the reducer suite duplicates another.
+    - R3-offscreen-position-stale (SUGGESTION): a fork that is not on screen can keep old ranks until it is visited again. Most likely trigger: deleting moves while viewing another position, or while the engine is off.
+- **Status:** all tasks are done and every review is acknowledged. Still pending: a browser run. Push and PR are the user's decision.
