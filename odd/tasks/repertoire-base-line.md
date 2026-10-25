@@ -71,7 +71,7 @@ Out of scope:
 
 - [x] **T1: Move-pair rows in the variation tree** [T lib, O UI]. Route: delegated `react-staff` (lib + component, 2+ non-trivial files).
 - [x] **T2: Base position storage and `setBase`** [O db/api, T rows helpers]. Route: delegated writer (schema, migration, service, router, tests).
-- [ ] **T3: Study line names and `renameLine`** [O db/api]. Route: delegated writer.
+- [x] **T3: Study line names and `renameLine`** [O db/api]. Route: delegated writer.
 - [ ] **T4: Base line UI** [T lib, O UI]. Route: delegated `react-staff`.
 - [ ] **T5: Study line grouping UI** [T lib, O UI]. Route: delegated `react-staff`.
 
@@ -133,4 +133,21 @@ Out of scope:
     - R3-remove-with-base-untested (WARNING): no test deletes a repertoire or user whose base is set. There is an FK cycle, with cascade from repertoire to position and SET NULL back. **Accepted into T3** as a router test.
     - R3-unreachable-base-branch-untested (SUGGESTION): the `setBase` guard against an orphan, unreachable position has no test. Left as a follow-up.
   - Next review boundary: `a4e4fe6`.
-- Next: T3.
+- **T3 done** (`99be9e2`; delegated writer; +196/-2 authored, plus a generated `snapshot.json` of 3440 lines).
+  - Schema and migration:
+    - `repertoire_move.name`: nullable, with check `repertoire_move_name_check` (non-blank, ≤80).
+    - `MAX_LINE_NAME_LENGTH = 80` in `repertoire-limits.ts`.
+    - Migration `20261025115717_repertoire_line_name`.
+  - API:
+    - `get` returns `name` on moves.
+    - `renameLine{repertoireId, moveId, name|null}`: trims the name; blank or null clears it; locks the repertoire. NOT_FOUND for a foreign move or another user's repertoire; BAD_REQUEST when over 80.
+  - Accepted R3-remove-with-base: router tests now delete a repertoire, and a user, whose base is set. Both pass.
+  - No RED: no new pure logic (normalisation is zod in the router), and the tests were written after the code.
+  - Checks:
+    - `pnpm check-types`: 0 errors.
+    - `pnpm check`: clean.
+    - Required `bun test`: 928 pass, 0 fail.
+    - DB-backed tests: 62 pass, 0 skipped.
+  - Parent spot check: router tests pass.
+  - Unverified: names with emoji (zod counts UTF-16 code units, the DB counts characters; the API is only stricter).
+- Next: T4.
