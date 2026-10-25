@@ -5,11 +5,13 @@ import type { EngineLine } from "@/features/engine";
 import {
   createRankingCache,
   emptyRankingState,
+  gradeContinuations,
   rankContinuations,
   rankingKey,
   rankingReducer,
   selectRanks,
   sortByRank,
+  topMovesKey,
   type MoveRank,
   type RankingState,
 } from "./continuation-ranking";
@@ -131,6 +133,15 @@ describe("rankingKey", () => {
   });
 });
 
+describe("topMovesKey", () => {
+  test("is the position's own key, apart from every restricted search of it", () => {
+    expect(topMovesKey("fen")).toBe(topMovesKey("fen"));
+    expect(topMovesKey("fen")).not.toBe(topMovesKey("other"));
+    expect(topMovesKey("fen")).not.toBe(rankingKey("fen", ["c2c3"]));
+    expect(topMovesKey("fen")).not.toBe(rankingKey("fen", []));
+  });
+});
+
 describe("createRankingCache", () => {
   test("returns what was stored", () => {
     const cache = createRankingCache<number>(2);
@@ -236,5 +247,145 @@ describe("rankingReducer", () => {
   test("publishes the same empty map when nothing is ranked, such as with the engine off", () => {
     const off = apply(ranked, { type: "positionDropped", positionId: "p1" });
     expect(selectRanks(off)).toBe(selectRanks(emptyRankingState));
+  });
+});
+
+describe("gradeContinuations", () => {
+  // White to move after 1. e4 e5 2. Nf3 Nc6 3. d4 exd4.
+  const fen = "r1bqkbnr/pppp1ppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4";
+  const c3 = { id: "m-c3", uci: "c2c3" };
+  const bc4 = { id: "m-bc4", uci: "f1c4" };
+
+  test("grades a lone stored move against the engine's top moves and names the better one", () => {
+    const grade = gradeContinuations(
+      [c3],
+      [line(1, "c2c3", cp(10))],
+      [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30)), line(3, "c2c3", cp(10))],
+      fen,
+    );
+    expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 3, of: 3, scoreLabel: "+0.10" });
+    expect(grade.engineBest).toEqual({ san: "Bc4", scoreLabel: "+0.40" });
+    expect(grade.ranks.get("m-c3")?.engineBest).toEqual(grade.engineBest);
+  });
+
+  test("ranks every stored move within the union of the top moves and the stored moves", () => {
+    const grade = gradeContinuations(
+      [c3, bc4],
+      [line(1, "f1c4", cp(35)), line(2, "c2c3", cp(10))],
+      [line(1, "f3d4", cp(50)), line(2, "f1c4", cp(40)), line(3, "e1e2", cp(20))],
+      fen,
+    );
+    // Union: Nxd4 +0.50, Bc4 +0.35 (restricted wins over +0.40), Ke2 +0.20, c3 +0.10.
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 4, scoreLabel: "+0.35" });
+    expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 4, of: 4, scoreLabel: "+0.10" });
+    expect(grade.engineBest).toEqual({ san: "Nxd4", scoreLabel: "+0.50" });
+  });
+
+  test("counts a move that is in both lists once, with its restricted score", () => {
+    const grade = gradeContinuations(
+      [bc4],
+      [line(1, "f1c4", cp(25))],
+      [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30))],
+      fen,
+    );
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 2, scoreLabel: "+0.25" });
+  });
+
+  test("names no better move when a stored move is the engine's best", () => {
+    const grade = gradeContinuations(
+      [bc4],
+      [line(1, "f1c4", cp(40))],
+      [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30))],
+      fen,
+    );
+    expect(grade.ranks.get("m-bc4")?.rank).toBe(1);
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("names no better move when a stored move ties with the engine's best", () => {
+    const grade = gradeContinuations(
+      [c3],
+      [line(1, "c2c3", cp(40))],
+      [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30))],
+      fen,
+    );
+    expect(grade.ranks.get("m-c3")?.rank).toBe(1);
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("shares a rank between equal scores and skips the next one", () => {
+    const grade = gradeContinuations(
+      [c3, bc4],
+      [line(1, "f1c4", cp(30)), line(2, "c2c3", cp(30))],
+      [line(1, "f3d4", cp(60)), line(2, "f1c4", cp(30))],
+      fen,
+    );
+    expect(grade.ranks.get("m-bc4")?.rank).toBe(2);
+    expect(grade.ranks.get("m-c3")?.rank).toBe(2);
+    expect(grade.ranks.get("m-c3")?.of).toBe(3);
+  });
+
+  test("ranks a mate above any pawn count and prefers the faster mate", () => {
+    const grade = gradeContinuations(
+      [c3, bc4],
+      [line(1, "f1c4", { kind: "mate", value: 3 }), line(2, "c2c3", cp(900))],
+      [line(1, "f3d4", { kind: "mate", value: 5 }), line(2, "f1c4", { kind: "mate", value: 3 })],
+      fen,
+    );
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 1, scoreLabel: "#3" });
+    expect(grade.ranks.get("m-c3")?.rank).toBe(3);
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("shows the engine's best mate as the better move", () => {
+    const grade = gradeContinuations(
+      [c3],
+      [line(1, "c2c3", cp(200))],
+      [line(1, "f3d4", { kind: "mate", value: 4 })],
+      fen,
+    );
+    expect(grade.engineBest).toEqual({ san: "Nxd4", scoreLabel: "#4" });
+    expect(grade.ranks.get("m-c3")?.rank).toBe(2);
+  });
+
+  test("falls back to ranking the stored moves among themselves without a top search", () => {
+    const grade = gradeContinuations(
+      [c3, bc4],
+      [line(1, "c2c3", cp(10)), line(2, "f1c4", cp(30))],
+      undefined,
+      fen,
+    );
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 1, of: 2 });
+    expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 2, of: 2 });
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("grades only the stored moves that appear in the top lines without a restricted search", () => {
+    const grade = gradeContinuations(
+      [c3, bc4],
+      undefined,
+      [line(1, "f3d4", cp(50)), line(2, "f1c4", cp(40)), line(3, "e1e2", cp(20))],
+      fen,
+    );
+    expect(grade.ranks.has("m-c3")).toBe(false);
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 3, scoreLabel: "+0.40" });
+    expect(grade.engineBest).toEqual({ san: "Nxd4", scoreLabel: "+0.50" });
+  });
+
+  test("returns nothing without either search", () => {
+    const grade = gradeContinuations([c3], undefined, undefined, fen);
+    expect(grade.ranks.size).toBe(0);
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("ignores a top line whose first move is not legal in the position", () => {
+    const grade = gradeContinuations(
+      [c3],
+      [line(1, "c2c3", cp(10))],
+      [line(1, "a1a8", cp(900)), line(2, "f1c4", cp(40))],
+      fen,
+    );
+    expect(grade.engineBest).toEqual({ san: "Bc4", scoreLabel: "+0.40" });
+    expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 2, of: 2 });
   });
 });

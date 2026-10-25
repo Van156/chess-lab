@@ -1,3 +1,5 @@
+import { parseMove } from "@b2c-template/chess";
+
 import type { EngineLine } from "@/features/engine";
 
 import { formatScore, type WhiteScore } from "./engine-view";
@@ -11,6 +13,18 @@ export type MoveRank = {
   /** The engine score from the point of view of the side that plays the move. */
   score: EngineLine["score"];
   /** Short score for the badge, such as "+0.34" or "#-2". */
+  scoreLabel: string;
+  /**
+   * The engine's best move at this position when the repertoire does not have it. Every ranked
+   * move of a position carries the same value; the tree decides where to show it.
+   */
+  engineBest?: EngineBest;
+};
+
+/** A move the engine prefers to everything the repertoire stores at a position. */
+export type EngineBest = {
+  san: string;
+  /** Short score from the mover's side, such as "+0.40". */
   scoreLabel: string;
 };
 
@@ -37,6 +51,32 @@ const moverLabel = (score: EngineLine["score"]): string => {
   return formatScore(shown);
 };
 
+type Scored = { score: EngineLine["score"]; strength: number };
+
+const scored = (line: EngineLine): Scored => ({
+  score: line.score,
+  strength: strength(line.score),
+});
+
+/** Competition ranking (equal scores share a rank, the next rank is skipped), best first. Pure. */
+function rankScored<K>(entries: ReadonlyMap<K, Scored>): Map<K, MoveRank> {
+  const ordered = [...entries.entries()].sort((a, b) => b[1].strength - a[1].strength);
+  const ranks = new Map<K, MoveRank>();
+  let rank = 0;
+  let previous: number | null = null;
+  ordered.forEach(([key, entry], index) => {
+    if (previous === null || entry.strength !== previous) rank = index + 1;
+    previous = entry.strength;
+    ranks.set(key, {
+      rank,
+      of: ordered.length,
+      score: entry.score,
+      scoreLabel: moverLabel(entry.score),
+    });
+  });
+  return ranks;
+}
+
 /**
  * Ranks the stored continuations of one position by the engine lines of a search restricted to
  * them. A line belongs to the move its first PV move equals. A move with no line is left out, so it
@@ -46,27 +86,77 @@ export function rankContinuations(
   moves: readonly RankableMove[],
   lines: readonly EngineLine[],
 ): Map<string, MoveRank> {
-  const scored = new Map<string, { score: EngineLine["score"]; strength: number }>();
+  const entries = new Map<string, Scored>();
   for (const move of moves) {
     const found = lines.find((candidate) => candidate.pv[0] === move.uci);
-    if (found) scored.set(move.id, { score: found.score, strength: strength(found.score) });
+    if (found) entries.set(move.id, scored(found));
+  }
+  return rankScored(entries);
+}
+
+/** How the engine grades the stored continuations of a position. */
+export type ContinuationGrade = {
+  /** Rank and score of each graded stored move, by move id; each carries `engineBest` too. */
+  ranks: Map<string, MoveRank>;
+  /** Set only when the best move of the field is not stored. */
+  engineBest?: EngineBest;
+};
+
+/**
+ * Grades the stored continuations of a position against the engine's own best moves. The field is
+ * the union of the engine's top moves (`topLines`, an unrestricted search) and the stored moves
+ * (`restrictedLines`, a search restricted to them). A move in both counts once and the restricted
+ * score wins, as it is the search that looked at that move on purpose. Ranks are competition ranks
+ * from the mover's side, over that union.
+ *
+ * `engineBest` names the field's best move when no stored move reaches rank 1, so a stored move
+ * that ties with the engine's best is never reported as beaten. With no top search it degrades to
+ * ranking the stored moves among themselves; with no restricted search only the stored moves that
+ * are among the top moves can be graded. A top line whose first move is illegal in `fen` is dropped.
+ * Pure.
+ */
+export function gradeContinuations(
+  moves: readonly RankableMove[],
+  restrictedLines: readonly EngineLine[] | undefined,
+  topLines: readonly EngineLine[] | undefined,
+  fen: string,
+): ContinuationGrade {
+  const storedUcis = new Set(moves.map((move) => move.uci));
+  const field = new Map<string, Scored>();
+  for (const line of topLines ?? []) {
+    const uci = line.pv[0];
+    if (!uci || field.has(uci)) continue;
+    if (!storedUcis.has(uci) && !parseMove(fen, uci)) continue;
+    field.set(uci, scored(line));
+  }
+  for (const move of moves) {
+    const found = restrictedLines?.find((candidate) => candidate.pv[0] === move.uci);
+    if (found) field.set(move.uci, scored(found));
   }
 
-  const ordered = [...scored.entries()].sort((a, b) => b[1].strength - a[1].strength);
+  const byUci = rankScored(field);
   const ranks = new Map<string, MoveRank>();
-  let rank = 0;
-  let previous: number | null = null;
-  ordered.forEach(([id, entry], index) => {
-    if (previous === null || entry.strength !== previous) rank = index + 1;
-    previous = entry.strength;
-    ranks.set(id, {
-      rank,
-      of: ordered.length,
-      score: entry.score,
-      scoreLabel: moverLabel(entry.score),
-    });
-  });
-  return ranks;
+  for (const move of moves) {
+    const rank = byUci.get(move.uci);
+    if (rank) ranks.set(move.id, rank);
+  }
+
+  const best = [...field.entries()]
+    .filter(([uci]) => !storedUcis.has(uci))
+    .reduce<[string, Scored] | null>(
+      (top, entry) => (!top || entry[1].strength > top[1].strength ? entry : top),
+      null,
+    );
+  const storedBest = Math.max(
+    Number.NEGATIVE_INFINITY,
+    ...moves.map((move) => field.get(move.uci)?.strength ?? Number.NEGATIVE_INFINITY),
+  );
+  if (!best || best[1].strength <= storedBest) return { ranks };
+  const san = parseMove(fen, best[0])?.san;
+  if (!san) return { ranks };
+  const engineBest = { san, scoreLabel: moverLabel(best[1].score) };
+  for (const [id, rank] of ranks) ranks.set(id, { ...rank, engineBest });
+  return { ranks, engineBest };
 }
 
 /**
@@ -85,6 +175,11 @@ export function sortByRank<T>(items: T[], rankOf: (item: T) => number | undefine
 /** What a search is cached under: the position and the exact set of moves it was restricted to. */
 export function rankingKey(fen: string, ucis: readonly string[]): string {
   return `${fen}|${[...ucis].sort().join(",")}`;
+}
+
+/** What the position's unrestricted top-moves search is cached under; never a restricted key. */
+export function topMovesKey(fen: string): string {
+  return `${fen}|top`;
 }
 
 /** A small least-recently-used map, so the session cache stays bounded. */
