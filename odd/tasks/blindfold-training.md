@@ -53,7 +53,7 @@ Add a Blindfold section. It holds:
 - [x] **T2: `blindfold` router** [T]. Done: `1a17e74`. Route: delegated, together with T1. `recordSession` and `stats`, behind the flag, user-scoped, with integration tests.
 - [x] **T3: Drill logic `lib/`** [T]. Done: `2d434ba`. Route: delegated (react-staff, together with T4). Square colour, coordinate parsing, diagonal squares, knight distance (BFS), and seeded question generators.
 - [x] **T4: Route, nav and guide** [O]. Done: `2ec7c9b`. Add `/blindfold` (behind the flag), the nav item, and the guide view (accordion sections and a training plan), with stories and a render test.
-- [ ] **T5: Drill player and progress** [O]. A drill picker, a timed 20-question player for each drill, a results screen that saves through `recordSession`, and a stats panel from `stats`. Render tests and stories.
+- [x] **T5: Drill player and progress** [O]. Done: `b0d030f` and `f0edc29`. Route: delegated (react-staff). A drill picker, a timed 20-question player for each drill, a results screen that saves through `recordSession`, and a stats panel from `stats`. Render tests and stories.
   - It also takes in the T3+T4 suggestions listed under Progress.
 
 ## Acceptance criteria
@@ -85,4 +85,10 @@ Add a Blindfold section. It holds:
   - name the difficulty literals;
   - fix the "Drill picker" doc comment;
   - make the view test assert the drills content.
-- T5 is next.
+- T5 is done.
+  - RED was observed first for `drill-session`, `question-text`, `format`, `drill-stats` and the `generateQuestions` validation. Then GREEN: 74/74 pass under `features/blindfold`, and 95/95 pass for `app` and `tests/`. `check-types`, `check` and the web `build` succeed. The parent re-ran the feature tests: 74/74 pass.
+  - `ChessBoard` gained an optional `coordinates` prop (default true).
+  - Enum sync is asserted by matching literal lists in the web and db tests, because web does not depend on db.
+  - Not checked: a manual browser run (keyboard L/D and typed input).
+- **Review T5:** lineage `review-6917806d14bb646a`, range `cb3a570..f0edc29`. One lens approved it. The approval is acknowledged and its authority burned.
+- **Feature complete.** Next: try it in the browser with `blindfold` in `CHESSLAB_FEATURES`. Push and PR are the user's decision.
