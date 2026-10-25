@@ -72,7 +72,7 @@ Out of scope:
 - [x] **T1: Move-pair rows in the variation tree** [T lib, O UI]. Route: delegated `react-staff` (lib + component, 2+ non-trivial files).
 - [x] **T2: Base position storage and `setBase`** [O db/api, T rows helpers]. Route: delegated writer (schema, migration, service, router, tests).
 - [x] **T3: Study line names and `renameLine`** [O db/api]. Route: delegated writer.
-- [ ] **T4: Base line UI** [T lib, O UI]. Route: delegated `react-staff`.
+- [x] **T4: Base line UI** [T lib, O UI]. Route: delegated `react-staff`.
 - [ ] **T5: Study line grouping UI** [T lib, O UI]. Route: delegated `react-staff`.
 
 ## Acceptance criteria
@@ -150,4 +150,26 @@ Out of scope:
     - DB-backed tests: 62 pass, 0 skipped.
   - Parent spot check: router tests pass.
   - Unverified: names with emoji (zod counts UTF-16 code units, the DB counts characters; the API is only stricter).
-- Next: T4.
+- **T4 done** (`b5ad8bc`; delegated to `react-staff`; 21 files, about +614/-50, tests and stories included).
+  - Pure `lib/base-line.ts`:
+    - `baseLine` takes the shortest `pathTo` route. It is empty for no base, the start, or a missing position.
+    - `baseHeading`, `canSetBase`, `basePly`.
+  - `buildVariationTree(graph, path, base)` roots the tree at the base. Routes stay complete from the start.
+  - `resolvePosition`, when no position is given, uses the base, and the start otherwise.
+  - New `BaseLineHeader`:
+    - The heading reads "Base: 1. e4 e5 …" or "Start position".
+    - Buttons: "Set as base" and "Clear base".
+  - Moves before the base sit in a closed "All lines from the start position" fold.
+  - Line navigator: `Start`, `Base`, then the moves after the base.
+  - `useRepertoire.setBase` reloads on settle and reports failures as a toast.
+  - RED: `Cannot find module './base-line'`, plus 8 rooted-tree and resolve failures. GREEN: lib 317 pass.
+  - Checks:
+    - `pnpm check-types`: exit 0.
+    - `pnpm check`: clean.
+    - Required `bun test`: 460 pass, 0 fail.
+  - Parent spot check: base-line lib and header tests pass.
+  - Unverified:
+    - no browser run (375px, 44px, a real `setBase` from the page);
+    - no container-level test;
+    - duplicate accessible labels when the full-tree fold is open.
+- Next: review T3+T4, then T5.
