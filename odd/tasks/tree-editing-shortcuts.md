@@ -81,8 +81,11 @@ Build the repertoire from the Tree tab alone:
 
 - [x] **T1: Remove the Engine tab**. Route: delegated `react-staff` (React, 2+ non-trivial files). Commit `2e4fa01`.
 - [x] **T2: Arrow-key navigation**. Route: delegated `react-staff`, the same writer as T1. Commit `5597899`. TDD: RED (missing module), then GREEN (12 pass).
-- [ ] **T3: Deletion snapshot and restore (API)**. Route: delegated general writer (API and DB, 2+ files).
-- [ ] **T4: Delete without a dialog, with undo**. Route: delegated `react-staff`.
+- [x] **T3: Deletion snapshot and restore (API)**. Route: delegated general writer (API and DB, 2+ files). Commit `1d96a4d`. TDD: RED, then GREEN (9 unit and 6 router tests).
+- [x] **T4: Delete without a dialog, with undo**. Route: delegated `react-staff`. Commits:
+  - `523d68f`: the T1+T2 review follow-ups.
+  - `ff8ecf0`: the feature.
+  - `fdc9dd7`: the T3+T4 review fixes (navigate to the remapped position; 429 and timeout are retryable; a `move_exists` on retry counts as success).
 
 ## Acceptance criteria
 
@@ -108,4 +111,15 @@ Build the repertoire from the Tree tab alone:
 - **Review of T1+T2:** medium risk, consent granted (standing), reliability lens **approved** and acknowledged (lineage `review-5377cd5b6008c197`).
   - It raised two warnings and two suggestions, which were accepted into T4.
   - The next boundary is `5597899`.
-- **Next:** T3.
+- **T3 and T4 done.**
+  - `bun test` (repertoire and api): 939 pass.
+  - `check-types`: exit 0.
+- **Review of T3+T4:** medium risk, consent granted (standing), reliability lens **approved** and acknowledged (lineage `review-ae6f6a598a543aba`).
+  - Two warnings were fixed in `fdc9dd7`. That fix is 203 lines, under budget, so no new review was due.
+  - R3-delete-now-flow-untested is a known gap: there is no page or DOM test setup.
+- **Known follow-ups:**
+  - The engine Add button is `size="sm"` (28 px), below the 44 px target.
+  - `openspec/changes/chess-lab-v1/specs/repertoire/spec.md` (lines 55 and 60) still requires a delete confirmation.
+  - Repertoire cards (phase 3) are not in the deletion snapshot.
+  - Not checked in a browser.
+- **Next:** check it manually in the browser, then push or open a PR (the user's call).
