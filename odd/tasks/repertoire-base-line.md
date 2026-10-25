@@ -69,8 +69,8 @@ Out of scope:
 
 ## Tasks
 
-- [ ] **T1: Move-pair rows in the variation tree** [T lib, O UI]. Route: delegated `react-staff` (lib + component, 2+ non-trivial files).
-- [ ] **T2: Base position storage and `setBase`** [O db/api, T rows helpers]. Route: delegated writer (schema, migration, service, router, tests).
+- [x] **T1: Move-pair rows in the variation tree** [T lib, O UI]. Route: delegated `react-staff` (lib + component, 2+ non-trivial files).
+- [x] **T2: Base position storage and `setBase`** [O db/api, T rows helpers]. Route: delegated writer (schema, migration, service, router, tests).
 - [ ] **T3: Study line names and `renameLine`** [O db/api]. Route: delegated writer.
 - [ ] **T4: Base line UI** [T lib, O UI]. Route: delegated `react-staff`.
 - [ ] **T5: Study line grouping UI** [T lib, O UI]. Route: delegated `react-staff`.
@@ -94,4 +94,36 @@ Out of scope:
 
 ## Progress
 
-- Feature document created; next task is T1.
+- Feature document created (`d6fd304`).
+- **T1 done** (`a2aed80`, delegated to `react-staff`; 4 files, +247/-38).
+  - New pure `lib/move-rows.ts`: `toMoveRows(line)` returns rows of the form `{moveNumber, white?, black?, fork?}`.
+    - A row closes after any half-move that has alternatives.
+    - A Black move that cannot pair opens an `N... black` row.
+  - `variation-tree.tsx` renders one row per full move. Each half-move is its own button (select, fork chevron, delete).
+    - The visible you/reply tags are dropped; accessible labels keep them.
+    - The alternative and transposition markers are kept.
+  - RED: `bun test lib/move-rows.test.ts` failed with "Cannot find module './move-rows'". GREEN: 7 pass.
+  - Checks:
+    - `pnpm check-types`: OK.
+    - `pnpm check`: clean.
+    - `bun test` (web repertoire + story coverage + lint boundaries): 421 pass, 0 fail.
+  - Parent spot check: move-rows + variation-tree tests 17 pass.
+  - Unproven: no browser run (375px fit, 44px targets).
+- **T2 done** (`3c6dcb5`; delegated writer; about 217 authored lines plus a generated `snapshot.json` of 3420 lines).
+  - Migration: `repertoire.base_position_id` gets a composite FK to `repertoire_position(id, repertoire_id, user_id)` with `ON DELETE SET NULL ("base_position_id")` (Postgres 18).
+    - The SQL was hand-edited to add the column list, because drizzle cannot express it. Without it, a plain SET NULL would null the repertoire's `id`/`user_id`.
+    - The constraint was confirmed in the test DB via `pg_get_constraintdef`.
+  - `setBase{repertoireId, positionId|null}`:
+    - locks the repertoire;
+    - checks ownership, membership and reachability (NOT_FOUND otherwise);
+    - stores the start position as null.
+  - `get` returns `basePositionId`. `deleteMove` needed no code change: the FK clears the base when pruning removes it.
+  - No RED recorded. There is no new pure logic, and the DB-backed tests were written after the code.
+  - Checks:
+    - `pnpm check-types`: 0 errors.
+    - `pnpm check`: clean.
+    - Required `bun test`: 920 pass, 0 fail.
+    - DB tests ran against Postgres on :5437: 61 pass, 0 skipped.
+  - Parent spot check: router tests 38 pass.
+  - Unverified: the migration was not run on a DB with existing repertoires (the column is nullable, so no backfill is needed).
+- Next: review T1+T2, then T3.
