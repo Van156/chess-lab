@@ -275,20 +275,33 @@ describe("gradeContinuations", () => {
       [line(1, "f3d4", cp(50)), line(2, "f1c4", cp(40)), line(3, "e1e2", cp(20))],
       fen,
     );
-    // Union: Nxd4 +0.50, Bc4 +0.35 (restricted wins over +0.40), Ke2 +0.20, c3 +0.10.
-    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 4, scoreLabel: "+0.35" });
+    // Union: Nxd4 +0.50, Bc4 +0.40 (top score), Ke2 +0.20, c3 +0.10 (restricted, not in the top).
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 4, scoreLabel: "+0.40" });
     expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 4, of: 4, scoreLabel: "+0.10" });
     expect(grade.engineBest).toEqual({ san: "Nxd4", scoreLabel: "+0.50" });
   });
 
-  test("counts a move that is in both lists once, with its restricted score", () => {
+  test("scores a move that is in both lists once, from the top search", () => {
     const grade = gradeContinuations(
       [bc4],
       [line(1, "f1c4", cp(25))],
       [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30))],
       fen,
     );
-    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 2, of: 2, scoreLabel: "+0.25" });
+    // Bc4 is the engine's own #1 in the top search; the restricted +0.25 must not demote it.
+    expect(grade.ranks.get("m-bc4")).toMatchObject({ rank: 1, of: 2, scoreLabel: "+0.40" });
+    expect(grade.engineBest).toBeUndefined();
+  });
+
+  test("ranks a stored move outside the top lines below all of them, by its restricted score", () => {
+    const grade = gradeContinuations(
+      [c3],
+      [line(1, "c2c3", cp(-15))],
+      [line(1, "f1c4", cp(40)), line(2, "f3d4", cp(30)), line(3, "e1e2", cp(20))],
+      fen,
+    );
+    expect(grade.ranks.get("m-c3")).toMatchObject({ rank: 4, of: 4, scoreLabel: "-0.15" });
+    expect(grade.engineBest).toEqual({ san: "Bc4", scoreLabel: "+0.40" });
   });
 
   test("names no better move when a stored move is the engine's best", () => {

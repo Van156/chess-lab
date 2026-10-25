@@ -105,9 +105,10 @@ export type ContinuationGrade = {
 /**
  * Grades the stored continuations of a position against the engine's own best moves. The field is
  * the union of the engine's top moves (`topLines`, an unrestricted search) and the stored moves
- * (`restrictedLines`, a search restricted to them). A move in both counts once and the restricted
- * score wins, as it is the search that looked at that move on purpose. Ranks are competition ranks
- * from the mover's side, over that union.
+ * (`restrictedLines`, a search restricted to them). A move in both counts once and keeps its top
+ * score, so every competitor is scored by the same search and the engine's own best move can never
+ * be graded as beaten. The restricted score is used only for a stored move the top search did not
+ * list. Ranks are competition ranks from the mover's side, over that union.
  *
  * `engineBest` names the field's best move when no stored move reaches rank 1, so a stored move
  * that ties with the engine's best is never reported as beaten. With no top search it degrades to
@@ -130,6 +131,8 @@ export function gradeContinuations(
     field.set(uci, scored(line));
   }
   for (const move of moves) {
+    // A move the top search scored keeps that score, so the whole field comes from one search.
+    if (field.has(move.uci)) continue;
     const found = restrictedLines?.find((candidate) => candidate.pv[0] === move.uci);
     if (found) field.set(move.uci, scored(found));
   }
