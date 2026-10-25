@@ -100,10 +100,10 @@ describe("RepertoireBuilderView", () => {
     expect(await render()).toContain("No idea note.");
   });
 
-  test("lays out the board column and a rail of four tabs", async () => {
+  test("lays out the board column and a rail of three tabs", async () => {
     const html = await render();
     expect(html).toContain('aria-label="Board"');
-    for (const tab of ["Tree", "Engine", "Explorer", "Notes"]) {
+    for (const tab of ["Tree", "Explorer", "Notes"]) {
       expect(html).toMatch(new RegExp(`role="tab"[^>]*>${tab}</button>`));
     }
     expect(html.indexOf('data-slot="board-toolbar"')).toBeLessThan(html.indexOf("chess-board"));
@@ -170,12 +170,19 @@ describe("RepertoireBuilderView", () => {
     );
   });
 
-  test("shows the engine panel above the explorer, with the eval bar beside the board", async () => {
+  test("has no Engine tab; the engine block sits in the Tree tab, with the eval bar beside the board", async () => {
     const html = await render();
-    expect(html).toContain('data-slot="engine-panel"');
+    expect(html).not.toMatch(/role="tab"[^>]*>Engine</);
+    expect(html).not.toContain('data-slot="engine-panel"');
+    expect(html).toContain('data-slot="engine-next-moves"');
     expect(html).toContain("Depth 18/18");
     expect(html).toContain('data-slot="eval-bar"');
-    expect(html.indexOf('data-slot="engine-panel"')).toBeLessThan(html.indexOf(">Explorer</h2>"));
+  });
+
+  test("puts the Stockfish switch and Retry in the Tree tab", async () => {
+    expect(await render()).toMatch(/role="switch"[^>]*aria-checked="true"/);
+    const html = await render({ engine: { panel: { kind: "unavailable" }, whitePercent: null } });
+    expect(html).toMatch(/<button[^>]*>Retry<\/button>/);
   });
 
   test("describes the engine lines and repertoire moves next to the idea-note arrows", async () => {
@@ -187,7 +194,7 @@ describe("RepertoireBuilderView", () => {
 
   test("hides the bar while the engine is off", async () => {
     const html = await render({ engine: engineOffView, boardArrowText: "" });
-    expect(html).toContain('data-slot="engine-off"');
+    expect(html).toContain('data-slot="engine-next-off"');
     expect(html).not.toContain('data-slot="eval-bar"');
     expect(html).not.toContain("Engine lines, best first");
   });
@@ -223,7 +230,7 @@ describe("RepertoireBuilderView", () => {
     expect(html).not.toContain(">Type a move to add it</label>");
   });
 
-  test("previewing marks the previewed line in the Engine tab", async () => {
+  test("previewing marks the previewed line in the engine block", async () => {
     const html = await render({ preview: midLinePreview });
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Preview line 2/);
   });
@@ -256,11 +263,11 @@ describe("RepertoireBuilderView", () => {
     expect(html.indexOf("Base: 1. e4")).toBeLessThan(html.indexOf('aria-label="Variation tree"'));
   });
 
-  test("shows the engine's next moves under the tree, as well as in the Engine tab", async () => {
+  test("shows the engine's next moves once, under the tree", async () => {
     const html = await render();
     expect(html).toContain('data-slot="engine-next-moves"');
-    expect(html.match(/data-slot="engine-lines"/g)).toHaveLength(1);
     expect(html.match(/data-slot="engine-next-lines"/g)).toHaveLength(1);
+    expect(html).not.toContain('data-slot="engine-lines"');
     expect(html.indexOf('data-slot="engine-next-moves"')).toBeGreaterThan(
       html.indexOf('data-slot="variation-tree"'),
     );

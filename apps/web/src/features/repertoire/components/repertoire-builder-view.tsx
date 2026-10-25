@@ -23,7 +23,6 @@ import type { TreeLine } from "../lib/variation-tree";
 import BaseLineHeader from "./base-line-header";
 import BoardToolbar from "./board-toolbar";
 import EngineNextMoves from "./engine-next-moves";
-import EnginePanel from "./engine-panel";
 import EvalBar from "./eval-bar";
 import ExplorerBandSelect from "./explorer-band-select";
 import ExplorerPanel, { type ExplorerPanelState } from "./explorer-panel";
@@ -55,7 +54,7 @@ export type RepertoireBuilderViewProps = {
   opening: Opening | null;
   /** Explorer stats for this position; whatever it holds, the rest of the builder works. */
   explorer: ExplorerPanelState;
-  /** Stockfish suggestions for this position: the panel and the eval bar share. */
+  /** Stockfish suggestions for this position: the engine block under the tree and the eval bar share. */
   engine: EngineView;
   /** Everything drawn on the board: the idea note, the engine lines and the repertoire moves. */
   boardArrows: readonly BoardArrow[];
@@ -113,7 +112,7 @@ function previewArrows(preview: PreviewView): BoardArrow[] {
 /**
  * Repertoire builder (presentational), "Board + rail": a board column with the opening name and
  * the lines toolbar above the board and the path, the typed-move field and the note text below it,
- * and a rail of tabs (Tree, Engine, Explorer, Notes) beside it. The opening name has a reserved
+ * and a rail of tabs (Tree, Explorer, Notes) beside it. The opening name has a reserved
  * line, so the board does not move when a name appears. The rail stacks below the board at narrow
  * widths.
  *
@@ -265,9 +264,6 @@ export default function RepertoireBuilderView({
               <TabsTrigger value="tree" className={railTab}>
                 Tree
               </TabsTrigger>
-              <TabsTrigger value="engine" className={railTab}>
-                Engine
-              </TabsTrigger>
               <TabsTrigger value="explorer" className={railTab}>
                 Explorer
               </TabsTrigger>
@@ -299,21 +295,12 @@ export default function RepertoireBuilderView({
                   state={engine.panel}
                   addPending={saving}
                   previewRank={preview?.rank ?? null}
+                  onToggle={onToggleEngine}
                   onPreview={onPreviewLine}
                   onAdd={onPlayMove}
+                  onRetry={onRetryEngine}
                 />
               </div>
-            </TabsContent>
-            <TabsContent value="engine" keepMounted className="pt-2">
-              <EnginePanel
-                state={engine.panel}
-                addPending={saving}
-                previewRank={preview?.rank ?? null}
-                onPreview={onPreviewLine}
-                onToggle={onToggleEngine}
-                onAdd={onPlayMove}
-                onRetry={onRetryEngine}
-              />
             </TabsContent>
             <TabsContent value="explorer" keepMounted className="pt-2">
               <ExplorerPanel

@@ -7,7 +7,7 @@ export type LineColour = { color: string; name: string };
  * One colour per engine line rank, best first. The best line keeps the engine blue; the rest are
  * apart from each other and from the amber repertoire arrows and the mint idea-note arrows, and
  * read on both board squares. The name travels with the colour so the board's description and the
- * Engine tab can say it in words.
+ * engine block can say it in words.
  */
 export const LINE_COLOURS: readonly LineColour[] = [
   { color: boardTheme.engineArrow, name: "blue" },

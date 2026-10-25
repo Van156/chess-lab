@@ -14,7 +14,7 @@ export const SUGGESTION_DEPTH = 18;
 /**
  * Depth of the search that ranks the stored continuations of a position. Shallower than the
  * suggestions: it only has to order a handful of known moves, and it queues at the same priority
- * as the suggestions, so a deep search would hold up the Engine tab (and the next position).
+ * as the suggestions, so a deep search would hold up the main engine search (and the next position).
  */
 export const RANKING_DEPTH = 12;
 /** Lines (MultiPV) of the unrestricted search that grades stored moves against the engine's best. */

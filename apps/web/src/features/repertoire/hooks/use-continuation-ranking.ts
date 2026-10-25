@@ -60,9 +60,9 @@ function load(key: string, submit: () => EngineJobHandle): Pending {
  *
  * Scheduling: both searches are `interactive`, like the suggestions, so background game analysis
  * never delays them, and they are submitted after the suggestions of the same position, so the
- * Engine tab goes first. They are shallow and cancelled the moment the position changes or the
+ * main engine search goes first. They are shallow and cancelled the moment the position changes or the
  * engine is switched off, which keeps them from holding up the next position's suggestions. The
- * Engine tab's own search is deeper and is not reused: coupling to its lifecycle is not worth one
+ * main engine search is deeper and is not reused: coupling to its lifecycle is not worth one
  * extra shallow search.
  *
  * Re-render budget: only a finished grade updates state (one update per fork), never an engine

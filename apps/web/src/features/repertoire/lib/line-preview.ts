@@ -12,7 +12,7 @@ export type LinePreview =
   | { kind: "idle" }
   | {
       kind: "previewing";
-      /** The line's rank, counted from 0, as the Engine tab and the board colour it. */
+      /** The line's rank, counted from 0, as the engine block and the board colour it. */
       rank: number;
       /** The position the line starts from, which the preview belongs to. */
       baseFen: string;

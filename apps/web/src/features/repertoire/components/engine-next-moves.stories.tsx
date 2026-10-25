@@ -12,8 +12,10 @@ const meta = {
     state: { kind: "done", depth: 18, maxDepth: 18, lines: engineLines },
     addPending: false,
     previewRank: null,
+    onToggle: () => {},
     onPreview: () => {},
     onAdd: () => {},
+    onRetry: () => {},
   },
 } satisfies Meta<typeof EngineNextMoves>;
 
@@ -43,3 +45,19 @@ export const NoSuggestion: Story = {
 };
 
 export const Unavailable: Story = { args: { state: { kind: "unavailable" } } };
+
+export const NoLegalMoves: Story = { args: { state: { kind: "terminal" } } };
+
+export const LongLines: Story = {
+  args: {
+    state: {
+      kind: "done",
+      depth: 18,
+      maxDepth: 18,
+      lines: engineLines.map((line) => ({
+        ...line,
+        moveText: `${line.moveText} 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6`,
+      })),
+    },
+  },
+};

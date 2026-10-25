@@ -81,7 +81,7 @@ export default function RepertoireBuilderPage({ id }: { id: string }) {
   );
   // The stored continuations of the shown position, graded by two searches while the
   // engine is on. Computed before the early returns, like the other engine hooks; the hook runs
-  // after the suggestions so the Engine tab's search is queued first.
+  // after the suggestions so the main engine search is queued first.
   const continuations = useMemo(
     () =>
       repertoire
