@@ -29,8 +29,8 @@ Out of scope: saving a previewed line to the repertoire; hover ghost arrows; cha
 
 ## Tasks
 
-- [ ] **T1 — Per-line engine colours** [T lib, O UI]: Route: delegated `react-staff` (board-lines lib, engine panel, view; 2+ non-trivial files).
-- [ ] **T2 — Engine line preview (click and step)** [T lib, O UI]: Route: delegated `react-staff` (preview state lib, engine panel, view, container; 2+ non-trivial files).
+- [x] **T1 — Per-line engine colours** [T lib, O UI]: Route: delegated `react-staff` (board-lines lib, engine panel, view; 2+ non-trivial files).
+- [x] **T2 — Engine line preview (click and step)** [T lib, O UI]: Route: delegated `react-staff` (preview state lib, engine panel, view, container; 2+ non-trivial files).
 
 ## Acceptance criteria
 
@@ -46,4 +46,7 @@ Out of scope: saving a previewed line to the repertoire; hover ghost arrows; cha
 
 ## Progress
 
-- Feature document created; T1 next.
+- Feature document created.
+- **T1 done** (`92722f4`, delegated `react-staff`, 8 files, +138/-33). New `lib/line-colours.ts` (5-colour palette, best line keeps the engine blue; names travel with colours). Board arrows use the rank colour with a mild fade (best strongest); a line keeps its rank colour when an earlier line is undrawable. Board description now reads "1 e4 (blue), 2 d4 (violet)". Engine tab lines carry a swatch and their number. RED: `bun test line-colours.test.ts` failed with "Cannot find module './line-colours'"; board-lines tests failed 8 (colour and description). GREEN: lib tests 269 pass. Checks: `pnpm --filter web check-types` exit 0; `pnpm check` clean; `bun test` (required set) 511 pass, 0 fail.
+- **T2 done** (`fdb0af6`, delegated `react-staff`, 17 files, +782/-47). Pure `lib/line-preview.ts` (reducer start/next/previous/exit, cursor 1..n, steps replayed from base FEN and truncated at the first illegal or malformed move, `previewView`, `previewKeyAction`); `hooks/use-line-preview.ts` (reducer plus window key handler); `components/line-preview-bar.tsx`; Engine tab lines are buttons (`aria-pressed`) that preview; `SuggestionLine.pv` carries the full UCI PV. The view swaps the toolbar for the bar, shows the previewed position with the next PV move arrow in the line colour, takes no board moves and hides the typed-move field; `go` in the container exits the preview, and the preview hides itself if the FEN differs. RED: `line-preview.test.ts` failed with a missing module, and again with "Export named 'previewKeyAction' not found". GREEN: 18 lib tests pass. Checks: `pnpm --filter web check-types` no errors; `pnpm check` clean; `bun test` (required set) 541 pass, 0 fail.
+- Unproven: no browser run (keyboard handling, 375px layout, visual colour contrast verified by reading only). Eval bar still shows the base position's score while previewing.
