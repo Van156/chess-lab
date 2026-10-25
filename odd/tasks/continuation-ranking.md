@@ -46,6 +46,7 @@ Out of scope:
 ## Tasks
 
 - [x] **T1: `searchMoves` in engine requests** [T lib]. Route: delegated `react-staff` together with T2 (same writer, separate commit).
+- [ ] **T3: Clear stale ranks when a fork's moves change** [T lib, O UI]. Accepted from review R3-stale-ranks-during-research; also strengthen the alternative-sort test (R3-weak-alternative-sort-test). Route: delegated `react-staff`.
 - [x] **T2: Rank continuations in the tree** [T lib, O UI]. Route: delegated `react-staff` (hook, lib, tree components; 2+ non-trivial files).
 
 ## Acceptance criteria
@@ -93,4 +94,12 @@ Out of scope:
     - No browser run, including the 375px badge wrap.
     - Hidden-tab policy is not wired in, the same as for engine suggestions.
     - No direct test for the hook.
-- Next: review T1+T2.
+- **Review T1+T2.**
+  - Range: base `65490c6` through `2b4f636`. Consent granted (standing). One lens (reliability).
+  - **Approved** and acknowledged (lineage `review-8dd4f2e2a5a15bb7`, authority burned).
+  - Findings:
+    - R3-stale-ranks-during-research (WARNING): when a fork's set of moves changes but still has two or more moves, the old ranks, order and "of N" stay until the new search finishes, and forever if that search is cancelled. **Accepted as T3** (user-visible bug).
+    - R3-hook-untested (WARNING): the hook has no test. Partly addressed in T3 through pure-logic extraction; otherwise a follow-up.
+    - R3-weak-alternative-sort-test (SUGGESTION): the fork fixture has only one alternative. **Accepted into T3.**
+  - Next boundary: `2b4f636`.
+- Next: T3.
