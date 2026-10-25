@@ -46,7 +46,7 @@ Out of scope:
 ## Tasks
 
 - [x] **T1: `searchMoves` in engine requests** [T lib]. Route: delegated `react-staff` together with T2 (same writer, separate commit).
-- [ ] **T3: Clear stale ranks when a fork's moves change** [T lib, O UI]. Accepted from review R3-stale-ranks-during-research; also strengthen the alternative-sort test (R3-weak-alternative-sort-test). Route: delegated `react-staff`.
+- [x] **T3: Clear stale ranks when a fork's moves change** [T lib, O UI]. Accepted from review R3-stale-ranks-during-research; also strengthen the alternative-sort test (R3-weak-alternative-sort-test). Route: delegated `react-staff`.
 - [x] **T2: Rank continuations in the tree** [T lib, O UI]. Route: delegated `react-staff` (hook, lib, tree components; 2+ non-trivial files).
 
 ## Acceptance criteria
@@ -102,4 +102,20 @@ Out of scope:
     - R3-hook-untested (WARNING): the hook has no test. Partly addressed in T3 through pure-logic extraction; otherwise a follow-up.
     - R3-weak-alternative-sort-test (SUGGESTION): the fork fixture has only one alternative. **Accepted into T3.**
   - Next boundary: `2b4f636`.
-- Next: T3.
+- **T3 done** (`52df69a`; delegated `react-staff`; 4 files +226/-26).
+  - Pure `rankingReducer`, `selectRanks` and `emptyRankingState` in `lib/continuation-ranking.ts`:
+    - Ranks are valid only for the exact key (UCI set plus move ids).
+    - A changed key drops the old ranks at once.
+    - Late or cancelled results are ignored.
+    - The merged map keeps the same reference when nothing changed.
+  - The hook now uses `useReducer` with the reducer.
+  - The alternative-sort test now uses three reverse-ranked alternatives. It fails when `sortByRank` is removed: 27 pass, 1 fail, then restored.
+  - RED: `Export named 'emptyRankingState' not found`. GREEN: 52 pass.
+  - Checks:
+    - `pnpm check-types`: exit 0.
+    - `pnpm check`: exit 0.
+    - Required `bun test`: 649 pass, 0 fail.
+  - Unverified:
+    - The hook's effect wiring has no direct test.
+    - No browser run.
+- Next: review T3 alone.
