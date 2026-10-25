@@ -124,7 +124,7 @@ export function createRepertoireService(db: Database) {
     const { meta, positions, moves, noteRows } = await db.transaction(
       async (tx) => {
         const [meta] = await tx
-          .select(metadataColumns)
+          .select({ ...metadataColumns, basePositionId: repertoire.basePositionId })
           .from(repertoire)
           .where(and(eq(repertoire.id, id), eq(repertoire.userId, userId)));
         if (!meta) throw notFound("Repertoire");
@@ -152,9 +152,11 @@ export function createRepertoireService(db: Database) {
     const start = positions.find((p) => p.positionKey === startKey);
     if (!start) throw notFound("Start position");
     const sideById = new Map(positions.map((p) => [p.id, p.sideToMove]));
+    const { basePositionId, ...metadata } = meta;
     return {
-      repertoire: meta,
+      repertoire: metadata,
       startPositionId: start.id,
+      basePositionId,
       positions: positions.map((p) => ({
         id: p.id,
         key: p.positionKey,
@@ -323,6 +325,36 @@ export function createRepertoireService(db: Database) {
     });
   }
 
+  /**
+   * Saves (or clears with `null`) the base line. The position must belong to the repertoire and be
+   * reachable from the start position. The start position itself is stored as `null`: both mean
+   * "no base", so `get` never reports two spellings of the same state. Pruning in `deleteMove`
+   * clears a base it removes through the composite FK (`ON DELETE SET NULL (base_position_id)`).
+   */
+  async function setBase(
+    userId: string,
+    input: { repertoireId: string; positionId: string | null },
+  ) {
+    return db.transaction(async (tx) => {
+      await lockRepertoire(tx, input.repertoireId, userId);
+      let basePositionId: string | null = null;
+      if (input.positionId !== null) {
+        const { positions, moves } = await loadRows(tx, input.repertoireId, userId);
+        const target = positions.find((p) => p.id === input.positionId);
+        if (!target) throw notFound("Position");
+        const start = positions.find((p) => p.positionKey === positionKey(START_FEN));
+        if (!start) throw notFound("Start position");
+        if (!reachablePositionIds(start.id, moves).has(target.id)) throw notFound("Position");
+        basePositionId = target.id === start.id ? null : target.id;
+      }
+      await tx
+        .update(repertoire)
+        .set({ basePositionId })
+        .where(and(eq(repertoire.id, input.repertoireId), eq(repertoire.userId, userId)));
+      return { basePositionId };
+    });
+  }
+
   async function setIdeaNote(
     userId: string,
     input: { repertoireId: string; positionId: string } & IdeaNoteInput,
@@ -361,5 +393,16 @@ export function createRepertoireService(db: Database) {
     });
   }
 
-  return { list, create, rename, remove, get, explorerContext, addMove, deleteMove, setIdeaNote };
+  return {
+    list,
+    create,
+    rename,
+    remove,
+    get,
+    explorerContext,
+    addMove,
+    deleteMove,
+    setBase,
+    setIdeaNote,
+  };
 }

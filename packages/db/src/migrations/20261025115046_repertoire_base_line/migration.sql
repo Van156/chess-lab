@@ -1,0 +1,2 @@
+ALTER TABLE "repertoire" ADD COLUMN "base_position_id" text;--> statement-breakpoint
+ALTER TABLE "repertoire" ADD CONSTRAINT "repertoire_base_position_fk" FOREIGN KEY ("base_position_id","id","user_id") REFERENCES "repertoire_position"("id","repertoire_id","user_id") ON DELETE SET NULL ("base_position_id");

@@ -108,6 +108,10 @@ export const repertoireRouter = {
   deleteMove: repertoireProcedure
     .input(z.object({ repertoireId: id, moveId: id }))
     .handler(({ input, context }) => service(context).deleteMove(context.session.user.id, input)),
+  /** Saves the base line position, or clears it with `positionId: null`. */
+  setBase: repertoireProcedure
+    .input(z.object({ repertoireId: id, positionId: id.nullable() }))
+    .handler(({ input, context }) => service(context).setBase(context.session.user.id, input)),
   /** Saves the note of a position; an empty note deletes it. */
   setIdeaNote: repertoireProcedure
     .input(ideaNoteInput)

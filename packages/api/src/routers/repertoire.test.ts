@@ -292,6 +292,97 @@ describe.skipIf(!reachable)("repertoire router", () => {
     });
   });
 
+  describe("setBase", () => {
+    const baseOf = async (id: string, userId = "u1") =>
+      (await call(repertoireRouter.get, { id }, as(userId))).basePositionId;
+
+    test("a new repertoire has no base; set, get and clear round-trip", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5", "Nf3"]);
+      expect(await baseOf(id)).toBeNull();
+
+      const set = await call(
+        repertoireRouter.setBase,
+        { repertoireId: id, positionId: ids[2]! },
+        as("u1"),
+      );
+      expect(set).toEqual({ basePositionId: ids[2]! });
+      expect(await baseOf(id)).toBe(ids[2]!);
+
+      const cleared = await call(
+        repertoireRouter.setBase,
+        { repertoireId: id, positionId: null },
+        as("u1"),
+      );
+      expect(cleared).toEqual({ basePositionId: null });
+      expect(await baseOf(id)).toBeNull();
+    });
+
+    test("the start position is stored as no base", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4"]);
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: ids[1]! }, as("u1"));
+      const result = await call(
+        repertoireRouter.setBase,
+        { repertoireId: id, positionId: startId },
+        as("u1"),
+      );
+      expect(result).toEqual({ basePositionId: null });
+      expect(await baseOf(id)).toBeNull();
+    });
+
+    test("rejects a position of another repertoire, an unknown one and another user's repertoire", async () => {
+      const a = await newRepertoire();
+      const b = await newRepertoire();
+      const aIds = await line(a.id, a.startId, ["e4"]);
+      const bIds = await line(b.id, b.startId, ["d4"]);
+      expect(
+        await codeOf(
+          call(repertoireRouter.setBase, { repertoireId: a.id, positionId: bIds[1]! }, as("u1")),
+        ),
+      ).toBe("NOT_FOUND");
+      expect(
+        await codeOf(
+          call(repertoireRouter.setBase, { repertoireId: a.id, positionId: "nope" }, as("u1")),
+        ),
+      ).toBe("NOT_FOUND");
+      expect(
+        await codeOf(
+          call(repertoireRouter.setBase, { repertoireId: a.id, positionId: aIds[1]! }, as("u2")),
+        ),
+      ).toBe("NOT_FOUND");
+      expect(await baseOf(a.id)).toBeNull();
+    });
+
+    test("deleting the branch that holds the base clears it without error", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5", "Nf3"]);
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: ids[3]! }, as("u1"));
+      const tree = await call(repertoireRouter.get, { id }, as("u1"));
+      const e4 = tree.moves.find((m) => m.fromPositionId === startId)!;
+      await call(repertoireRouter.deleteMove, { repertoireId: id, moveId: e4.id }, as("u1"));
+
+      const after = await call(repertoireRouter.get, { id }, as("u1"));
+      expect(after.basePositionId).toBeNull();
+      // Only the base column is nulled: the repertoire keeps its owner and id.
+      expect(after.repertoire.id).toBe(id);
+      expect((await call(repertoireRouter.list, undefined, as("u1"))).map((r) => r.id)).toEqual([
+        id,
+      ]);
+    });
+
+    test("deleting a branch that does not hold the base keeps it", async () => {
+      const { id, startId } = await newRepertoire();
+      const e4 = await line(id, startId, ["e4", "e5"]);
+      await line(id, startId, ["d4"]);
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: e4[2]! }, as("u1"));
+      const tree = await call(repertoireRouter.get, { id }, as("u1"));
+      const d4 = tree.moves.find((m) => m.fromPositionId === startId && m.san === "d4")!;
+      await call(repertoireRouter.deleteMove, { repertoireId: id, moveId: d4.id }, as("u1"));
+      expect(await baseOf(id)).toBe(e4[2]!);
+    });
+  });
+
   describe("setIdeaNote", () => {
     const note = {
       arrows: [{ from: "e2", to: "e4" }],

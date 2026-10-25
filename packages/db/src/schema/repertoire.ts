@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { AnyPgColumn, ForeignKeyBuilder } from "drizzle-orm/pg-core";
 import {
   check,
   foreignKey,
@@ -25,6 +26,31 @@ const updatedAt = () =>
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull();
 
+/**
+ * Ties `repertoire.base_position_id` to a position of the same repertoire and owner. The position
+ * table references `repertoire` too, so this lives in a function with an explicit return type:
+ * that breaks the circular type inference, and the lookup of `repertoirePosition` is deferred to
+ * the moment drizzle builds the table config.
+ *
+ * `ON DELETE SET NULL` is hand-edited in the migration to `SET NULL (base_position_id)` (Postgres
+ * 15+): a plain SET NULL on a composite key would also null `id` and `user_id` of the repertoire.
+ */
+function basePositionFk(table: {
+  basePositionId: AnyPgColumn;
+  id: AnyPgColumn;
+  userId: AnyPgColumn;
+}): ForeignKeyBuilder {
+  return foreignKey({
+    name: "repertoire_base_position_fk",
+    columns: [table.basePositionId, table.id, table.userId],
+    foreignColumns: [
+      repertoirePosition.id,
+      repertoirePosition.repertoireId,
+      repertoirePosition.userId,
+    ],
+  }).onDelete("set null");
+}
+
 /** A named opening repertoire for one colour (FR-02). */
 export const repertoire = pgTable(
   "repertoire",
@@ -35,11 +61,17 @@ export const repertoire = pgTable(
     userId: userId(),
     color: userColor("color").notNull(),
     name: text("name").notNull(),
+    /**
+     * The saved base line: the position the study starts from. Null means the start position. The
+     * composite FK (see below) pins it to a position of this very repertoire and owner.
+     */
+    basePositionId: text("base_position_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     index("repertoire_userId_idx").on(table.userId),
+    basePositionFk(table),
     // Target of the composite foreign keys that tie child rows to the repertoire's owner.
     unique("repertoire_id_userId_uq").on(table.id, table.userId),
   ],

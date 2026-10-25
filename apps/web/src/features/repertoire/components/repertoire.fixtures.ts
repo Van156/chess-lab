@@ -81,6 +81,7 @@ export const c5Move = move("m3", "p1", "p3", "c5", "c7c5", false);
 export const openGameGraph = {
   repertoire: whiteRepertoire,
   startPositionId: "p0",
+  basePositionId: null,
   positions: [startPosition, afterE4, afterE5, afterC5],
   moves: [e4Move, e5Move, c5Move],
   notes: {},

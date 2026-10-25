@@ -31,6 +31,7 @@ function tree(): RepertoireData {
       updatedAt: new Date(0),
     },
     startPositionId: "start",
+    basePositionId: null,
     positions: ["start", "p1", "p2", "p3", "p4", "p5", "p6", "p7"].map(position),
     moves: [
       move("m1", "start", "p1", "e4"),

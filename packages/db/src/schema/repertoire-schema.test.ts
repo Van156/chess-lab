@@ -227,6 +227,41 @@ describe.skipIf(!reachable)("repertoire schema", () => {
         .values(cardValues(userId, { repertoirePositionId: from.id }));
     });
 
+    test("a base position must belong to its repertoire", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      const otherRep = await createRepertoire(userId);
+      const own = await createPosition(userId, rep.id);
+      const foreign = await createPosition(userId, otherRep.id);
+      const setBase = (basePositionId: string) =>
+        run(() =>
+          handle.db
+            .update(schema.repertoire)
+            .set({ basePositionId })
+            .where(eq(schema.repertoire.id, rep.id)),
+        );
+      await expect(setBase(foreign.id)).rejects.toThrow();
+      await setBase(own.id);
+    });
+
+    test("deleting the base position nulls only the base column", async () => {
+      const userId = await createUser("u1");
+      const rep = await createRepertoire(userId);
+      const pos = await createPosition(userId, rep.id);
+      await handle.db
+        .update(schema.repertoire)
+        .set({ basePositionId: pos.id })
+        .where(eq(schema.repertoire.id, rep.id));
+      await handle.db
+        .delete(schema.repertoirePosition)
+        .where(eq(schema.repertoirePosition.id, pos.id));
+      const [after] = await handle.db
+        .select()
+        .from(schema.repertoire)
+        .where(eq(schema.repertoire.id, rep.id));
+      expect(after).toMatchObject({ id: rep.id, userId, basePositionId: null });
+    });
+
     test("rejects a position whose user differs from its repertoire's user", async () => {
       const owner = await createUser("u1");
       const other = await createUser("u2");
