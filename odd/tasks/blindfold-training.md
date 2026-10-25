@@ -51,9 +51,10 @@ Add a Blindfold section. It holds:
 
 - [x] **T1: `drill_session` schema and migration** [T]. Done: `d2bfbb2` and `8da2b5e` (migration). Route: delegated (preparation and writer triggers). Schema test first. The generated migration goes in its own commit.
 - [x] **T2: `blindfold` router** [T]. Done: `1a17e74`. Route: delegated, together with T1. `recordSession` and `stats`, behind the flag, user-scoped, with integration tests.
-- [ ] **T3: Drill logic `lib/`** [T]. Square colour, coordinate parsing, diagonal squares, knight distance (BFS), and seeded question generators.
-- [ ] **T4: Route, nav and guide** [O]. Add `/blindfold` (behind the flag), the nav item, and the guide view (accordion sections and a training plan), with stories and a render test.
+- [x] **T3: Drill logic `lib/`** [T]. Done: `2d434ba`. Route: delegated (react-staff, together with T4). Square colour, coordinate parsing, diagonal squares, knight distance (BFS), and seeded question generators.
+- [x] **T4: Route, nav and guide** [O]. Done: `2ec7c9b`. Add `/blindfold` (behind the flag), the nav item, and the guide view (accordion sections and a training plan), with stories and a render test.
 - [ ] **T5: Drill player and progress** [O]. A drill picker, a timed 20-question player for each drill, a results screen that saves through `recordSession`, and a stats panel from `stats`. Render tests and stories.
+  - It also takes in the T3+T4 suggestions listed under Progress.
 
 ## Acceptance criteria
 
@@ -73,4 +74,15 @@ Add a Blindfold section. It holds:
   - `check-types` and `check` are clean. The parent re-ran the router test: 7/7 pass.
 - **Review T1+T2:** lineage `review-9662f09c39752ce4`, range `dd6e198..cacc504`. One lens (reliability) approved it with no correction. The approval is acknowledged and its authority burned. The next boundary is `cacc504`.
 - **Environment:** the shell needs `PATH=$HOME/.local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/v24.18.1/bin:$PATH` for bun, node (lefthook) and claude (the review capture).
-- T3 is next.
+- T3 and T4 are done.
+  - RED was observed first: the `./squares` module was missing. Then GREEN: 38/38 pass under `features/blindfold`, and 67/67 pass for nav and `tests/`. `check-types` and `check` are clean. The parent re-ran the feature tests: 38/38 pass.
+  - **Correction:** the brief said b1→c2 takes 3 knight moves. BFS shows 2 (b1→a3→c2). A diagonal neighbour is 2 moves, an orthogonal neighbour is 3, and a1→b2 in the corner is 4.
+  - `routeTree.gen.ts` is gitignored, so nothing to commit there.
+- **Review T3+T4:** lineage `review-d64524f25355d12d`, from tree `cacc504` (commit `c054702`) to `2ec7c9b`. Four lenses approved it with no blockers. The approval is acknowledged and its authority burned. The next boundary is the commit that records this review.
+- **Non-blocking suggestions folded into T5:**
+  - assert that the web `DRILL_KINDS` stays in sync with the API enum;
+  - validate `count` and `level` in `generateQuestions`;
+  - name the difficulty literals;
+  - fix the "Drill picker" doc comment;
+  - make the view test assert the drills content.
+- T5 is next.
