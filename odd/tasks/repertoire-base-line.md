@@ -4,7 +4,7 @@
 - **Branch:** `feat/repertoire-base-line`, branched from `feat/engine-line-preview` at `d9f2331` (the earlier features are not on `main` yet).
 - **Delivery:** `auto-chain`, `feature-branch-chain` (cached from earlier features). The forecast is about 900–1200 authored changed lines across T1–T5, so it will be sliced per task group.
 - **TDD:** the source is `openspec/config.yaml` (`strict_tdd: false`; TDD applies to pure logic). Pure `lib/` and service helpers are written test-first; components and DB-backed routers get ordinary checks. Runner: `bun test`.
-- **Review (RDD):** on (global). User policy: review every two tasks, with auto-consent. Groups: T1+T2, T3+T4, then T5. First boundary: `d9f2331`; after T1+T2: `a4e4fe6`.
+- **Review (RDD):** on (global). User policy: review every two tasks, with auto-consent. Groups: T1+T2, T3+T4, then T5. First boundary: `d9f2331`; after T1+T2: `a4e4fe6`; after T3+T4: `0afe2ac`.
 
 ## Objective
 
@@ -172,4 +172,12 @@ Out of scope:
     - no browser run (375px, 44px, a real `setBase` from the page);
     - no container-level test;
     - duplicate accessible labels when the full-tree fold is open.
-- Next: review T3+T4, then T5.
+- **Review T3+T4.**
+  - Range: base `a4e4fe6` through `0afe2ac`, committed-only, `.codegraph/` excluded.
+  - Consent granted (standing). One lens (reliability). **Approved** and acknowledged (lineage `review-22036e8426faa6f1`, authority burned).
+  - Findings (non-blocking):
+    - R3-full-tree-fold-duplicate-current (WARNING): with the full-tree fold open, moves after the base on the shown line render twice with `aria-current`, and both trees share the collapsed set. No test renders the fold open. **Accepted into T5**, which reworks the same tree.
+    - R3-resolve-orphan-base (SUGGESTION): `resolvePosition` uses a base that is held but unreachable, while the header treats it as no base. **Accepted into T5**: use the same reachability rule in both.
+    - R3-changebase-wiring-untested (SUGGESTION): the container's `changeBase` (pin, toast, disabling) has no container test. Follow-up.
+  - Next review boundary: `0afe2ac`.
+- Next: T5.
