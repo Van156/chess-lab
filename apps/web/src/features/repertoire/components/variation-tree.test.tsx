@@ -49,6 +49,29 @@ describe("VariationTree", () => {
     expect(html).toContain('aria-label="2. Nc3, your move, alternative to 2. Nf3"');
   });
 
+  test("shows White and Black on one row and the move number once", () => {
+    const html = renderToStaticMarkup(
+      <VariationTree
+        tree={buildVariationTree(
+          { startPositionId: "p0", moves: openGameGraph.moves.slice(0, 2) },
+          [],
+        )}
+        startPositionId="p0"
+        atStart
+        onSelect={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(html.match(/<li>/g)).toHaveLength(1);
+    expect(html).toMatch(/1\.<\/span>.*>e4<.*>e5</);
+    expect(html).not.toContain(">1...</span>");
+  });
+
+  test("continues Black's reply on a `N...` row after a White fork", () => {
+    const html = render();
+    expect(html).toMatch(/1\.\.\.<\/span>.*aria-label="1\.\.\. e5, opponent reply"/);
+  });
+
   test("keeps only-child chains flat, without a group", () => {
     const html = renderToStaticMarkup(
       <VariationTree

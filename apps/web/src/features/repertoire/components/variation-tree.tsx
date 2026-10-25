@@ -10,6 +10,7 @@ import {
   toggleCollapsed,
   type CollapsedForks,
 } from "../lib/tree-outline";
+import { toMoveRows } from "../lib/move-rows";
 import type { TreeLine, TreeNode } from "../lib/variation-tree";
 
 export type VariationTreeProps = {
@@ -34,7 +35,8 @@ type Actions = {
 const iconButton =
   "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function NodeRow({
+/** One half-move: its select button, the fold toggle when it forks and a delete button. */
+function HalfMove({
   node,
   alternativeTo,
   actions,
@@ -44,17 +46,16 @@ function NodeRow({
   actions: Actions;
 }) {
   const { collapsed, onToggle, onSelect, onDelete } = actions;
-  const forks = node.alternatives.length > 0;
   const open = isForkOpen(collapsed, node);
   return (
     <div
       className={cn(
-        "flex items-center rounded-md",
+        "flex min-w-0 items-center rounded-md",
         node.onPath && "bg-accent/40",
         node.isCurrent && "bg-accent",
       )}
     >
-      {forks ? (
+      {node.alternatives.length > 0 ? (
         <button
           type="button"
           aria-expanded={open}
@@ -69,20 +70,15 @@ function NodeRow({
             <ChevronRight aria-hidden className="size-4" />
           )}
         </button>
-      ) : (
-        <span aria-hidden className="min-w-11 shrink-0" />
-      )}
+      ) : null}
       <button
         type="button"
         aria-label={describeTreeNode(node, { alternativeTo })}
         aria-current={node.isCurrent ? "location" : undefined}
-        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
         onClick={() => onSelect(node.positionId, node.route)}
       >
-        <span className={cn("font-mono", node.onPath && "font-semibold")}>{node.label}</span>
-        <span className="text-xs text-muted-foreground">
-          {node.side === "you" ? "you" : "reply"}
-        </span>
+        <span className={cn("font-mono", node.onPath && "font-semibold")}>{node.san}</span>
         {alternativeTo ? (
           <span className="rounded-sm bg-primary/10 px-1.5 text-xs font-medium text-primary">
             alternative
@@ -98,7 +94,7 @@ function NodeRow({
       <Button
         type="button"
         variant="ghost"
-        className="h-11 w-11 shrink-0 px-0"
+        className="h-11 w-11 shrink-0 px-0 text-muted-foreground"
         aria-label={`Delete ${node.label} and its continuations`}
         onClick={() => onDelete(node.moveId)}
       >
@@ -109,9 +105,9 @@ function NodeRow({
 }
 
 /**
- * A flat run of moves. A move that has alternatives is followed by them, in a bracket of their
- * own (a left rule, dashed, with an "alternative" tag), before the move that continues the line:
- * an alternative can never be read as the next move of the line above it.
+ * A line as full-move rows (`1. e4 e5`). A row that forks is followed by its alternatives, in a
+ * bracket of their own (a left rule, dashed, with an "alternative" tag), before the row that
+ * continues the line: an alternative can never be read as the next move of the line above it.
  */
 function Line({
   line,
@@ -124,33 +120,48 @@ function Line({
 }) {
   return (
     <ol>
-      {line.nodes.map((node, index) => (
-        <li key={node.moveId}>
-          <NodeRow
-            node={node}
-            alternativeTo={index === 0 ? alternativeTo : undefined}
-            actions={actions}
-          />
-          {node.alternatives.length > 0 && isForkOpen(actions.collapsed, node) ? (
-            <ul
-              aria-label={`Alternatives to ${node.label}`}
-              className="my-1 ml-5 flex flex-col gap-1 border-l-2 border-dashed border-primary/50 pl-2"
-            >
-              {node.alternatives.map((alternative) => (
-                <li key={alternative.nodes[0]?.moveId}>
-                  <Line line={alternative} alternativeTo={node.label} actions={actions} />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </li>
-      ))}
+      {toMoveRows(line).map((row, index) => {
+        const { white, black, fork } = row;
+        const key = (white ?? black)?.moveId;
+        // Only the first half-move of an alternative is marked as the alternative.
+        const markFirst = index === 0 ? alternativeTo : undefined;
+        return (
+          <li key={key}>
+            <div className="flex flex-wrap items-center gap-x-1">
+              <span aria-hidden className="w-9 shrink-0 text-right font-mono text-muted-foreground">
+                {row.moveNumber}
+                {white ? "." : "..."}
+              </span>
+              {white ? <HalfMove node={white} alternativeTo={markFirst} actions={actions} /> : null}
+              {black ? (
+                <HalfMove
+                  node={black}
+                  alternativeTo={white ? undefined : markFirst}
+                  actions={actions}
+                />
+              ) : null}
+            </div>
+            {fork && isForkOpen(actions.collapsed, fork) ? (
+              <ul
+                aria-label={`Alternatives to ${fork.label}`}
+                className="my-1 ml-5 flex flex-col gap-1 border-l-2 border-dashed border-primary/50 pl-2"
+              >
+                {fork.alternatives.map((alternative) => (
+                  <li key={alternative.nodes[0]?.moveId}>
+                    <Line line={alternative} alternativeTo={fork.label} actions={actions} />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
 /**
- * The repertoire as an outline (presentational): chains of only-children are flat, alternatives at
+ * The repertoire as an outline (presentational): lines read as full-move rows, alternatives at
  * a fork are indented and marked, the line being shown is highlighted, any move can be selected or
  * deleted and the alternatives of a fork can be folded. Transposition leaves point back.
  *
