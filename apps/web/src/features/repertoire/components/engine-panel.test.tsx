@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import EnginePanel, { type EnginePanelProps } from "./engine-panel";
+import { LINE_COLOURS } from "../lib/line-colours";
 import { engineLines } from "./repertoire.fixtures";
 
 const doneState: EnginePanelProps["state"] = {
@@ -51,6 +52,15 @@ describe("EnginePanel", () => {
     expect(
       render({ state: { kind: "analysing", depth: 11, maxDepth: 18, lines: engineLines } }),
     ).toContain("Depth 11/18");
+  });
+
+  test("marks each line with its number and the colour of its board arrow", () => {
+    const html = render();
+    expect(html.match(/data-slot="engine-line-swatch"/g)).toHaveLength(3);
+    for (const [rank, entry] of LINE_COLOURS.slice(0, 3).entries()) {
+      expect(html).toContain(`background-color:${entry.color}`);
+      expect(html).toContain(`Line ${rank + 1}, ${entry.name} on the board`);
+    }
   });
 
   test("lists each line with its score text, its accessible label and its moves", () => {

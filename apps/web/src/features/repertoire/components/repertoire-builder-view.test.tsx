@@ -163,7 +163,7 @@ describe("RepertoireBuilderView", () => {
 
   test("describes the engine lines and repertoire moves next to the idea-note arrows", async () => {
     const html = await render({ note: centreNote });
-    expect(html).toContain("Engine lines, best first: e4, d4, Nf3.");
+    expect(html).toContain("Engine lines, best first: 1 e4 (blue), 2 d4 (violet), 3 Nf3 (pink).");
     expect(html).toContain("Repertoire moves: e5, c5.");
     expect(html).toContain("Arrows: g1 to f3, f1 to c4.");
   });

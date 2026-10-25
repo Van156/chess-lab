@@ -1,31 +1,33 @@
-import { boardTheme, type BoardArrow } from "@/shared/components/board";
+import type { BoardArrow } from "@/shared/components/board";
 
 import { bestMoveArrow, type SuggestionLine } from "./engine-view";
+import { lineColour } from "./line-colours";
 import { clampLineCount } from "./lines-preference";
 import type { RepertoireMove } from "./repertoire-types";
 import type { EnginePanelState } from "./suggestion-state";
 
-/** Repertoire moves get their own colour (amber), apart from the blue engine and mint note arrows. */
+/** Repertoire moves get their own colour (amber), apart from the engine's per-line colours and the mint note arrows. */
 export const REPERTOIRE_ARROW_COLOR = "#f5a524";
 
 /**
- * Opacity (hex alpha) of the engine arrow by rank, best first. The board takes a colour, not a
- * width, so strength is carried by opacity; the best line keeps the plain engine colour.
+ * Opacity (hex alpha) of the engine arrow by rank, best first. Each rank has its own colour, so
+ * the fade only keeps the best line the strongest; the weakest stays well readable.
  */
-const RANK_ALPHA = ["", "bf", "8c", "66", "4d"] as const;
+const RANK_ALPHA = ["", "e6", "d1", "bf", "b0"] as const;
 
 /**
  * The engine lines that reach the board: the first `lineCount`, in the engine's order (best
- * first), each with its arrow. A line whose move cannot be drawn is left out, so the arrows and
- * their description are built from the same list and cannot disagree.
+ * first), each with its arrow and its rank. A line whose move cannot be drawn is left out, but the
+ * others keep their rank, and so their colour; the arrows and their description are built from
+ * the same list and cannot disagree.
  */
 function drawnLines(
   lines: readonly SuggestionLine[],
   lineCount: number,
-): { line: SuggestionLine; arrow: BoardArrow }[] {
-  return lines.slice(0, clampLineCount(lineCount)).flatMap((line) => {
+): { line: SuggestionLine; arrow: BoardArrow; rank: number }[] {
+  return lines.slice(0, clampLineCount(lineCount)).flatMap((line, rank) => {
     const arrow = bestMoveArrow([line.firstMove.uci]);
-    return arrow ? [{ line, arrow }] : [];
+    return arrow ? [{ line, arrow, rank }] : [];
   });
 }
 
@@ -54,9 +56,9 @@ export function buildBoardArrows({
   showRepertoire,
 }: BoardLinesInput): BoardArrow[] {
   const engine = drawnLines(engineLines, lineCount)
-    .map(({ arrow }, rank) => ({
+    .map(({ arrow, rank }) => ({
       ...arrow,
-      color: `${boardTheme.engineArrow}${RANK_ALPHA[rank] ?? ""}`,
+      color: `${lineColour(rank).color}${RANK_ALPHA[rank] ?? ""}`,
     }))
     .reverse();
   const repertoire = showRepertoire
@@ -89,7 +91,9 @@ export function describeBoardLines(
   repertoireMoves: readonly RepertoireMove[],
   showRepertoire: boolean,
 ): string {
-  const engine = drawnLines(engineLines, lineCount).map(({ line }) => line.firstMove.san);
+  const engine = drawnLines(engineLines, lineCount).map(
+    ({ line, rank }) => `${rank + 1} ${line.firstMove.san} (${lineColour(rank).name})`,
+  );
   const parts = [
     engine.length > 0 ? `Engine lines, best first: ${engine.join(", ")}.` : "",
     showRepertoire && repertoireMoves.length > 0

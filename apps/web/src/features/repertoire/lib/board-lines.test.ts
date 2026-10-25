@@ -9,6 +9,7 @@ import {
   describeBoardLines,
 } from "./board-lines";
 import type { SuggestionLine } from "./engine-view";
+import { LINE_COLOURS } from "./line-colours";
 import type { EnginePanelState } from "./suggestion-state";
 import type { RepertoireMove } from "./repertoire-types";
 
@@ -57,18 +58,24 @@ describe("buildBoardArrows", () => {
     expect(keys(arrows)).toEqual(["g1f3", "d2d4", "e2e4"]);
   });
 
-  test("the best line is in the engine colour and the others fade with rank", () => {
+  test("each line has its own colour: the best in the engine blue, the rest fading with rank", () => {
     const [third, second, best] = buildBoardArrows(input({ lineCount: 3 }));
-    expect(best?.color).toBe(boardTheme.engineArrow);
-    expect(second?.color).toStartWith(boardTheme.engineArrow);
-    expect(third?.color).toStartWith(boardTheme.engineArrow);
+    expect(best?.color).toBe(LINE_COLOURS[0]?.color);
+    expect(second?.color).toStartWith(LINE_COLOURS[1]?.color ?? "");
+    expect(third?.color).toStartWith(LINE_COLOURS[2]?.color ?? "");
     expect(new Set([best?.color, second?.color, third?.color]).size).toBe(3);
   });
 
-  test("five lines give five distinct strengths", () => {
+  test("five lines give five distinct colours", () => {
     const arrows = buildBoardArrows(input({ lineCount: 5 }));
     expect(arrows).toHaveLength(5);
-    expect(new Set(arrows.map((arrow) => arrow.color)).size).toBe(5);
+    expect(new Set(arrows.map((arrow) => arrow.color?.slice(0, 7))).size).toBe(5);
+  });
+
+  test("a line keeps its rank colour when an earlier line cannot be drawn", () => {
+    const broken = [engineLine(1, "??", "zz"), engineLine(2, "d4", "d2d4")];
+    const [arrow] = buildBoardArrows(input({ engineLines: broken, lineCount: 2 }));
+    expect(arrow?.color).toStartWith(LINE_COLOURS[1]?.color ?? "");
   });
 
   test("a count of one draws only the best line, exactly as the single-arrow board did", () => {
@@ -175,38 +182,42 @@ describe("buildBoardArrows", () => {
 describe("describeBoardLines", () => {
   test("lists the engine lines, best first, and the repertoire moves", () => {
     const text = describeBoardLines(lines, 3, [repertoireMove("c4", "c2c4")], true);
-    expect(text).toBe("Engine lines, best first: e4, d4, Nf3. Repertoire moves: c4.");
+    expect(text).toBe(
+      "Engine lines, best first: 1 e4 (blue), 2 d4 (violet), 3 Nf3 (pink). Repertoire moves: c4.",
+    );
   });
 
   test("stays complete when arrows collapse onto the same squares", () => {
     const text = describeBoardLines(lines, 2, [repertoireMove("e4", "e2e4")], true);
-    expect(text).toContain("e4, d4");
+    expect(text).toContain("1 e4 (blue), 2 d4 (violet)");
     expect(text).toContain("Repertoire moves: e4.");
   });
 
   test("leaves out the repertoire moves when the toggle is off", () => {
     const text = describeBoardLines(lines, 1, [repertoireMove("c4", "c2c4")], false);
-    expect(text).toBe("Engine lines, best first: e4.");
+    expect(text).toBe("Engine lines, best first: 1 e4 (blue).");
   });
 
   test("says nothing about a list that is empty, and nothing at all when both are", () => {
     expect(describeBoardLines([], 3, [repertoireMove("c4", "c2c4")], true)).toBe(
       "Repertoire moves: c4.",
     );
-    expect(describeBoardLines(lines, 1, [], true)).toBe("Engine lines, best first: e4.");
+    expect(describeBoardLines(lines, 1, [], true)).toBe("Engine lines, best first: 1 e4 (blue).");
     expect(describeBoardLines([], 3, [], true)).toBe("");
   });
 
   test("follows the clamped count", () => {
     expect(describeBoardLines(lines, 9, [], true)).toContain("g3");
-    expect(describeBoardLines(lines, 0, [], true)).toBe("Engine lines, best first: e4.");
+    expect(describeBoardLines(lines, 0, [], true)).toBe("Engine lines, best first: 1 e4 (blue).");
   });
 });
 
 describe("describeBoardLines and buildBoardArrows agree", () => {
   test("names no engine line whose move cannot be drawn", () => {
     const broken = [engineLine(1, "??", "zz"), engineLine(2, "d4", "d2d4")];
-    expect(describeBoardLines(broken, 3, [], true)).toBe("Engine lines, best first: d4.");
+    expect(describeBoardLines(broken, 3, [], true)).toBe(
+      "Engine lines, best first: 2 d4 (violet).",
+    );
     expect(keys(buildBoardArrows(input({ engineLines: broken })))).toEqual(["d2d4"]);
   });
 
@@ -232,7 +243,9 @@ describe("boardLinesFor", () => {
   test("draws and describes the engine lines of a finished search", () => {
     const out = boardLinesFor({ ...base, panel: done(lines) });
     expect(keys(out.arrows)).toEqual(["d2d4", "e2e4", "c2c4"]);
-    expect(out.text).toBe("Engine lines, best first: e4, d4. Repertoire moves: c4.");
+    expect(out.text).toBe(
+      "Engine lines, best first: 1 e4 (blue), 2 d4 (violet). Repertoire moves: c4.",
+    );
   });
 
   test("uses the lines found so far while the search is analysing", () => {
@@ -244,7 +257,7 @@ describe("boardLinesFor", () => {
     };
     const out = boardLinesFor({ ...base, panel });
     expect(keys(out.arrows)).toEqual(["e2e4", "c2c4"]);
-    expect(out.text).toBe("Engine lines, best first: e4. Repertoire moves: c4.");
+    expect(out.text).toBe("Engine lines, best first: 1 e4 (blue). Repertoire moves: c4.");
   });
 
   test.each<EnginePanelState>([

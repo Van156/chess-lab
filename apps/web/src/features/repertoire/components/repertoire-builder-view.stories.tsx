@@ -122,12 +122,15 @@ export const OneEngineLine: Story = {
   args: {
     lineCount: 1,
     boardArrows: midLineArrows.slice(-3),
-    boardArrowText: "Engine lines, best first: e4.",
+    boardArrowText: "Engine lines, best first: 1 e4 (blue).",
   },
 };
 
 export const RepertoireArrowsOff: Story = {
-  args: { showRepertoireArrows: false, boardArrowText: "Engine lines, best first: e4, d4, Nf3." },
+  args: {
+    showRepertoireArrows: false,
+    boardArrowText: "Engine lines, best first: 1 e4 (blue), 2 d4 (violet), 3 Nf3 (pink).",
+  },
 };
 
 export const EngineUnavailable: Story = {

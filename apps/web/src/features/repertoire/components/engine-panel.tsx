@@ -3,6 +3,7 @@ import { Button } from "@b2c-template/ui/components/button";
 import { Skeleton } from "@b2c-template/ui/components/skeleton";
 import { Switch } from "@b2c-template/ui/components/switch";
 
+import { lineColour } from "../lib/line-colours";
 import type { EnginePanelState } from "../lib/suggestion-state";
 
 export type { EnginePanelState };
@@ -28,8 +29,9 @@ function announcement(state: EnginePanelState): string {
 
 /**
  * Stockfish suggestions for the current position (presentational): an on/off switch, the search
- * depth and the engine lines (one to five, as chosen on the board toolbar) with their scores as text. A line's first move can be added to the
- * repertoire, or is marked when it is already there. The builder works whatever state this shows.
+ * depth and the engine lines (one to five, as chosen on the board toolbar). Each line carries its
+ * number and the colour of its board arrow, and its score as text. A line's first move can be
+ * added to the repertoire, or is marked when it is already there. The builder works whatever state this shows.
  */
 export default function EnginePanel({
   state,
@@ -98,11 +100,26 @@ export default function EnginePanel({
             )
           ) : (
             <ol data-slot="engine-lines" className="flex flex-col gap-2">
-              {search.lines.map((line) => (
+              {search.lines.map((line, rank) => (
                 <li
                   key={line.multipv}
                   className="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-md border p-2"
                 >
+                  <span
+                    data-slot="engine-line-rank"
+                    className="flex shrink-0 items-center gap-1.5 font-mono text-sm font-semibold"
+                  >
+                    <span
+                      aria-hidden="true"
+                      data-slot="engine-line-swatch"
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: lineColour(rank).color }}
+                    />
+                    <span aria-hidden="true">{rank + 1}</span>
+                    <span className="sr-only">
+                      Line {rank + 1}, {lineColour(rank).name} on the board
+                    </span>
+                  </span>
                   <span
                     aria-hidden="true"
                     className="w-14 shrink-0 font-mono text-sm font-semibold"
