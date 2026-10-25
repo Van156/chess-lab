@@ -10,6 +10,7 @@ import {
   MAX_LINE_NAME_LENGTH,
   REPERTOIRE_NAME_MAX_LENGTH,
 } from "../lib/repertoire-limits";
+import { deletionSnapshotSchema } from "../lib/repertoire-snapshot";
 import { createRepertoireService } from "../services/repertoire-service";
 
 const repertoireProcedure = featureProcedure("repertoire");
@@ -112,10 +113,21 @@ export const repertoireRouter = {
       z.object({ repertoireId: id, fromPositionId: id, move: z.string().trim().min(1).max(16) }),
     )
     .handler(({ input, context }) => service(context).addMove(context.session.user.id, input)),
-  /** Removes the move and every position no longer reachable from the start position. */
+  /** Removes the move and every position no longer reachable from the start position. Returns the
+   * removed rows as `snapshot`, which `restoreDeleted` takes back. */
   deleteMove: repertoireProcedure
     .input(z.object({ repertoireId: id, moveId: id }))
     .handler(({ input, context }) => service(context).deleteMove(context.session.user.id, input)),
+  /**
+   * Undoes a `deleteMove` from the snapshot it returned. `CONFLICT` (`data.reason`: `parent_missing`,
+   * `edge_exists`, `move_exists`, `position_conflict`) when the tree changed; `BAD_REQUEST` for a
+   * snapshot of another repertoire or one that is not valid.
+   */
+  restoreDeleted: repertoireProcedure
+    .input(z.object({ repertoireId: id, snapshot: deletionSnapshotSchema }))
+    .handler(({ input, context }) =>
+      service(context).restoreDeleted(context.session.user.id, input),
+    ),
   /** Saves the base line position, or clears it with `positionId: null`. */
   setBase: repertoireProcedure
     .input(z.object({ repertoireId: id, positionId: id.nullable() }))

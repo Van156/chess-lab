@@ -10,9 +10,11 @@ import {
 } from "@b2c-template/db/schema/repertoire";
 import { userSettings } from "@b2c-template/db/schema/settings";
 import { ORPCError } from "@orpc/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 
 import { parsePerfSnapshot } from "../lib/perf-snapshot";
+import { buildDeletionSnapshot, planRestore } from "../lib/repertoire-snapshot";
+import type { DeletionSnapshot } from "../lib/repertoire-snapshot";
 import { isUserMove, reachablePositionIds, rowsToGraph } from "./repertoire-rows";
 
 export type Square = string;
@@ -72,6 +74,86 @@ async function loadRows(tx: Tx, repertoireId: string, userId: string) {
     .where(and(eq(repertoireMove.repertoireId, repertoireId), eq(repertoireMove.userId, userId)))
     .orderBy(asc(repertoireMove.createdAt), asc(repertoireMove.id));
   return { positions, moves };
+}
+
+const iso = (date: Date) => date.toISOString();
+
+/** Reads the exact rows `deleteMove` is about to remove, ids and timestamps included. */
+async function readSnapshot(
+  tx: Tx,
+  input: { repertoireId: string; moveId: string },
+  userId: string,
+  unreachable: string[],
+): Promise<DeletionSnapshot> {
+  const removed = new Set(unreachable);
+  const positionRows =
+    unreachable.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(repertoirePosition)
+          .where(
+            and(inArray(repertoirePosition.id, unreachable), eq(repertoirePosition.userId, userId)),
+          );
+  const moveRows = await tx
+    .select()
+    .from(repertoireMove)
+    .where(
+      and(
+        eq(repertoireMove.userId, userId),
+        unreachable.length === 0
+          ? eq(repertoireMove.id, input.moveId)
+          : or(
+              eq(repertoireMove.id, input.moveId),
+              inArray(repertoireMove.fromPositionId, unreachable),
+            ),
+      ),
+    );
+  const noteRows =
+    unreachable.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(ideaNote)
+          .where(
+            and(inArray(ideaNote.repertoirePositionId, unreachable), eq(ideaNote.userId, userId)),
+          );
+  const [rep] = await tx
+    .select({ basePositionId: repertoire.basePositionId })
+    .from(repertoire)
+    .where(and(eq(repertoire.id, input.repertoireId), eq(repertoire.userId, userId)));
+  return buildDeletionSnapshot({
+    repertoireId: input.repertoireId,
+    deletedMoveId: input.moveId,
+    removedPositionIds: removed,
+    positions: positionRows.map((p) => ({
+      id: p.id,
+      positionKey: p.positionKey,
+      fen: p.fen,
+      sideToMove: p.sideToMove,
+      createdAt: iso(p.createdAt),
+      updatedAt: iso(p.updatedAt),
+    })),
+    moves: moveRows.map((m) => ({
+      id: m.id,
+      fromPositionId: m.fromPositionId,
+      toPositionId: m.toPositionId,
+      san: m.san,
+      uci: m.uci,
+      name: m.name,
+      createdAt: iso(m.createdAt),
+      updatedAt: iso(m.updatedAt),
+    })),
+    ideaNotes: noteRows.map((n) => ({
+      repertoirePositionId: n.repertoirePositionId,
+      arrows: n.arrows as DeletionSnapshot["ideaNotes"][number]["arrows"],
+      highlights: n.highlights as DeletionSnapshot["ideaNotes"][number]["highlights"],
+      plan: n.plan,
+      createdAt: iso(n.createdAt),
+      updatedAt: iso(n.updatedAt),
+    })),
+    basePositionId: rep?.basePositionId ?? null,
+  });
 }
 
 export function createRepertoireService(db: Database) {
@@ -307,6 +389,7 @@ export function createRepertoireService(db: Database) {
       const start = positions.find((p) => p.positionKey === startKey)!;
       const reachable = reachablePositionIds(start.id, remaining);
       const unreachable = positions.filter((p) => !reachable.has(p.id)).map((p) => p.id);
+      const snapshot = await readSnapshot(tx, input, userId, unreachable);
 
       // The edge goes first; deleting a position cascades to its moves and its idea note.
       await tx
@@ -323,6 +406,116 @@ export function createRepertoireService(db: Database) {
       return {
         removedMoves: moves.length - survivingMoves.length,
         removedPositions: unreachable.length,
+        snapshot,
+      };
+    });
+  }
+
+  /**
+   * Puts back what a `deleteMove` removed, from the snapshot it returned, in one transaction. The
+   * snapshot is client data: `userId` comes from the session, the rows are re-validated, and a
+   * snapshot that no longer fits the tree (parent gone, edge taken) is a `CONFLICT` with a
+   * `data.reason`, with nothing inserted. A position that exists again is reused, see `planRestore`.
+   */
+  async function restoreDeleted(
+    userId: string,
+    input: { repertoireId: string; snapshot: DeletionSnapshot },
+  ) {
+    return db.transaction(async (tx) => {
+      await lockRepertoire(tx, input.repertoireId, userId);
+      const { snapshot } = input;
+      if (snapshot.repertoireId !== input.repertoireId) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "The snapshot belongs to another repertoire.",
+        });
+      }
+      const { positions, moves } = await loadRows(tx, input.repertoireId, userId);
+      const noteRows =
+        positions.length === 0
+          ? []
+          : await tx
+              .select({ id: ideaNote.repertoirePositionId })
+              .from(ideaNote)
+              .where(
+                and(
+                  eq(ideaNote.userId, userId),
+                  inArray(
+                    ideaNote.repertoirePositionId,
+                    positions.map((p) => p.id),
+                  ),
+                ),
+              );
+      const [rep] = await tx
+        .select({ basePositionId: repertoire.basePositionId })
+        .from(repertoire)
+        .where(and(eq(repertoire.id, input.repertoireId), eq(repertoire.userId, userId)));
+
+      const plan = planRestore(snapshot, {
+        positions,
+        moves,
+        notedPositionIds: new Set(noteRows.map((n) => n.id)),
+        currentBasePositionId: rep?.basePositionId ?? null,
+      });
+      if (!plan.ok) {
+        if (plan.reason === "invalid_snapshot") {
+          throw new ORPCError("BAD_REQUEST", { message: "The snapshot is not valid." });
+        }
+        throw new ORPCError("CONFLICT", {
+          message: "The tree changed since the deletion, so it cannot be restored.",
+          data: { reason: plan.reason },
+        });
+      }
+
+      const owner = { repertoireId: input.repertoireId, userId };
+      if (plan.positions.length > 0) {
+        await tx.insert(repertoirePosition).values(
+          plan.positions.map((p) => ({
+            ...owner,
+            id: p.id,
+            positionKey: p.positionKey,
+            fen: p.fen,
+            sideToMove: p.sideToMove,
+            createdAt: new Date(p.createdAt),
+            updatedAt: new Date(p.updatedAt),
+          })),
+        );
+      }
+      await tx.insert(repertoireMove).values(
+        plan.moves.map((m) => ({
+          ...owner,
+          id: m.id,
+          fromPositionId: m.fromPositionId,
+          toPositionId: m.toPositionId,
+          san: m.san,
+          uci: m.uci,
+          name: m.name,
+          createdAt: new Date(m.createdAt),
+          updatedAt: new Date(m.updatedAt),
+        })),
+      );
+      if (plan.ideaNotes.length > 0) {
+        await tx.insert(ideaNote).values(
+          plan.ideaNotes.map((n) => ({
+            userId,
+            repertoirePositionId: n.repertoirePositionId,
+            arrows: n.arrows,
+            highlights: n.highlights,
+            plan: n.plan,
+            createdAt: new Date(n.createdAt),
+            updatedAt: new Date(n.updatedAt),
+          })),
+        );
+      }
+      if (plan.basePositionId !== null) {
+        await tx
+          .update(repertoire)
+          .set({ basePositionId: plan.basePositionId })
+          .where(and(eq(repertoire.id, input.repertoireId), eq(repertoire.userId, userId)));
+      }
+      return {
+        restoredMoveId: snapshot.deletedMoveId,
+        restoredMoves: plan.moves.length,
+        restoredPositions: plan.positions.length,
       };
     });
   }
@@ -427,6 +620,7 @@ export function createRepertoireService(db: Database) {
     explorerContext,
     addMove,
     deleteMove,
+    restoreDeleted,
     setBase,
     renameLine,
     setIdeaNote,

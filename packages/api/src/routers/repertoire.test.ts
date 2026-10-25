@@ -251,7 +251,7 @@ describe.skipIf(!reachable)("repertoire router", () => {
         { repertoireId: id, moveId: e4.id },
         as("u1"),
       );
-      expect(removed).toEqual({ removedMoves: 3, removedPositions: 3 });
+      expect(removed).toMatchObject({ removedMoves: 3, removedPositions: 3 });
       const after = await call(repertoireRouter.get, { id }, as("u1"));
       expect(after.positions.map((p) => p.id)).toEqual([startId]);
       expect(ids).toHaveLength(4);
@@ -294,6 +294,228 @@ describe.skipIf(!reachable)("repertoire router", () => {
       expect(
         await codeOf(call(repertoireRouter.deleteMove, { repertoireId: id, moveId }, as("u1"))),
       ).toBe("NOT_FOUND");
+    });
+  });
+
+  describe("deleteMove snapshot and restoreDeleted", () => {
+    /** Every stored row of one repertoire, ordered by id, for exact before/after comparison. */
+    async function dump(repertoireId: string) {
+      const byId = <T extends { id: string }>(rows: T[]) =>
+        rows.toSorted((a, b) => a.id.localeCompare(b.id));
+      const positions = byId(
+        await handle.db
+          .select()
+          .from(repertoirePosition)
+          .where(eq(repertoirePosition.repertoireId, repertoireId)),
+      );
+      const moves = byId(
+        await handle.db
+          .select()
+          .from(repertoireMove)
+          .where(eq(repertoireMove.repertoireId, repertoireId)),
+      );
+      const notes = (await handle.db.select().from(ideaNote)).toSorted((a, b) =>
+        a.repertoirePositionId.localeCompare(b.repertoirePositionId),
+      );
+      const [rep] = await handle.db
+        .select()
+        .from(repertoire)
+        .where(eq(repertoire.id, repertoireId));
+      return { positions, moves, notes, basePositionId: rep!.basePositionId };
+    }
+
+    async function treeOf(id: string) {
+      return call(repertoireRouter.get, { id }, as("u1"));
+    }
+
+    test("round trip: names, notes and the base come back as the identical rows", async () => {
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5", "Nf3"]);
+      await line(id, startId, ["d4"]);
+      const tree = await treeOf(id);
+      const e4 = tree.moves.find((m) => m.fromPositionId === startId && m.san === "e4")!;
+      const e5 = tree.moves.find((m) => m.fromPositionId === ids[1])!;
+      await call(
+        repertoireRouter.renameLine,
+        { repertoireId: id, moveId: e5.id, name: "Open game" },
+        as("u1"),
+      );
+      await call(
+        repertoireRouter.setIdeaNote,
+        {
+          repertoireId: id,
+          positionId: ids[2]!,
+          arrows: [{ from: "g1", to: "f3" }],
+          highlights: ["e5"],
+          plan: "Develop",
+        },
+        as("u1"),
+      );
+      await call(repertoireRouter.setBase, { repertoireId: id, positionId: ids[3]! }, as("u1"));
+      const before = await dump(id);
+
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: e4.id },
+        as("u1"),
+      );
+      expect(removed.removedMoves).toBe(3);
+      expect(removed.removedPositions).toBe(3);
+      expect(removed.snapshot.version).toBe(1);
+      expect(removed.snapshot.deletedMoveId).toBe(e4.id);
+      expect(removed.snapshot.positions.map((p) => p.id).toSorted()).toEqual(
+        ids.slice(1).toSorted(),
+      );
+      expect(removed.snapshot.moves).toHaveLength(3);
+      expect(removed.snapshot.ideaNotes).toHaveLength(1);
+      expect(removed.snapshot.basePositionId).toBe(ids[3]!);
+      expect((await dump(id)).basePositionId).toBeNull();
+
+      // Through JSON, as the client sends it back.
+      const snapshot = JSON.parse(JSON.stringify(removed.snapshot));
+      const restored = await call(
+        repertoireRouter.restoreDeleted,
+        { repertoireId: id, snapshot },
+        as("u1"),
+      );
+      expect(restored.restoredMoveId).toBe(e4.id);
+      expect(await dump(id)).toEqual(before);
+      expect((await treeOf(id)).moves.find((m) => m.id === e5.id)!.name).toBe("Open game");
+    });
+
+    test("a position that stays reachable by transposition is not in the snapshot", async () => {
+      const { id, startId } = await newRepertoire();
+      const a = await line(id, startId, ["d4", "Nf6", "c4"]);
+      await line(id, startId, ["c4", "Nf6", "d4"]);
+      const before = await dump(id);
+      const tree = await treeOf(id);
+      const d4 = tree.moves.find((m) => m.fromPositionId === startId && m.san === "d4")!;
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: d4.id },
+        as("u1"),
+      );
+      expect(removed.snapshot.positions.map((p) => p.id)).not.toContain(a[3]!);
+      // Its move into the survivor leaves with the pruned position, so it is in the snapshot.
+      expect(removed.snapshot.moves.some((m) => m.toPositionId === a[3]!)).toBe(true);
+      await call(
+        repertoireRouter.restoreDeleted,
+        { repertoireId: id, snapshot: removed.snapshot },
+        as("u1"),
+      );
+      expect(await dump(id)).toEqual(before);
+    });
+
+    test("a position re-added through another route is reused and its moves are remapped", async () => {
+      const { id, startId } = await newRepertoire();
+      const a = await line(id, startId, ["d4", "Nf6", "c4"]);
+      const tree = await treeOf(id);
+      const d4 = tree.moves.find((m) => m.fromPositionId === startId)!;
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: d4.id },
+        as("u1"),
+      );
+      expect(removed.snapshot.positions.map((p) => p.id)).toContain(a[3]!);
+      // The same position comes back through a different move order, under a new id.
+      const again = await line(id, startId, ["c4", "Nf6", "d4"]);
+      expect(again[3]).not.toBe(a[3]);
+      await call(
+        repertoireRouter.restoreDeleted,
+        { repertoireId: id, snapshot: removed.snapshot },
+        as("u1"),
+      );
+      const after = await treeOf(id);
+      expect(after.positions.filter((p) => p.id === a[3]! || p.id === again[3]!)).toHaveLength(1);
+      expect(after.positions.some((p) => p.id === again[3]!)).toBe(true);
+      const c4 = after.moves.find((m) => m.fromPositionId === a[2]!)!;
+      expect(c4.toPositionId).toBe(again[3]!);
+      expect(after.positions).toHaveLength(1 + 3 + 3 - 1);
+    });
+
+    test("restore is a CONFLICT with a reason, and inserts nothing", async () => {
+      const reason = async (promise: Promise<unknown>) => {
+        try {
+          await promise;
+        } catch (error) {
+          return error instanceof ORPCError
+            ? `${error.code}:${(error.data as { reason: string }).reason}`
+            : "OTHER";
+        }
+        return undefined;
+      };
+      const { id, startId } = await newRepertoire();
+      const ids = await line(id, startId, ["e4", "e5", "Nf3"]);
+      const tree = await treeOf(id);
+      const e4 = tree.moves.find((m) => m.fromPositionId === startId)!;
+      const e5 = tree.moves.find((m) => m.fromPositionId === ids[1])!;
+      const restore = (snapshot: unknown) =>
+        call(
+          repertoireRouter.restoreDeleted,
+          { repertoireId: id, snapshot: snapshot as never },
+          as("u1"),
+        );
+
+      // The edge exists again: 1...e5 was replayed by hand.
+      const deletedE5 = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: e5.id },
+        as("u1"),
+      );
+      await play(id, ids[1]!, "e5");
+      const before = await dump(id);
+      expect(await reason(restore(deletedE5.snapshot))).toBe("CONFLICT:edge_exists");
+      expect(await dump(id)).toEqual(before);
+
+      // The parent is gone: 1.e4 was deleted afterwards.
+      await call(repertoireRouter.deleteMove, { repertoireId: id, moveId: e4.id }, as("u1"));
+      const gone = await dump(id);
+      expect(await reason(restore(deletedE5.snapshot))).toBe("CONFLICT:parent_missing");
+      expect(await dump(id)).toEqual(gone);
+    });
+
+    test("another user's repertoire is NOT_FOUND and a mismatched repertoireId is BAD_REQUEST", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4"]);
+      const other = await newRepertoire("u2");
+      const tree = await treeOf(id);
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: tree.moves[0]!.id },
+        as("u1"),
+      );
+      const send = (repertoireId: string, userId: string) =>
+        call(
+          repertoireRouter.restoreDeleted,
+          { repertoireId, snapshot: removed.snapshot },
+          as(userId),
+        );
+      expect(await codeOf(send(id, "u2"))).toBe("NOT_FOUND");
+      expect(await codeOf(send(other.id, "u2"))).toBe("BAD_REQUEST");
+      expect((await treeOf(id)).moves).toEqual([]);
+      expect((await call(repertoireRouter.get, { id: other.id }, as("u2"))).moves).toEqual([]);
+      // The real owner can still restore it.
+      expect((await send(id, "u1")).restoredMoveId).toBe(tree.moves[0]!.id);
+    });
+
+    test("a forged snapshot with an illegal move is BAD_REQUEST", async () => {
+      const { id, startId } = await newRepertoire();
+      await line(id, startId, ["e4"]);
+      const tree = await treeOf(id);
+      const removed = await call(
+        repertoireRouter.deleteMove,
+        { repertoireId: id, moveId: tree.moves[0]!.id },
+        as("u1"),
+      );
+      const forged = {
+        ...removed.snapshot,
+        moves: removed.snapshot.moves.map((m) => ({ ...m, uci: "e2e5" })),
+      };
+      expect(
+        await codeOf(
+          call(repertoireRouter.restoreDeleted, { repertoireId: id, snapshot: forged }, as("u1")),
+        ),
+      ).toBe("BAD_REQUEST");
     });
   });
 
