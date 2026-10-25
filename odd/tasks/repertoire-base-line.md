@@ -73,7 +73,7 @@ Out of scope:
 - [x] **T2: Base position storage and `setBase`** [O db/api, T rows helpers]. Route: delegated writer (schema, migration, service, router, tests).
 - [x] **T3: Study line names and `renameLine`** [O db/api]. Route: delegated writer.
 - [x] **T4: Base line UI** [T lib, O UI]. Route: delegated `react-staff`.
-- [ ] **T5: Study line grouping UI** [T lib, O UI]. Route: delegated `react-staff`.
+- [x] **T5: Study line grouping UI** [T lib, O UI]. Route: delegated `react-staff`.
 
 ## Acceptance criteria
 
@@ -180,4 +180,28 @@ Out of scope:
     - R3-resolve-orphan-base (SUGGESTION): `resolvePosition` uses a base that is held but unreachable, while the header treats it as no base. **Accepted into T5**: use the same reachability rule in both.
     - R3-changebase-wiring-untested (SUGGESTION): the container's `changeBase` (pin, toast, disabling) has no container test. Follow-up.
   - Next review boundary: `0afe2ac`.
-- Next: T5.
+- **T5 done** (`ff88523`, delegated to `react-staff`; 19 files, +656/-40).
+  - Pure `lib/study-lines.ts`:
+    - `studyLines(tree)` builds one group per move leaving the base or start.
+    - The root fork is not nested.
+    - `lineNameEdit` trims the name and skips saves that change nothing.
+  - `TreeNode.name` comes from the graph.
+  - New `StudyLineName` handles inline rename: Enter or blur saves, Escape cancels, `maxLength` 80, 44px edit button.
+  - The current group is marked.
+  - `useRepertoire.renameLine` reloads on settle and reports a failure as a toast.
+  - Accepted R3-full-tree-fold-duplicate-current:
+    - The fold is a separate `FullTreeFold` with its own collapsed state.
+    - Pure `clearPath` strips `onPath` and `isCurrent`, so there is no duplicate `aria-current`.
+    - Tested with the fold open; reverting `clearPath` makes the test fail.
+  - Accepted R3-resolve-orphan-base: `resolvePosition` uses the base only when `baseLine` is non-empty. Tested.
+  - RED: `Cannot find module './study-lines'`, `clearPath` not found, and the orphan case returned "orphan". GREEN: lib 336 pass.
+  - Checks:
+    - `pnpm check-types`: exit 0.
+    - `pnpm check`: clean.
+    - Required `bun test`: 487 pass, 0 fail.
+  - Parent spot check: web repertoire tests pass.
+  - Unverified:
+    - No browser run.
+    - Rename edit interactions have no DOM test, since no DOM test library is installed.
+    - No container test for `renameLineById`.
+- Next: review T5 alone.
