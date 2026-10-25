@@ -38,18 +38,25 @@ export type Answer = string | number | readonly string[];
 export type GenerateOptions = {
   kind: DrillKind;
   seed: number;
-  /** 1 = squares on the a-d half of the board and knight distances up to 3; 2 and above = the whole board. */
+  /**
+   * A whole number from 1. Level 1 uses the a-d half of the board and knight distances up to 3;
+   * level 2 and above use the whole board. Anything else throws a `RangeError`.
+   */
   level: number;
-  /** Defaults to a 20-question session. */
+  /** A positive whole number; defaults to a 20-question session. */
   count?: number;
 };
 
 export const DEFAULT_QUESTION_COUNT = 20;
+/** Levels from this one up play on the whole board with no cap on knight distance. */
+export const FULL_BOARD_LEVEL = 2;
+/** Files a-d (0-3) form the half board used at level 1. */
+const LEVEL_ONE_MAX_FILE = 3;
 const LEVEL_ONE_MAX_KNIGHT_DISTANCE = 3;
 
 function squarePool(level: number): readonly Square[] {
-  if (level >= 2) return ALL_SQUARES;
-  return ALL_SQUARES.filter((square) => (parseSquare(square)?.file ?? 0) <= 3);
+  if (level >= FULL_BOARD_LEVEL) return ALL_SQUARES;
+  return ALL_SQUARES.filter((square) => (parseSquare(square)?.file ?? 0) <= LEVEL_ONE_MAX_FILE);
 }
 
 function generateOne(kind: DrillKind, pool: readonly Square[], level: number, rng: Rng): Question {
@@ -78,7 +85,8 @@ function generateOne(kind: DrillKind, pool: readonly Square[], level: number, rn
     }
     case "knight_distance": {
       const from = rng.pick(pool);
-      const maxDistance = level >= 2 ? Number.POSITIVE_INFINITY : LEVEL_ONE_MAX_KNIGHT_DISTANCE;
+      const maxDistance =
+        level >= FULL_BOARD_LEVEL ? Number.POSITIVE_INFINITY : LEVEL_ONE_MAX_KNIGHT_DISTANCE;
       const targets = pool.filter((to) => {
         const distance = knightDistance(from, to);
         return distance >= 1 && distance <= maxDistance;
@@ -89,13 +97,22 @@ function generateOne(kind: DrillKind, pool: readonly Square[], level: number, rn
   }
 }
 
-/** Generates a deterministic list of questions for one drill session. */
+/**
+ * Generates a deterministic list of questions for one drill session. Throws a `RangeError` for a
+ * `count` that is not a positive whole number or a `level` that is not a whole number from 1.
+ */
 export function generateQuestions({
   kind,
   seed,
   level,
   count = DEFAULT_QUESTION_COUNT,
 }: GenerateOptions): Question[] {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new RangeError(`count must be a positive whole number, got ${count}.`);
+  }
+  if (!Number.isInteger(level) || level < 1) {
+    throw new RangeError(`level must be a whole number from 1, got ${level}.`);
+  }
   const rng = createRng(seed);
   const pool = squarePool(level);
   return Array.from({ length: count }, () => generateOne(kind, pool, level, rng));

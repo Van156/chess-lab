@@ -31,6 +31,20 @@ describe("ChessBoard placeholder (server render)", () => {
   });
 });
 
+describe("ChessBoardImpl coordinates", () => {
+  test("labels the squares by default and omits the labels when switched off", () => {
+    const labelled = renderToStaticMarkup(
+      <ChessBoardImpl fen={START} orientation="white" label="Start" />,
+    );
+    const bare = renderToStaticMarkup(
+      <ChessBoardImpl fen={START} orientation="white" label="Start" coordinates={false} />,
+    );
+    // The library renders each file/rank label as a non-selectable span: 8 files + 8 ranks.
+    expect(labelled.match(/user-select:none/g)).toHaveLength(16);
+    expect(bare).not.toContain("user-select:none");
+  });
+});
+
 describe("ChessBoardImpl blindfold", () => {
   test("draws 32 pieces on the starting position", () => {
     const html = renderToStaticMarkup(

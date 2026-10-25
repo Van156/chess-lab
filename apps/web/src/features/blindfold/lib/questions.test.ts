@@ -110,3 +110,23 @@ describe("knight distance questions", () => {
     }
   });
 });
+
+describe("generateQuestions input validation", () => {
+  test("rejects a non-positive or fractional count", () => {
+    for (const count of [0, -1, 1.5, Number.NaN]) {
+      expect(() => generateQuestions({ ...options("square_colour"), count })).toThrow(RangeError);
+    }
+  });
+
+  test("rejects a level below 1 or fractional", () => {
+    for (const level of [0, -2, 1.5, Number.NaN]) {
+      expect(() => generateQuestions(options("square_colour", level))).toThrow(RangeError);
+    }
+  });
+
+  test("treats any level of 2 and above as the whole board", () => {
+    expect(generateQuestions(options("coordinates", 3, 5))).toEqual(
+      generateQuestions(options("coordinates", 2, 5)),
+    );
+  });
+});

@@ -72,6 +72,7 @@ export default function ChessBoardImpl({
   highlights = [],
   lastMove,
   hidden = false,
+  coordinates = true,
 }: BoardProps) {
   const [state, setState] = useState<Selection>(() => emptySelection(fen));
   const { selected, pending } = selectionFor(state, fen);
@@ -119,6 +120,7 @@ export default function ChessBoardImpl({
   const options: ChessboardOptions = {
     position: hidden ? NO_PIECES : fen,
     boardOrientation: orientation,
+    showNotation: coordinates,
     allowDragging: Boolean(onMove) && !hidden && !pending,
     allowDrawingArrows: false,
     showAnimations: true,

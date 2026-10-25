@@ -24,6 +24,8 @@ export type BoardProps = {
   lastMove?: { from: string; to: string };
   /** Blindfold: no pieces are drawn, position and legal-move logic stay active. */
   hidden?: boolean;
+  /** Draw the file and rank labels on the squares. Defaults to true. */
+  coordinates?: boolean;
   /** Accessible description of the position. */
   label: string;
 };
