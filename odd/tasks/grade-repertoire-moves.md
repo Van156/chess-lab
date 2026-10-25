@@ -46,8 +46,9 @@ Continuation ranking (`continuation-ranking.md`) only runs when a position has t
 
 ## Tasks
 
-- [ ] **T1: Grade logic** [T]. Route: delegated `react-staff` (one writer for T1+T2, separate commits).
-- [ ] **T2: Hook and UI** [O]. Route: delegated `react-staff` (React, 2+ non-trivial files).
+- [x] **T1: Grade logic** [T]. Route: delegated `react-staff` (one writer for T1+T2, separate commits). Commit `ff70008`.
+- [x] **T2: Hook and UI** [O]. Route: delegated `react-staff` (React, 2+ non-trivial files). Commit `a157341`.
+- [x] **T3: Rank grades on one search's scores** [T]. Accepted from review finding R3-restricted-override-contradicts-top. Route: delegated `react-staff`, the same writer. Commit `b361371`.
 
 ## Acceptance criteria
 
@@ -63,4 +64,28 @@ Continuation ranking (`continuation-ranking.md`) only runs when a position has t
 
 ## Progress
 
-- 2026-10-25: feature document created. Next step: T1.
+- 2026-10-25: feature document created (`dae9c19`).
+- T1 done (`ff70008`).
+  - `gradeContinuations(moves, restrictedLines, topLines, fen)`. It takes `fen`, because turning the engine's UCI move into SAN needs the position.
+  - `engineBest` is set only when no stored move reaches rank 1.
+  - RED: `Export named 'gradeContinuations' not found`. GREEN: 37 pass. The required set: 662 pass.
+- T2 done (`a157341`).
+  - The hook runs for one or more stored moves and issues a restricted search plus an unrestricted MultiPV 3 search (`RANKING_TOP_LINES`), both at depth 12, with one shared LRU cache of 400 entries.
+  - The hint appears above the study-line list at the root, and on the continuing move at deeper positions.
+  - New stories: `GradedSingleMove` and `GradedTwoMoves`.
+  - Checks: `pnpm check` and `pnpm check-types` exit 0. Required tests: 667 pass, 0 fail. The parent spot check gave the same result.
+- Review of the T1+T2 group (lineage `review-d178b8ae99a97e1f`, base `40236b7`, committed-only):
+  - The native plan selected one lens, reliability. Consent was granted under the standing policy. The review was **approved** and acknowledged, and its authority burned.
+  - Advisory warnings:
+    - R3-restricted-override-contradicts-top: deterministic. Accepted as T3.
+    - R3-partial-grade-published-untested: inferential. Follow-up: the hook has no direct test, and a failed search is not retried until the position changes.
+  - Environment notes:
+    - The reviewer needs `~/.local/bin` (the `claude` CLI) on PATH.
+    - `.codegraph/` was added to `.git/info/exclude` locally, because the untracked-selection collect step rejected an empty selection.
+- T3 done (`b361371`).
+  - A stored move that appears in the top lines keeps its top-search score. The restricted score is used only for stored moves outside the top lines.
+  - RED: 2 fail. GREEN: the required set, 668 pass, 0 fail. The parent spot check gave the same result.
+- Review of T3 alone (lineage `review-49b04aaa23cbc7b0`, base `a157341`): **approved**, acknowledged, authority burned.
+  - Advisory: R3-overstated-invariant. The doc comment claims the engine's best move can never be beaten. However, a stored move outside the top 3 still uses a restricted score, and that score could exceed the top line through search noise. Follow-up: clamp the score, or soften the comment.
+- Follow-ups (not scheduled): R3-partial-grade-published-untested and R3-overstated-invariant.
+- Next step: the user decides on push or PR. The drill feature is parked on `feat/repertoire-drill`.
