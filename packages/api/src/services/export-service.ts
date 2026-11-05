@@ -2,6 +2,7 @@ import type { Database } from "@b2c-template/db";
 import { user } from "@b2c-template/db/schema/auth";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { game, gameAnalysis, mistake } from "@b2c-template/db/schema/games";
+import { drillSession } from "@b2c-template/db/schema/drills";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
 import {
   ideaNote,
@@ -34,6 +35,7 @@ export const EXPORT_JSON_SECTIONS = {
   repertoirePositions: "repertoire_position",
   repertoireMoves: "repertoire_move",
   ideaNotes: "idea_note",
+  drillSessions: "drill_session",
 } as const;
 
 /** Runner state that is not the user's data: the import lease and its backoff bookkeeping. */
@@ -139,6 +141,8 @@ export async function* exportUserJson(db: Database, userId: string): AsyncGenera
   // Idea notes have no `id`: the position id is their primary key, so it is the paging key.
   yield `,"ideaNotes":`;
   yield* jsonArray(db, ideaNote, "repertoirePositionId", ideaNote.userId, userId);
+  yield `,"drillSessions":`;
+  yield* jsonArray(db, drillSession, "id", drillSession.userId, userId);
   yield "}";
 }
 

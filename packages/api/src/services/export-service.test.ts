@@ -3,6 +3,7 @@ import * as schema from "@b2c-template/db/schema";
 import { account, session, user } from "@b2c-template/db/schema/auth";
 import { card, reviewLog } from "@b2c-template/db/schema/cards";
 import { game, gameAnalysis, mistake } from "@b2c-template/db/schema/games";
+import { drillSession } from "@b2c-template/db/schema/drills";
 import { lichessProfile } from "@b2c-template/db/schema/lichess";
 import {
   ideaNote,
@@ -138,6 +139,14 @@ describe.skipIf(!reachable)("export service", () => {
     await handle.db
       .insert(ideaNote)
       .values({ repertoirePositionId: afterE4!.id, userId, plan: `Plan ${userId}` });
+    await handle.db.insert(drillSession).values({
+      userId,
+      drill: "mate_in_one",
+      level: 2,
+      correct: 18,
+      total: 20,
+      durationMs: 95_000,
+    });
     await handle.db.insert(userSettings).values({ userId, timeZone: "Europe/Madrid" });
     await handle.db.insert(lichessProfile).values({
       userId,
@@ -184,6 +193,7 @@ describe.skipIf(!reachable)("export service", () => {
         "repertoirePositions",
         "repertoireMoves",
         "ideaNotes",
+        "drillSessions",
       ].sort(),
     );
     expect(data.user).toMatchObject({ id: "u1", name: "name-u1", lichessUsername: "Nameu1" });
@@ -202,6 +212,12 @@ describe.skipIf(!reachable)("export service", () => {
     expect(data.repertoireMoves[0]).toMatchObject({ userId: "u1", san: "e4", uci: "e2e4" });
     expect(data.ideaNotes).toHaveLength(1);
     expect(data.ideaNotes[0]).toMatchObject({ userId: "u1", plan: "Plan u1" });
+    expect(data.drillSessions).toHaveLength(1);
+    expect(data.drillSessions[0]).toMatchObject({
+      userId: "u1",
+      drill: "mate_in_one",
+      correct: 18,
+    });
 
     for (const secret of ["SECRET", "accessToken", "refreshToken", "idToken", "password"]) {
       expect(text).not.toContain(secret);
