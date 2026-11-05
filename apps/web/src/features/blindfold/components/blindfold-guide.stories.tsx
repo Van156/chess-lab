@@ -9,7 +9,15 @@ const meta = {
   title: "App/Blindfold/BlindfoldGuide",
   component: BlindfoldGuide,
   tags: ["autodocs"],
-  decorators: [withRouter],
+  decorators: [
+    withRouter,
+    // The guide sits in the Blindfold view's column.
+    (Story) => (
+      <div className="mx-auto w-full max-w-4xl">
+        <Story />
+      </div>
+    ),
+  ],
   parameters: { layout: "padded" },
   args: { sections: GUIDE_SECTIONS, plan: TRAINING_PLAN },
 } satisfies Meta<typeof BlindfoldGuide>;
@@ -17,6 +25,17 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** The whole guide, read-only chips. */
 export const Default: Story = {};
 
-export const OneSection: Story = { args: { sections: GUIDE_SECTIONS.slice(0, 1) } };
+/** With `onPractise`, the drill chips start a drill. */
+export const WithPractise: Story = { args: { onPractise: () => {} } };
+
+export const OneSection: Story = {
+  args: { sections: GUIDE_SECTIONS.slice(4, 5), plan: [], onPractise: () => {} },
+};
+
+export const Mobile: Story = {
+  args: { onPractise: () => {} },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};

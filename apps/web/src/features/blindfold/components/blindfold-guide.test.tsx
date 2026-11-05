@@ -2,70 +2,68 @@ import { describe, expect, test } from "bun:test";
 
 import { renderWithRouter } from "@/shared/testing/render-with-router";
 
-import { DRILL_CATALOG } from "../lib/drill-catalog";
 import { GUIDE_SECTIONS, TRAINING_PLAN } from "../lib/guide-content";
-import BlindfoldDrills from "./blindfold-drills";
 import BlindfoldGuide from "./blindfold-guide";
-import BlindfoldView from "./blindfold-view";
 
 describe("BlindfoldGuide", () => {
-  test("renders a heading for every guide section", async () => {
+  test("renders every section as an open card with its takeaway, in reading order", async () => {
     const html = await renderWithRouter(
       <BlindfoldGuide sections={GUIDE_SECTIONS} plan={TRAINING_PLAN} />,
     );
-    for (const section of GUIDE_SECTIONS) {
-      expect(html).toContain(section.title);
-    }
     expect(GUIDE_SECTIONS.map((section) => section.title)).toEqual([
       "Square colours",
       "Diagonals to memorise",
       "Knight geometry",
       "Landmarks and anchors",
+      "Reading piece lists",
+      "Checks and lines",
+      "Following moves",
       "Mating patterns to visualise",
       "Techniques",
     ]);
+    for (const section of GUIDE_SECTIONS) {
+      expect(html).toContain(section.title);
+      expect(html).toContain(`id="guide-${section.id}"`);
+      expect(html).toContain(`href="#guide-${section.id}"`);
+    }
+    expect(html).toContain('aria-label="Guide contents"');
+    expect(html).toContain("Kings first, then pawns, then pieces.");
+    // Squares are set in mono inside the prose.
+    expect(html).toContain('font-mono text-[0.92em] text-foreground">a1</span> is dark');
   });
 
-  test("opens the first section and lists the four-week plan with its drills", async () => {
+  test("draws a labelled board for every section with a diagram", async () => {
     const html = await renderWithRouter(
       <BlindfoldGuide sections={GUIDE_SECTIONS} plan={TRAINING_PLAN} />,
     );
-    expect(html).toContain("a1 is dark and h1 is light");
-    expect(html).toContain("Four-week training plan");
-    for (const week of [1, 2, 3, 4]) {
-      expect(html).toContain(`Week ${week}`);
+    const withDiagram = GUIDE_SECTIONS.filter((section) => section.diagram);
+    expect(html.match(/role="img"/g)).toHaveLength(withDiagram.length);
+    expect(html).toContain('aria-label="The long diagonals: a1-h8 runs on dark squares');
+  });
+
+  test("lists the six-week plan as a timeline with minutes, goals and drills", async () => {
+    const html = await renderWithRouter(
+      <BlindfoldGuide sections={GUIDE_SECTIONS} plan={TRAINING_PLAN} />,
+    );
+    expect(html).toContain("Six-week training plan");
+    for (const week of TRAINING_PLAN) {
+      expect(html).toContain(`Week ${week.week}`);
+      expect(html).toContain(week.goal);
     }
     expect(html).toContain("Knight distance");
-  });
-});
-
-describe("BlindfoldView", () => {
-  test("offers the Guide and Drills tabs and a header", async () => {
-    const html = await renderWithRouter(
-      <BlindfoldView
-        sections={GUIDE_SECTIONS}
-        plan={TRAINING_PLAN}
-        drillsPanel={<BlindfoldDrills drills={DRILL_CATALOG} onStart={() => {}} />}
-      />,
-    );
-    expect(html).toContain("Blindfold");
-    expect(html).toContain(">Guide<");
-    expect(html).toContain(">Drills<");
+    expect(html).toContain("Away from the drills");
   });
 
-  test("renders the drills panel when the Drills tab is the default", async () => {
-    const html = await renderWithRouter(
-      <BlindfoldView
-        sections={GUIDE_SECTIONS}
-        plan={TRAINING_PLAN}
-        drillsPanel={<BlindfoldDrills drills={DRILL_CATALOG} onStart={() => {}} />}
-        defaultTab="drills"
-      />,
+  test("renders drill chips as buttons only when onPractise is given", async () => {
+    const plain = await renderWithRouter(
+      <BlindfoldGuide sections={GUIDE_SECTIONS} plan={TRAINING_PLAN} />,
     );
-    expect(html).toContain('aria-label="Drills"');
-    for (const drill of DRILL_CATALOG) {
-      expect(html).toContain(drill.example);
-    }
-    expect(html.match(/>Start</g)).toHaveLength(DRILL_CATALOG.length);
+    expect(plain).not.toContain("<button");
+    expect(plain).toContain("Practise with");
+
+    const linked = await renderWithRouter(
+      <BlindfoldGuide sections={GUIDE_SECTIONS} plan={TRAINING_PLAN} onPractise={() => {}} />,
+    );
+    expect(linked).toContain('aria-label="Practise Shared diagonal"');
   });
 });
