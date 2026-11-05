@@ -199,7 +199,7 @@ Convention that makes the first rule work: **inside a feature, imports are relat
 **F2.1 AppShell**
 
 - GIVEN an authenticated user
-- THEN pages render inside `AppShell` with a sidebar (dashboard, account settings, and — only for superadmins — platform admin) and a header (theme toggle, user menu).
+- THEN pages render inside `AppShell` with a sidebar (Chess Lab pages, account settings, and — only for superadmins — platform admin) and a header (user menu; the theme toggle was removed in chess-lab-v1).
 - AND on narrow viewports the sidebar collapses into a sheet.
 
 **F2.2 SectionNav**

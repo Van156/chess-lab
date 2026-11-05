@@ -17,12 +17,12 @@ import AuthCard from "./auth-card";
 import AuthStatusNotice from "./auth-status-notice";
 
 /**
- * R0.2: signed in and verified, so send the user straight on to the dashboard.
+ * R0.2: signed in and verified, so send the user straight on to Today.
  */
 function VerifiedRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/today" });
   }, [navigate]);
   return <Loader />;
 }

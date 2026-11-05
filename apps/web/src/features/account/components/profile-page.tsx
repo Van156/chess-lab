@@ -4,6 +4,7 @@ import { authClient } from "@/app/auth-client";
 import { betterAuthErrorMessage } from "@/features/auth";
 import Loader from "@/shared/components/feedback/loader";
 
+import { accountFlows } from "../lib/lichess-account";
 import ProfileForm from "./profile-form";
 
 /**
@@ -30,5 +31,7 @@ export default function ProfilePage() {
   }
 
   const { user } = session;
-  return <ProfileForm key={user.id} name={user.name} email={user.email} onSave={saveName} />;
+  // A synthetic Lichess email is not a real address: hide it and the change-email hint.
+  const email = accountFlows(user.email).changeEmail ? user.email : undefined;
+  return <ProfileForm key={user.id} name={user.name} email={email} onSave={saveName} />;
 }

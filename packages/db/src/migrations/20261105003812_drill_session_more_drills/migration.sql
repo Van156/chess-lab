@@ -1,0 +1,1 @@
+ALTER TABLE "drill_session" DROP CONSTRAINT "drill_session_drill_check", ADD CONSTRAINT "drill_session_drill_check" CHECK ("drill" in ('square_colour', 'coordinates', 'diagonals', 'knight_distance', 'same_diagonal', 'check_detection', 'position_recall', 'mate_in_one'));

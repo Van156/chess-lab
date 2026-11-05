@@ -1,0 +1,341 @@
+import { buttonVariants } from "@b2c-template/ui/components/button";
+import { cn } from "@b2c-template/ui/lib/utils";
+import { Link } from "@tanstack/react-router";
+import { BookMarked } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { SUGGESTION_DEPTH, SUGGESTION_PV_PLIES } from "@/features/engine";
+import EmptyState from "@/shared/components/feedback/empty-state";
+import LoadError from "@/shared/components/feedback/load-error";
+import Loader from "@/shared/components/feedback/loader";
+
+import { useExplorer } from "../hooks/use-explorer";
+import { useEngineSuggestions } from "../hooks/use-engine-suggestions";
+import { useDeletionUndo } from "../hooks/use-deletion-undo";
+import { useContinuationRanking } from "../hooks/use-continuation-ranking";
+import { useEngineToggle } from "../hooks/use-engine-toggle";
+import { useExplorerBand } from "../hooks/use-explorer-band";
+import { useLinePreview } from "../hooks/use-line-preview";
+import { useLineCount, useRepertoireArrows } from "../hooks/use-lines-preference";
+import { useOpeningName } from "../hooks/use-opening-name";
+import { useRepertoire } from "../hooks/use-repertoire";
+import { useTreeKeyNavigation } from "../hooks/use-tree-key-navigation";
+import { baseLine as baseLineOf } from "../lib/base-line";
+import { boardLinesFor } from "../lib/board-lines";
+import { findMove, lineFens, positionAfterRemoval, resolvePosition } from "../lib/builder-state";
+import { notesEqual } from "../lib/idea-note";
+import { draftAfterDelete, draftAfterSave, type Draft } from "../lib/note-draft";
+import { toEngineView } from "../lib/suggestion-state";
+import { isNotFound } from "../lib/repertoire-query";
+import { restoreTarget } from "../lib/deletion-undo";
+import { childMoves, pathTo } from "../lib/repertoire-tree";
+import type { IdeaNote, RepertoireMove } from "../lib/repertoire-types";
+import { buildVariationTree } from "../lib/variation-tree";
+import RepertoireBuilderView from "./repertoire-builder-view";
+
+const NO_NOTE: IdeaNote = { arrows: [], highlights: [], plan: "" };
+
+type Where = { positionId: string | null; route: string[] };
+
+function reportFailure(error: unknown, fallback: string) {
+  toast.error(error instanceof Error && error.message ? error.message : fallback);
+}
+
+/**
+ * `/repertoire/$id` (container): loads the repertoire graph and wires the builder. The position
+ * being edited and the route taken to reach it live in component state, not the URL: a position
+ * id is meaningless once a delete or another tab changes the tree, and `resolvePosition` falls
+ * back to the start position in that case.
+ */
+export default function RepertoireBuilderPage({ id }: { id: string }) {
+  const {
+    repertoire,
+    error,
+    isPending,
+    retry,
+    addMove,
+    deleteMove,
+    restoreDeleted,
+    setIdeaNote,
+    setBase,
+    isSettingBase,
+    renameLine,
+    isSaving,
+  } = useRepertoire(id);
+  const [where, setWhere] = useState<Where>({ positionId: null, route: [] });
+  const [draft, setDraft] = useState<Draft | null>(null);
+  // Resolved before the early returns so the explorer hook runs on every render; it stays idle
+  // until the repertoire has loaded.
+  const currentId = repertoire ? resolvePosition(repertoire, where.positionId) : "";
+  const explorer = useExplorer(id, currentId);
+  const explorerBand = useExplorerBand();
+  // The engine hooks also run before the early returns. Until the position resolves the FEN is
+  // empty and the search is disabled, so the engine is never asked about an invalid position.
+  const [engineOn, setEngineOn] = useEngineToggle();
+  const currentFen = repertoire?.positions.find((candidate) => candidate.id === currentId)?.fen;
+  const [lineCount, setLineCount] = useLineCount();
+  const [showRepertoireArrows, setShowRepertoireArrows] = useRepertoireArrows();
+  const suggestions = useEngineSuggestions(
+    currentFen ?? "",
+    engineOn && currentFen !== undefined,
+    lineCount,
+  );
+  // The stored continuations of the shown position, graded by two searches while the
+  // engine is on. Computed before the early returns, like the other engine hooks; the hook runs
+  // after the suggestions so the main engine search is queued first.
+  const continuations = useMemo(
+    () =>
+      repertoire
+        ? childMoves(repertoire, currentId).map(({ id: moveId, uci }) => ({ id: moveId, uci }))
+        : [],
+    [repertoire, currentId],
+  );
+  const rankings = useContinuationRanking({
+    positionId: currentId,
+    fen: currentFen ?? "",
+    moves: continuations,
+    enabled: engineOn && currentFen !== undefined,
+  });
+  // The outline depends on the graph and the shown line only, so it is rebuilt on those two and
+  // never on an engine frame; the callbacks below are stable for the same reason (the tree is memoised).
+  const path = useMemo(
+    () => (repertoire ? pathTo(repertoire, currentId, where.route) : null),
+    [repertoire, currentId, where.route],
+  );
+  // The FENs from the start position to the shown one, for the opening name.
+  const fens = useMemo(
+    () => (repertoire && path ? lineFens(repertoire, path) : null),
+    [repertoire, path],
+  );
+  const opening = useOpeningName(fens);
+  // The moves to the base; empty when there is none, or when the graph no longer reaches it.
+  const baseMoves = useMemo(
+    () => (repertoire ? baseLineOf(repertoire, repertoire.basePositionId) : []),
+    [repertoire],
+  );
+  const basePositionId = baseMoves.length > 0 ? (repertoire?.basePositionId ?? null) : null;
+  const tree = useMemo(
+    () => (repertoire && path ? buildVariationTree(repertoire, path, baseMoves) : null),
+    [repertoire, path, baseMoves],
+  );
+  const fullTree = useMemo(
+    () =>
+      repertoire && path && baseMoves.length > 0 ? buildVariationTree(repertoire, path) : null,
+    [repertoire, path, baseMoves],
+  );
+  const preview = useLinePreview(currentFen ?? "");
+  const exitPreview = preview.exit;
+  // Moving through the repertoire always leaves a line preview.
+  const go = useCallback(
+    (positionId: string, route: string[]) => {
+      exitPreview();
+      setWhere({ positionId, route });
+    },
+    [exitPreview],
+  );
+  // ←, →, Home and End walk the tree; during a preview the preview's own keys take them.
+  useTreeKeyNavigation({
+    enabled: preview.view === null,
+    graph: repertoire,
+    path,
+    baseLine: baseMoves,
+    onGo: go,
+  });
+  // Undoing a delete takes the board back to the restored move, along the route it was shown on.
+  const undo = useDeletionUndo({
+    repertoireId: id,
+    restore: restoreDeleted,
+    onRestored: (target) => go(target.positionId, target.route),
+  });
+  const deleteInFlight = useRef(false);
+  // Deleting is immediate: the way back is the undo toast and Ctrl/Cmd+Z, not a confirmation.
+  const deleteNow = useCallback(
+    async (move: RepertoireMove) => {
+      if (!repertoire || !path || deleteInFlight.current) return;
+      deleteInFlight.current = true;
+      const next = positionAfterRemoval(repertoire, move.id, currentId);
+      const returnTo = restoreTarget(repertoire, move, path);
+      try {
+        const { snapshot } = await deleteMove({ repertoireId: id, moveId: move.id });
+        undo.record({ snapshot, label: move.san, returnTo });
+        setDraft((current) => draftAfterDelete(current, repertoire, move.id));
+        go(next, []);
+      } catch (failure) {
+        reportFailure(failure, "The move could not be deleted.");
+      } finally {
+        deleteInFlight.current = false;
+      }
+    },
+    [repertoire, path, currentId, deleteMove, id, undo, go],
+  );
+  const deleteById = useCallback(
+    (moveId: string) => {
+      const move = repertoire ? findMove(repertoire, moveId) : undefined;
+      if (move) void deleteNow(move);
+    },
+    [repertoire, deleteNow],
+  );
+
+  const renameLineById = useCallback(
+    (moveId: string, name: string | null) => {
+      renameLine({ repertoireId: id, moveId, name }).catch((failure: unknown) =>
+        reportFailure(failure, "The line could not be renamed."),
+      );
+    },
+    [renameLine, id],
+  );
+
+  if (isPending) {
+    return <Loader />;
+  }
+  if (isNotFound(error)) {
+    return (
+      <EmptyState
+        icon={<BookMarked />}
+        title="Repertoire not found"
+        description="It may have been deleted, or it belongs to another account."
+        action={
+          <Link to="/repertoire" className={cn(buttonVariants(), "h-11 px-6")}>
+            Back to repertoires
+          </Link>
+        }
+      />
+    );
+  }
+  if (!repertoire) {
+    return <LoadError message="This repertoire could not be loaded." onRetry={retry} />;
+  }
+
+  const positionId = currentId;
+  const position = repertoire.positions.find((candidate) => candidate.id === positionId);
+  if (!position || !path || !tree) {
+    return <LoadError message="This position could not be shown." onRetry={retry} />;
+  }
+
+  const savedNote = repertoire.notes[positionId] ?? NO_NOTE;
+  const note = draft?.positionId === positionId ? draft.note : savedNote;
+  const routeTo = (moves: readonly RepertoireMove[]) => moves.map((move) => move.id);
+
+  const playMove = async (san: string) => {
+    try {
+      const { move } = await addMove({ repertoireId: id, fromPositionId: position.id, move: san });
+      go(move.toPositionId, [...routeTo(path), move.id]);
+    } catch (failure) {
+      reportFailure(failure, "The move could not be added.");
+    }
+  };
+
+  const changeBandOffset = async (explorerBandOffset: number) => {
+    try {
+      await explorerBand.setOffset({ explorerBandOffset });
+    } catch (failure) {
+      reportFailure(failure, "The rating band could not be changed.");
+    }
+  };
+
+  // `next` is what is stored; `shown` is the draft on screen when the user asked, which is the
+  // only draft the save may discard (Clear stores an empty note but discards the shown draft).
+  const saveNote = async (next: IdeaNote, shown: IdeaNote) => {
+    const savedAt = position.id;
+    try {
+      await setIdeaNote({
+        repertoireId: id,
+        positionId: savedAt,
+        arrows: next.arrows,
+        highlights: next.highlights,
+        plan: next.plan.trim(),
+      });
+      setDraft((current) => draftAfterSave(current, savedAt, shown));
+    } catch (failure) {
+      reportFailure(failure, "The note could not be saved.");
+    }
+  };
+
+  // The board keeps its place while the base changes: until a position is chosen the builder shows
+  // the base, so it is pinned first, or clearing the base would jump back to the start.
+  const changeBase = async (next: string | null) => {
+    setWhere({ positionId, route: routeTo(path) });
+    try {
+      await setBase({ repertoireId: id, positionId: next });
+    } catch (failure) {
+      reportFailure(failure, "The base line could not be saved.");
+    }
+  };
+
+  const children = childMoves(repertoire, positionId);
+  const engine = toEngineView({
+    state: suggestions.state,
+    fen: position.fen,
+    enabled: engineOn,
+    childMoves: children,
+    maxDepth: SUGGESTION_DEPTH,
+    maxPlies: SUGGESTION_PV_PLIES,
+  });
+
+  const previewLine = (rank: number) => {
+    const { panel } = engine;
+    const line =
+      panel.kind === "analysing" || panel.kind === "done" ? panel.lines[rank] : undefined;
+    if (line) preview.start(rank, position.fen, line.pv);
+  };
+
+  const board = boardLinesFor({
+    panel: engine.panel,
+    noteArrows: note.arrows,
+    lineCount,
+    repertoireMoves: children,
+    showRepertoire: showRepertoireArrows,
+  });
+
+  return (
+    <RepertoireBuilderView
+      repertoire={repertoire.repertoire}
+      position={position}
+      path={path}
+      childMoves={children}
+      tree={tree}
+      fullTree={fullTree}
+      rankings={rankings}
+      startPositionId={repertoire.startPositionId}
+      basePositionId={basePositionId}
+      baseLine={baseMoves}
+      baseSaving={isSettingBase}
+      opening={opening ?? null}
+      engine={engine}
+      boardArrows={board.arrows}
+      boardArrowText={board.text}
+      lineCount={lineCount}
+      preview={preview.view}
+      showRepertoireArrows={showRepertoireArrows}
+      explorer={explorer}
+      note={note}
+      noteDirty={!notesEqual(note, savedNote)}
+      saving={isSaving}
+      bandSaving={explorerBand.isPending}
+      onPlayMove={(san) => void playMove(san)}
+      onToggleEngine={setEngineOn}
+      onRetryEngine={suggestions.retry}
+      onPreviewLine={previewLine}
+      onPreviewPrevious={preview.previous}
+      onPreviewNext={preview.next}
+      onPreviewExit={preview.exit}
+      onChangeLineCount={setLineCount}
+      onToggleRepertoireArrows={setShowRepertoireArrows}
+      onChangeBandOffset={(offset) => void changeBandOffset(offset)}
+      onSelectPly={(ply) => {
+        const walked = path.slice(0, ply);
+        go(walked[walked.length - 1]?.toPositionId ?? repertoire.startPositionId, routeTo(walked));
+      }}
+      onSelectNode={go}
+      onSetBase={() => void changeBase(positionId)}
+      onClearBase={() => void changeBase(null)}
+      onDeleteNode={deleteById}
+      onRenameLine={renameLineById}
+      onRequestDelete={(move) => void deleteNow(move)}
+      onNoteChange={(next) => setDraft({ positionId, note: next })}
+      onSaveNote={() => void saveNote(note, note)}
+      onClearNote={() => void saveNote(NO_NOTE, note)}
+    />
+  );
+}

@@ -1,0 +1,61 @@
+schema: spec-driven
+context: |
+  Project: chess-lab (package name b2c-template). pnpm 12 + vite-plus (vp) monorepo, TypeScript 6, bun test.
+  apps/web: React 19.2, TanStack Router, Vite 8, Tailwind 4, oRPC client, better-auth.
+  apps/server: Hono + better-auth; packages: api (oRPC), auth, db (drizzle 1.0 rc), config, infra, ui (Storybook).
+  Lint/format: oxlint + oxfmt (lefthook pre-commit). Boundary lint tests live in tests/.
+  Convention: TDD only for server/auth/API and pure logic; UI/prototype work uses ordinary checks.
+strict_tdd: false
+# Fail-closed: root `bun test` covers all projects, but project convention (odd/tasks/*) scopes TDD to
+# server/auth/API + pure logic, so strict TDD is not enforced globally. Apply TDD per task when in scope.
+testing:
+  workspace_command: "bun test"
+  checks:
+    - "pnpm --filter web check-types"
+    - "pnpm check-types"
+    - "pnpm check"
+  projects:
+    - path: apps/web
+      stack: React 19 + TanStack Router + Vite 8 + Tailwind 4
+      test: "bun test (lib/*.test.ts, SSR component tests); no package-level script"
+      check_types: "pnpm --filter web check-types"
+    - path: apps/server
+      stack: Hono + better-auth (Bun/Workers)
+      test: "bun test (1 test file); no package-level script"
+      check_types: "pnpm --filter server check-types"
+    - path: packages/api
+      stack: oRPC + drizzle
+      test: "bun test"
+      check_types: "tsc -b"
+    - path: packages/auth
+      stack: better-auth + drizzle
+      test: "bun test"
+      check_types: "tsc -b"
+    - path: packages/db
+      stack: drizzle-orm 1.0 rc + Postgres
+      test: "bun test"
+      check_types: "tsc -b"
+    - path: packages/ui
+      stack: React + Tailwind + Storybook 10
+      test: "bun test (tests/ui-story-coverage, storybook-css)"
+      check_types: "tsc --noEmit"
+    - path: packages/config
+      stack: shared config
+      test: "-"
+    - path: packages/infra
+      stack: infra deploy (Cloudflare)
+      test: "-"
+      check_types: "tsc --noEmit"
+  layers: { unit: "bun test", integration: "bun test (db/auth)", e2e: none }
+  coverage: none
+  linter: "oxlint"
+  formatter: "oxfmt"
+  type_checker: "tsc (per package)"
+rules:
+  proposal: [Keep scope reviewable; note 400-line PR budget]
+  specs: [Use Given/When/Then scenarios]
+  design: [Respect feature boundaries enforced by tests/lint-boundaries]
+  tasks: [Include delivery forecast; strategy auto-chain; 400-line budget]
+  apply: [TDD for server/auth/API and pure logic; ordinary checks elsewhere]
+  verify: ["Run bun test, pnpm check-types, pnpm check"]
+  archive: [Merge delta specs into openspec/specs before archiving]

@@ -47,6 +47,12 @@ export type AccountSecurityEvents = {
     event: AccountSecurityUser & { sessions: readonly RevokedSessionInfo[] },
   ) => Promise<void>;
   userDeleting?: (event: AccountSecurityUser & { name: string }) => Promise<void>;
+  /**
+   * Compensates a `userDeleting` row when the delete then failed (the audit write and the delete
+   * are separate statements). Best-effort: the caller logs a failure here and rethrows the
+   * original delete error.
+   */
+  userDeleteFailed?: (event: AccountSecurityUser & { name: string }) => Promise<void>;
 };
 
 /** Runs a best-effort side effect after a change was applied; failures are logged, never thrown. */

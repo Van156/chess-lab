@@ -2,8 +2,9 @@ import { call, ORPCError } from "@orpc/server";
 import { describe, expect, test } from "bun:test";
 
 import type { AuthorizationPort } from "./authorization";
-import { platformProcedure, protectedProcedure, publicProcedure } from "./index";
+import { featureProcedure, platformProcedure, protectedProcedure, publicProcedure } from "./index";
 import type { Context } from "./context";
+import { parseFeatureFlags } from "./features";
 
 /**
  * Unit tests for the oRPC procedure builders. Uses a FAKE `AuthorizationPort` (no DB) so these run
@@ -26,6 +27,7 @@ function fakeSession(options: { userId?: string }): Context["session"] {
 function fakeContext(overrides: {
   session?: Context["session"];
   authorization?: Partial<AuthorizationPort>;
+  features?: Context["features"];
 }): Context {
   const authorization: AuthorizationPort = {
     hasPlatformPermission: async () => false,
@@ -41,6 +43,8 @@ function fakeContext(overrides: {
     platformAdmin: {} as unknown as Context["platformAdmin"],
     // Unused by any builder under test.
     auditLogger: {} as unknown as Context["auditLogger"],
+    lichess: {} as unknown as Context["lichess"],
+    features: overrides.features ?? parseFeatureFlags({}),
   };
 }
 
@@ -115,5 +119,29 @@ describe("publicProcedure", () => {
     await expect(
       call(echoHandler, undefined, { context: fakeContext({ session: null }) }),
     ).rejects.toBeInstanceOf(ORPCError);
+  });
+});
+
+describe("featureProcedure", () => {
+  const ping = featureProcedure("blindfold").handler(() => "pong");
+  const session = fakeSession({ userId: "user-1" });
+
+  test("no session -> UNAUTHORIZED, even when the flag is on", async () => {
+    const features = parseFeatureFlags({ CHESSLAB_FEATURES: "blindfold" });
+    await expect(
+      call(ping, undefined, { context: fakeContext({ session: null, features }) }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  test("flag off -> NOT_FOUND", async () => {
+    await expect(
+      call(ping, undefined, { context: fakeContext({ session }) }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("flag on -> handler runs", async () => {
+    const features = parseFeatureFlags({ CHESSLAB_FEATURES: "mistakes,blindfold" });
+    const result = await call(ping, undefined, { context: fakeContext({ session, features }) });
+    expect(result).toBe("pong");
   });
 });

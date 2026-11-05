@@ -1,3 +1,4 @@
+import { isSyntheticEmail } from "../synthetic-email";
 import { ConsoleEmailSender } from "./console-email-sender";
 import { ResendEmailSender } from "./resend-email-sender";
 import type { EmailSender } from "./types";
@@ -26,4 +27,34 @@ export function createEmailSender(env: EmailSenderEnv): EmailSender {
     );
   }
   return new ConsoleEmailSender();
+}
+
+/**
+ * Wraps a sender so any send to a synthetic Lichess address (`@lichess.invalid`) is dropped and
+ * logged without the link, which may carry a token. Defence in depth against bounces from template
+ * flows that assume every account has a deliverable email (ADR-07).
+ */
+export function withoutSyntheticRecipients(inner: EmailSender): EmailSender {
+  const guard =
+    <Input extends { to: string }>(method: string, send: (input: Input) => Promise<void>) =>
+    (input: Input): Promise<void> => {
+      if (isSyntheticEmail(input.to)) {
+        console.warn(`[email] dropped ${method} to a synthetic address`);
+        return Promise.resolve();
+      }
+      return send(input);
+    };
+  return {
+    sendVerification: guard("sendVerification", (i) => inner.sendVerification(i)),
+    sendResetPassword: guard("sendResetPassword", (i) => inner.sendResetPassword(i)),
+    sendChangeEmailApproval: guard("sendChangeEmailApproval", (i) =>
+      inner.sendChangeEmailApproval(i),
+    ),
+    sendDeleteAccountConfirmation: guard("sendDeleteAccountConfirmation", (i) =>
+      inner.sendDeleteAccountConfirmation(i),
+    ),
+    sendPasswordChangedNotice: guard("sendPasswordChangedNotice", (i) =>
+      inner.sendPasswordChangedNotice(i),
+    ),
+  };
 }

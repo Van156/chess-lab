@@ -1,10 +1,11 @@
+import { exportUserJson, exportUserPgn } from "@b2c-template/api/services/export-service";
 import { appRouter } from "@b2c-template/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { initLogger } from "evlog";
+import { initLogger, log } from "evlog";
 import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
 import { createFsDrain } from "evlog/fs";
 import { evlog, type EvlogVariables } from "evlog/hono";
@@ -13,8 +14,9 @@ import { cors } from "hono/cors";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
+import { createExportRoutes, exportUserIdFromSession } from "./export-routes";
 import { createPublicRoutes } from "./public-routes";
-import { auth, startBackgroundJobs } from "./services";
+import { auth, db, features, startBackgroundJobs } from "./services";
 
 initLogger({
   env: { service: "b2c-template-server" },
@@ -44,7 +46,20 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
-app.route("/api/public", createPublicRoutes(ENV));
+app.route("/api/public", createPublicRoutes(ENV, features));
+app.route(
+  "/api/export",
+  createExportRoutes({
+    getUserId: async (headers) => exportUserIdFromSession(await auth.api.getSession({ headers })),
+    onError: (error) =>
+      log.error({
+        action: "export.stream_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
+    exportJson: (userId) => exportUserJson(db, userId),
+    exportPgn: (userId) => exportUserPgn(db, userId),
+  }),
+);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

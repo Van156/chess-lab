@@ -11,12 +11,16 @@ export async function handleSignOut({
   signOut,
   onSignedOut,
   showError,
+  beforeSignOut,
 }: {
+  /** Best effort, for example flushing queued work; a failure never stops the sign-out. */
+  beforeSignOut?: () => Promise<void>;
   signOut: () => Promise<{ error?: unknown } | undefined>;
   onSignedOut: () => void;
   showError: (message: string) => void;
 }): Promise<boolean> {
   try {
+    await beforeSignOut?.().catch(() => {});
     const result = await signOut();
     if (result?.error) {
       showError(betterAuthErrorMessage(result.error, SIGN_OUT_FALLBACK_MESSAGE));

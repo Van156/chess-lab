@@ -1,15 +1,17 @@
 /**
  * Social sign-in provider configuration (docs/specs/dashboard-shell-and-auth-ui.md
- * §6.3, R5.1). Only Google is supported. Pure functions so the startup
+ * §6.3, R5.1) plus Lichess (ADR-07, a public PKCE client with no secret). Pure functions so the startup
  * validation and the public enabled-providers list share one source of truth.
  */
 
 export type SocialProviderEnv = {
   GOOGLE_CLIENT_ID?: string | undefined;
   GOOGLE_CLIENT_SECRET?: string | undefined;
+  /** Lichess is a public PKCE client: only the id exists, there is no secret. */
+  LICHESS_CLIENT_ID?: string | undefined;
 };
 
-export type SocialProviderId = "google";
+export type SocialProviderId = "google" | "lichess";
 
 /**
  * Returns Google's credentials when both are set, `null` when neither is, and
@@ -35,5 +37,8 @@ export function resolveGoogleCredentials(
 
 /** Enabled provider ids (ids only, never credentials); derived from the same env `createAuth` uses. */
 export function listEnabledSocialProviders(env: SocialProviderEnv): SocialProviderId[] {
-  return resolveGoogleCredentials(env) ? ["google"] : [];
+  const providers: SocialProviderId[] = [];
+  if (resolveGoogleCredentials(env)) providers.push("google");
+  if (env.LICHESS_CLIENT_ID) providers.push("lichess");
+  return providers;
 }

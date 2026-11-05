@@ -2,6 +2,7 @@ import { authClient } from "@/app/auth-client";
 import { SelfSecurityLog, type UserAuditSearch } from "@/features/audit-log";
 import Loader from "@/shared/components/feedback/loader";
 
+import { accountFlows } from "../lib/lichess-account";
 import EmailSection from "./email-section";
 import PasswordSection from "./password-section";
 import SessionsSection from "./sessions-section";
@@ -18,10 +19,11 @@ export default function SecurityPage({ search }: { search: UserAuditSearch }) {
   }
 
   const { user } = session;
+  const flows = accountFlows(user.email);
   return (
     <div className="flex flex-col gap-6">
-      <EmailSection currentEmail={user.email} />
-      <PasswordSection email={user.email} />
+      {flows.changeEmail ? <EmailSection currentEmail={user.email} /> : null}
+      {flows.password ? <PasswordSection email={user.email} /> : null}
       <SessionsSection />
       <SelfSecurityLog search={search} />
     </div>

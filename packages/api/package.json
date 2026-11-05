@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@b2c-template/auth": "workspace:*",
+    "@b2c-template/chess": "workspace:*",
     "@b2c-template/db": "workspace:*",
+    "@b2c-template/lichess": "workspace:*",
+    "@b2c-template/study": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",

@@ -20,6 +20,18 @@
               {
                 "group": ["@/features/*/**"],
                 "message": "Import a feature through its public API (@/features/<name>)"
+              },
+              {
+                "group": [
+                  "@b2c-template/lichess",
+                  "@b2c-template/lichess/**",
+                  "@b2c-template/db",
+                  "@b2c-template/db/**",
+                  "@b2c-template/auth",
+                  "@b2c-template/auth/**",
+                  "!@b2c-template/auth/permissions"
+                ],
+                "message": "server-only package; the browser must never import it"
               }
             ]
           }
@@ -40,6 +52,18 @@
               {
                 "group": ["@/features", "@/features/**", "@/routes/**"],
                 "message": "shared/ must not depend on features/ or routes/"
+              },
+              {
+                "group": [
+                  "@b2c-template/lichess",
+                  "@b2c-template/lichess/**",
+                  "@b2c-template/db",
+                  "@b2c-template/db/**",
+                  "@b2c-template/auth",
+                  "@b2c-template/auth/**",
+                  "!@b2c-template/auth/permissions"
+                ],
+                "message": "server-only package; the browser must never import it"
               }
             ]
           }
@@ -56,6 +80,58 @@
               {
                 "group": ["@/**", "web", "web/**"],
                 "message": "packages/ui must stay app-agnostic"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/chess/**", "packages/study/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@b2c-template/db",
+                  "@b2c-template/db/**",
+                  "@b2c-template/auth",
+                  "@b2c-template/auth/**",
+                  "@b2c-template/api",
+                  "@b2c-template/api/**",
+                  "@b2c-template/lichess",
+                  "@b2c-template/lichess/**",
+                  "react",
+                  "react/**",
+                  "@/**"
+                ],
+                "message": "packages/chess and packages/study must stay pure and isomorphic"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/lichess/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@b2c-template/db",
+                  "@b2c-template/db/**",
+                  "@b2c-template/api",
+                  "@b2c-template/api/**",
+                  "react",
+                  "react/**",
+                  "@/**"
+                ],
+                "message": "packages/lichess is an HTTP client only; persistence belongs to packages/api"
               }
             ]
           }

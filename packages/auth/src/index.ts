@@ -4,12 +4,15 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { betterAuth } from "better-auth";
 import type { BetterAuthPlugin } from "better-auth";
 import { admin } from "better-auth/plugins/admin";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 
 import { createAccountSecurity } from "./account-security";
 import type { AccountSecurityEvents } from "./account-security";
 import { createAuditAfterHook } from "./audit/after-hooks";
+import { createLichessAccount } from "./lichess-account";
 import { createUserAuditEvents } from "./audit/user-events";
 import type { AuditLogger } from "./audit/types";
+import { withoutSyntheticRecipients } from "./email/factory";
 import type { EmailSender } from "./email";
 import { platformAc, platformRoles } from "./permissions";
 import { resolveGoogleCredentials } from "./social-providers";
@@ -36,7 +39,7 @@ export type CreateAuthOptions = {
 export function createAuth(
   env: AuthConfig,
   database: Database,
-  emailSender: EmailSender,
+  rawEmailSender: EmailSender,
   auditLogger: AuditLogger,
   options: CreateAuthOptions = {},
 ) {
@@ -48,6 +51,18 @@ export function createAuth(
 
   // R5.1: registered only when both values exist; half-configured throws at startup.
   const google = resolveGoogleCredentials(env);
+
+  // ADR-07: mail to synthetic Lichess addresses is dropped and logged, never sent.
+  const emailSender = withoutSyntheticRecipients(rawEmailSender);
+
+  // ADR-07: registered only when LICHESS_CLIENT_ID is set (public PKCE client, no secret).
+  const lichess = env.LICHESS_CLIENT_ID
+    ? createLichessAccount({
+        clientId: env.LICHESS_CLIENT_ID,
+        db: database,
+        events: accountSecurityEvents,
+      })
+    : null;
 
   // R2, R3, R4, R6: change email, reset/change password, sessions, delete account.
   const accountSecurity = createAccountSecurity({
@@ -82,6 +97,9 @@ export function createAuth(
       : {},
     // R5.4: link only when both provider and local emails are verified; no trusted providers.
     account: {
+      // ADR-07: provider tokens (Lichess included) are encrypted at rest; plaintext tokens from
+      // before this flag stay readable (better-auth returns non-encrypted values unchanged).
+      encryptOAuthTokens: true,
       accountLinking: {
         enabled: true,
         trustedProviders: [],
@@ -117,6 +135,7 @@ export function createAuth(
         impersonationSessionDuration: 60 * 60,
       }),
       accountSecurity.plugin,
+      ...(lichess ? [genericOAuth({ config: [lichess.oauthConfig] }), lichess.plugin] : []),
       ...extraPlugins,
     ],
     // R7.1 actions with no native hook; better-auth has one `hooks.after` slot, matched by path.

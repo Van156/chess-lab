@@ -7,15 +7,15 @@ export type HomeSessionResult = {
 /**
  * Where `/` sends the visitor.
  *
- * - session: `/dashboard`
- * - error (network failure, 5xx, rejected promise): `/dashboard` as well, so the `_auth` guard
+ * - session: `/today`
+ * - error (network failure, 5xx, rejected promise): `/today` as well, so the `_auth` guard
  *   stays the single owner of the "is this visitor signed in" decision and its failure handling.
  *   Sending an error to `/sign-in` here would bounce a signed-in user during an API outage.
  * - no session and no error: `/sign-in`
  */
 export function resolveHomeRedirect(result: HomeSessionResult | null | undefined) {
   if (result?.data || result?.error) {
-    return { to: "/dashboard" } as const;
+    return { to: "/today" } as const;
   }
   return { to: "/sign-in" } as const;
 }

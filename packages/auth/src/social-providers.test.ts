@@ -47,3 +47,24 @@ describe("listEnabledSocialProviders", () => {
     );
   });
 });
+
+describe("lichess provider listing (S3.8)", () => {
+  test("includes lichess when LICHESS_CLIENT_ID is set", () => {
+    expect(listEnabledSocialProviders({ LICHESS_CLIENT_ID: "chess-lab" })).toEqual(["lichess"]);
+  });
+
+  test("lists google then lichess when both are configured", () => {
+    expect(
+      listEnabledSocialProviders({
+        GOOGLE_CLIENT_ID: "id",
+        GOOGLE_CLIENT_SECRET: "secret",
+        LICHESS_CLIENT_ID: "chess-lab",
+      }),
+    ).toEqual(["google", "lichess"]);
+  });
+
+  test("omits lichess when LICHESS_CLIENT_ID is unset or empty", () => {
+    expect(listEnabledSocialProviders({ LICHESS_CLIENT_ID: "" })).toEqual([]);
+    expect(listEnabledSocialProviders({})).toEqual([]);
+  });
+});

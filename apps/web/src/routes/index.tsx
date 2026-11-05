@@ -4,8 +4,8 @@ import { authClient } from "@/app/auth-client";
 import { loadHomeRedirect } from "@/app/home-redirect";
 
 /**
- * `/` has no page of its own: it forwards to `/dashboard` or to `/sign-in`. A failed or rejected session lookup
- * is forwarded to `/dashboard` so the `_auth` guard decides.
+ * `/` has no page of its own: it forwards to `/today` or to `/sign-in`. A failed or rejected session lookup
+ * is forwarded to `/today` so the `_auth` guard decides.
  */
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {

@@ -24,9 +24,9 @@ describe("pickAuthSearch", () => {
 
 describe("signInRedirect (/login and guard redirects)", () => {
   test("targets /sign-in and preserves redirect", () => {
-    expect(signInRedirect({ redirect: "/dashboard" })).toEqual({
+    expect(signInRedirect({ redirect: "/today" })).toEqual({
       to: "/sign-in",
-      search: { redirect: "/dashboard" },
+      search: { redirect: "/today" },
     });
   });
 
@@ -37,20 +37,20 @@ describe("signInRedirect (/login and guard redirects)", () => {
 
 describe("authLinkSearch (sign-in <-> sign-up links)", () => {
   test("carries the params over", () => {
-    expect(authLinkSearch({ redirect: "/dashboard" })).toEqual({ redirect: "/dashboard" });
+    expect(authLinkSearch({ redirect: "/today" })).toEqual({ redirect: "/today" });
   });
 });
 
 describe("postSignInPath", () => {
-  test("always lands on the dashboard", () => {
-    expect(postSignInPath()).toBe("/dashboard");
+  test("always lands on Today", () => {
+    expect(postSignInPath()).toBe("/today");
   });
 });
 
 describe("socialSignInTargets", () => {
-  test("success lands on the dashboard and errors return to the originating page", () => {
+  test("success lands on Today and errors return to the originating page", () => {
     expect(socialSignInTargets({ origin: "http://app", errorPath: "/sign-in" })).toEqual({
-      callbackURL: "http://app/dashboard",
+      callbackURL: "http://app/today",
       errorCallbackURL: "http://app/sign-in",
     });
   });

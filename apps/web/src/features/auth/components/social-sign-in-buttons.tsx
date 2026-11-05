@@ -1,6 +1,7 @@
 import { Button } from "@b2c-template/ui/components/button";
 import { FieldSeparator } from "@b2c-template/ui/components/field";
 import { Spinner } from "@b2c-template/ui/components/spinner";
+import { CrownIcon } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { SOCIAL_PROVIDER_LABELS, type SocialProviderId } from "../lib/social-providers";
@@ -8,6 +9,7 @@ import GoogleIcon from "./google-icon";
 
 const PROVIDER_ICONS: Record<SocialProviderId, ComponentType<{ className?: string }>> = {
   google: GoogleIcon,
+  lichess: CrownIcon,
 };
 
 /**

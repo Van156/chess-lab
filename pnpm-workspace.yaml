@@ -9,6 +9,7 @@ allowBuilds:
   msgpackr-extract: true
   workerd: true
   lefthook: true
+  stockfish: false
 catalog:
   zod: ^4.5.4
   typescript: ^6.0.3
@@ -28,6 +29,7 @@ catalog:
   "@types/react-dom": ^19.2.7
   tailwindcss: ^4.3.3
   drizzle-orm: 1.0.0-rc.4
+  chess.js: ^1.4.0
 minimumReleaseAgeExclude:
   - "@storybook/addon-a11y@10.6.1"
   - "@storybook/addon-docs@10.6.1"

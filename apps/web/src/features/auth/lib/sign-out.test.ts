@@ -40,4 +40,21 @@ describe("handleSignOut", () => {
     expect(ctx.showError).toHaveBeenCalledWith("Could not sign out.");
     expect(ctx.onSignedOut).not.toHaveBeenCalled();
   });
+
+  test("runs beforeSignOut first, and a failing one never stops the sign-out", async () => {
+    const order: string[] = [];
+    const ctx = setup(async () => {
+      order.push("signOut");
+      return { error: null };
+    });
+    const result = await handleSignOut({
+      ...ctx,
+      beforeSignOut: async () => {
+        order.push("before");
+        throw new Error("flush failed");
+      },
+    });
+    expect(result).toBe(true);
+    expect(order).toEqual(["before", "signOut"]);
+  });
 });

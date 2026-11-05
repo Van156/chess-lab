@@ -13,7 +13,7 @@ import {
 type Ctx = { admin: boolean };
 
 const groups: NavGroup<Ctx>[] = [
-  { label: "Main", items: [{ label: "Dashboard", to: "/dashboard" }] },
+  { label: "Main", items: [{ label: "Dashboard", to: "/today" }] },
   {
     label: "Platform",
     items: [
@@ -31,7 +31,7 @@ const groups: NavGroup<Ctx>[] = [
   {
     label: "Hidden group",
     visible: (ctx) => ctx.admin,
-    items: [{ label: "X", to: "/prototype" }],
+    items: [{ label: "X", to: "/games" }],
   },
 ];
 
@@ -63,7 +63,7 @@ describe("filterNavGroups", () => {
 
 describe("isPathActive", () => {
   test("matches the exact path", () => {
-    expect(isPathActive("/dashboard", "/dashboard")).toBe(true);
+    expect(isPathActive("/today", "/today")).toBe(true);
   });
 
   test("matches nested paths on a segment boundary", () => {
@@ -76,8 +76,8 @@ describe("isPathActive", () => {
   });
 
   test("ignores trailing slashes", () => {
-    expect(isPathActive("/dashboard/", "/dashboard")).toBe(true);
-    expect(isPathActive("/dashboard", "/dashboard/")).toBe(true);
+    expect(isPathActive("/today/", "/today")).toBe(true);
+    expect(isPathActive("/today", "/today/")).toBe(true);
   });
 });
 
@@ -91,7 +91,7 @@ describe("filterNavGroups with children", () => {
           to: "/account/security",
           children: [
             { label: "Profile", to: "/account/security" },
-            { label: "Preferences", to: "/account/preferences", visible: (ctx) => ctx.admin },
+            { label: "Preferences", to: "/mistakes", visible: (ctx) => ctx.admin },
           ],
         },
         {
@@ -102,9 +102,9 @@ describe("filterNavGroups with children", () => {
         { label: "Empty", to: "/admin/activity", children: [] },
         {
           label: "Hidden parent",
-          to: "/prototype",
+          to: "/games",
           visible: (ctx) => ctx.admin,
-          children: [{ label: "Child", to: "/dashboard" }],
+          children: [{ label: "Child", to: "/today" }],
         },
       ],
     },
@@ -155,17 +155,17 @@ describe("isNavItemActive", () => {
     to: "/account/danger",
     children: [
       { label: "Profile", to: "/account/security" },
-      { label: "Preferences", to: "/account/preferences" },
+      { label: "Preferences", to: "/mistakes" },
     ],
   };
 
   test("a leaf is active like isPathActive", () => {
-    expect(isNavItemActive("/dashboard/x", { label: "D", to: "/dashboard" })).toBe(true);
-    expect(isNavItemActive("/other", { label: "D", to: "/dashboard" })).toBe(false);
+    expect(isNavItemActive("/today/x", { label: "D", to: "/today" })).toBe(true);
+    expect(isNavItemActive("/other", { label: "D", to: "/today" })).toBe(false);
   });
 
   test("a parent is active when a child route is active", () => {
-    expect(isNavItemActive("/account/preferences/1", parent)).toBe(true);
+    expect(isNavItemActive("/mistakes/1", parent)).toBe(true);
   });
 
   test("a parent is active on its own path and inactive elsewhere", () => {
@@ -177,7 +177,7 @@ describe("isNavItemActive", () => {
 describe("flattenNavItems", () => {
   test("returns items in order: a parent's own landing path, then its children", () => {
     const items: NavItem[] = [
-      { label: "A", to: "/dashboard" },
+      { label: "A", to: "/today" },
       {
         label: "P",
         to: "/account",
@@ -186,7 +186,7 @@ describe("flattenNavItems", () => {
           { label: "C2", to: "/account/security" },
         ],
       },
-      { label: "B", to: "/prototype" },
+      { label: "B", to: "/games" },
     ];
     expect(flattenNavItems(items).map((i) => i.label)).toEqual(["A", "P", "C1", "C2", "B"]);
   });
@@ -208,7 +208,7 @@ describe("flattenNavItems", () => {
 
 describe("getBreadcrumbs", () => {
   const groups: NavGroup[] = [
-    { label: "Dashboard", items: [{ label: "Dashboard", to: "/dashboard" }] },
+    { label: "Dashboard", items: [{ label: "Dashboard", to: "/today" }] },
     {
       label: "Settings",
       items: [
@@ -218,7 +218,7 @@ describe("getBreadcrumbs", () => {
           to: "/account/danger",
           children: [
             { label: "Profile", to: "/account/security" },
-            { label: "Preferences", to: "/account/preferences" },
+            { label: "Preferences", to: "/mistakes" },
           ],
         },
       ],
@@ -233,7 +233,7 @@ describe("getBreadcrumbs", () => {
   });
 
   test("group > parent (linked) > child for a nested active child", () => {
-    expect(getBreadcrumbs(groups, "/account/preferences")).toEqual([
+    expect(getBreadcrumbs(groups, "/mistakes")).toEqual([
       { label: "Settings" },
       { label: "Access", to: "/account/danger" },
       { label: "Preferences" },
@@ -249,7 +249,7 @@ describe("getBreadcrumbs", () => {
   });
 
   test("does not repeat a group label equal to its item label", () => {
-    expect(getBreadcrumbs(groups, "/dashboard")).toEqual([{ label: "Dashboard" }]);
+    expect(getBreadcrumbs(groups, "/today")).toEqual([{ label: "Dashboard" }]);
   });
 
   test("prefers the most specific match", () => {
@@ -290,6 +290,6 @@ describe("getBreadcrumbs", () => {
 
   test("returns an empty list for an unknown path or no groups", () => {
     expect(getBreadcrumbs(groups, "/nope")).toEqual([]);
-    expect(getBreadcrumbs([], "/dashboard")).toEqual([]);
+    expect(getBreadcrumbs([], "/today")).toEqual([]);
   });
 });

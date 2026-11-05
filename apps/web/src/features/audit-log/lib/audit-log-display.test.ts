@@ -38,6 +38,7 @@ describe("formatUserAuditAction", () => {
     expect(formatUserAuditAction("user.email_changed")).toBe("Email changed");
     expect(formatUserAuditAction("user.session_revoked")).toBe("Session signed out");
     expect(formatUserAuditAction("user.deleted")).toBe("Account deleted");
+    expect(formatUserAuditAction("user.delete_failed")).toBe("Account deletion failed");
   });
 
   test("falls back to the generic label for an unknown action", () => {

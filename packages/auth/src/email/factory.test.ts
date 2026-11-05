@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { ConsoleEmailSender } from "./console-email-sender";
-import { createEmailSender } from "./factory";
+import { RecordingEmailSender } from "../testing";
+import { createEmailSender, withoutSyntheticRecipients } from "./factory";
 import { ResendEmailSender } from "./resend-email-sender";
 
 describe("createEmailSender", () => {
@@ -43,5 +44,40 @@ describe("createEmailSender", () => {
     expect(() => createEmailSender({ NODE_ENV: "production", RESEND_API_KEY: "" })).toThrow(
       /RESEND_API_KEY/,
     );
+  });
+});
+
+describe("withoutSyntheticRecipients (S3.7)", () => {
+  const SYNTHETIC = "thibault@lichess.invalid";
+
+  test("drops and logs every send to a synthetic address", async () => {
+    const inner = new RecordingEmailSender();
+    const sender = withoutSyntheticRecipients(inner);
+    const warnings: unknown[][] = [];
+    const realWarn = console.warn;
+    console.warn = (...args: unknown[]) => void warnings.push(args);
+    try {
+      await sender.sendVerification({ to: SYNTHETIC, url: "https://x/verify" });
+      await sender.sendResetPassword({ to: SYNTHETIC, url: "https://x/reset" });
+      await sender.sendChangeEmailApproval({ to: SYNTHETIC, newEmail: "n@e.com", url: "u" });
+      await sender.sendDeleteAccountConfirmation({ to: SYNTHETIC, url: "u" });
+      await sender.sendPasswordChangedNotice({ to: SYNTHETIC, changedAt: new Date() });
+    } finally {
+      console.warn = realWarn;
+    }
+    expect(inner.verifications).toEqual([]);
+    expect(inner.resetPasswords).toEqual([]);
+    expect(inner.changeEmailApprovals).toEqual([]);
+    expect(inner.deleteAccountConfirmations).toEqual([]);
+    expect(inner.passwordChangedNotices).toEqual([]);
+    expect(warnings).toHaveLength(5);
+    expect(JSON.stringify(warnings)).not.toContain("https://x/verify");
+  });
+
+  test("forwards sends to real addresses unchanged", async () => {
+    const inner = new RecordingEmailSender();
+    const sender = withoutSyntheticRecipients(inner);
+    await sender.sendVerification({ to: "user@example.com", url: "https://x/verify" });
+    expect(inner.verifications).toEqual([{ to: "user@example.com", url: "https://x/verify" }]);
   });
 });
