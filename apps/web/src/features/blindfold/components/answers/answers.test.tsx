@@ -24,7 +24,7 @@ const answer = (question: ExtraQuestion) =>
   renderToStaticMarkup(<ExtraDrillAnswer question={question} onSubmit={noop} />);
 const stimulus = (question: ExtraQuestion, revealed = false) =>
   renderToStaticMarkup(<ExtraDrillStimulus question={question} revealed={revealed} />);
-const BOARD = 'data-slot="chess-board"';
+const BOARD = 'data-slot="reveal-board"';
 
 describe("ExtraDrillAnswer", () => {
   test("yes/no drills offer Yes and No with the Y and N shortcuts", () => {
@@ -107,9 +107,9 @@ describe("ExtraDrillStimulus before answering", () => {
     expect(html).toContain(">O-O<");
   });
 
-  test("mate in one tags the side to move", () => {
-    expect(stimulus(MATE_BACK_RANK)).toContain(">White to move<");
-    expect(stimulus(MATE_BLACK_TO_MOVE)).toContain(">Black to move<");
+  test("mate in one marks the side to move in the piece list", () => {
+    expect(stimulus(MATE_BACK_RANK)).toContain(", to move");
+    expect(stimulus(MATE_BLACK_TO_MOVE)).toContain(", to move");
   });
 });
 

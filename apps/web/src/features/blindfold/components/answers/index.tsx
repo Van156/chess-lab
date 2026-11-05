@@ -24,7 +24,6 @@ import SquareChip from "./square-chip";
 import YesNoAnswer from "./yes-no-answer";
 
 /** Arrow colour for checks: a warm red, apart from the mint used for moves. */
-const CHECK_ARROW = "#f87171";
 
 export type ExtraAnswerProps = { question: ExtraQuestion; onSubmit: (answer: Answer) => void };
 
@@ -206,10 +205,12 @@ function CheckDetectionReveal({ question }: { question: CheckDetectionQuestion }
   return (
     <RevealBoard
       fen={fenFromPieces(question.pieces, question.king)}
-      highlights={king ? [king] : []}
+      {...(king && question.checkers.length > 0
+        ? { dangerHighlights: [king] }
+        : { highlights: king ? [king] : [] })}
       arrows={
         king
-          ? question.checkers.map((square) => ({ from: square, to: king, color: CHECK_ARROW }))
+          ? question.checkers.map((square) => ({ from: square, to: king, tone: "danger" as const }))
           : []
       }
       label={`The position, ${question.king} king highlighted`}
@@ -263,13 +264,8 @@ function MateInOneStimulus({
 }) {
   return (
     <StimulusLayout reveal={revealed ? <MateInOneReveal question={question} /> : null}>
-      <div className="flex flex-col gap-3">
-        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-          <span aria-hidden className="size-1.5 rounded-full bg-primary" />
-          {question.toMove === "white" ? "White" : "Black"} to move
-        </p>
-        <PieceList pieces={question.pieces} toMove={question.toMove} />
-      </div>
+      {/* The prompt names the side to move; the piece list accents it. */}
+      <PieceList pieces={question.pieces} toMove={question.toMove} />
     </StimulusLayout>
   );
 }
@@ -285,7 +281,7 @@ function MateInOneReveal({ question }: { question: MateInOneQuestion }) {
     <RevealBoard
       fen={question.fen}
       arrows={arrows}
-      highlights={defender ? [defender] : []}
+      dangerHighlights={defender ? [defender] : []}
       label="The position with the mating move"
       caption={
         moves.length === 1 ? (

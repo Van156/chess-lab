@@ -15,11 +15,14 @@ export type GuideIcon =
 /** A piece on a guide diagram, as a FEN letter: upper case for White, lower case for Black. */
 export type DiagramPiece = { square: string; piece: string };
 
-export type DiagramArrow = { from: string; to: string };
+/** `danger` draws the arrow in the destructive colour (a check); the default is the mint accent. */
+export type DiagramArrow = { from: string; to: string; tone?: "accent" | "danger" };
 
 /** A small board illustration. Squares are algebraic (`"e4"`); White is at the bottom. */
 export type GuideDiagram = {
   highlights?: readonly string[];
+  /** Squares marked in the destructive colour, e.g. a king in check. */
+  dangerHighlights?: readonly string[];
   arrows?: readonly DiagramArrow[];
   pieces?: readonly DiagramPiece[];
   /** Shown under the board and used as its accessible name. */

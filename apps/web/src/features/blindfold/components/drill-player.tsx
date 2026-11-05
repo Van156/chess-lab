@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { currentQuestion, streak, type DrillSession } from "../lib/drill-session";
 import type { ExtraQuestion } from "../lib/drills/types";
 import { formatDuration } from "../lib/format";
+import { formatAnswer } from "../lib/session-review";
 import { describeExpected, describeQuestion, parseSquareList } from "../lib/question-text";
 import type { Answer, DrillKind, Question } from "../lib/questions";
 import { ExtraDrillStimulus } from "./answers";
@@ -335,11 +336,10 @@ function announcement(question: Question, correct: boolean, autoAdvance: boolean
 }
 
 /** The answer given, as text for the feedback ("You said …"). */
-function answerText(answer: Answer | null): string {
+function answerText(question: Question, answer: Answer | null): string {
   if (answer === null) return "";
-  if (typeof answer === "number") return String(answer);
-  if (typeof answer === "string") return answer.trim();
-  return answer.join(" ");
+  if (typeof answer !== "number" && typeof answer !== "string") return answer.join(" ");
+  return formatAnswer(question, answer);
 }
 
 /** A square, a SAN move or a count: what the feedback sets as a mono chip. */
@@ -436,7 +436,7 @@ function Feedback({
   }, [autoAdvance, autoAdvanceMs]);
 
   const expected = describeExpected(question);
-  const given = answerText(answer);
+  const given = answerText(question, answer);
   const explanation: ReactNode = isOriginalQuestion(question) ? (
     <RevealExplanation question={question} />
   ) : null;

@@ -86,6 +86,17 @@ export default function GuideDiagram({
           >
             <path d="M0 0 L10 5 L0 10 z" className="fill-primary" />
           </marker>
+          <marker
+            id={`${markerId}-danger`}
+            viewBox="0 0 10 10"
+            refX="5"
+            refY="5"
+            markerWidth="3.2"
+            markerHeight="3.2"
+            orient="auto-start-reverse"
+          >
+            <path d="M0 0 L10 5 L0 10 z" className="fill-destructive" />
+          </marker>
         </defs>
 
         <g>
@@ -123,6 +134,22 @@ export default function GuideDiagram({
               />
             );
           })}
+          {(diagram.dangerHighlights ?? []).map((square) => {
+            const corner = cornerOf(square);
+            if (!corner) return null;
+            return (
+              <rect
+                key={`danger-${square}`}
+                x={corner.x + 0.6}
+                y={corner.y + 0.6}
+                width={CELL - 1.2}
+                height={CELL - 1.2}
+                rx={1.2}
+                className="fill-destructive/45 stroke-destructive"
+                strokeWidth={1.2}
+              />
+            );
+          })}
         </g>
 
         <g>
@@ -150,7 +177,7 @@ export default function GuideDiagram({
         </g>
 
         <g>
-          {(diagram.arrows ?? []).map(({ from, to }) => {
+          {(diagram.arrows ?? []).map(({ from, to, tone }) => {
             const start = centreOf(from);
             const end = centreOf(to);
             if (!start || !end) return null;
@@ -168,11 +195,11 @@ export default function GuideDiagram({
                 y1={start.y}
                 x2={x2}
                 y2={y2}
-                className="stroke-primary"
+                className={tone === "danger" ? "stroke-destructive" : "stroke-primary"}
                 strokeOpacity={0.92}
                 strokeWidth={1.5}
                 strokeLinecap="round"
-                markerEnd={`url(#${markerId})`}
+                markerEnd={`url(#${tone === "danger" ? `${markerId}-danger` : markerId})`}
               />
             );
           })}
