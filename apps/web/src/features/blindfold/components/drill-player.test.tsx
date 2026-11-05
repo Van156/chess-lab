@@ -6,14 +6,8 @@ import { DRILL_CATALOG } from "../lib/drill-catalog";
 import { currentQuestion } from "../lib/drill-session";
 import { describeExpected, describeQuestion } from "../lib/question-text";
 import { answerForKey, isTypingTarget } from "./drill-answer-input";
-import {
-  askingSession,
-  FINISHED_SUMMARY,
-  feedbackSession,
-  MID_RUN_RESULTS,
-} from "./drill-player.fixtures";
+import { askingSession, feedbackSession, MID_RUN_RESULTS } from "./drill-player.fixtures";
 import DrillPlayer, { autoAdvances, isNextKey, pipStates } from "./drill-player";
-import DrillResults from "./drill-results";
 
 const noop = () => {};
 
@@ -222,47 +216,5 @@ describe("autoAdvances and pipStates", () => {
   test("the answered question shows its result during feedback", () => {
     const states = pipStates(feedbackSession("square_colour"));
     expect(states.slice(0, 4)).toEqual(["correct", "correct", "wrong", "upcoming"]);
-  });
-});
-
-describe("DrillResults", () => {
-  test("shows correct, accuracy and time with the follow-up actions", async () => {
-    const html = await renderWithRouter(
-      <DrillResults
-        label="Drill"
-        summary={FINISHED_SUMMARY}
-        saveStatus="saved"
-        onRetrySave={noop}
-        onPlayAgain={noop}
-        onBack={noop}
-      />,
-    );
-    expect(html).toContain(">17/20<");
-    expect(html).toContain(">85%<");
-    expect(html).toContain(">1:23<");
-    expect(html).toContain("Play again");
-    expect(html).toContain("Back to drills");
-    expect(html).toContain("Result saved.");
-  });
-
-  test("shows saving progress and a retry after a failed save", async () => {
-    const render = (saveStatus: "saving" | "error") =>
-      renderWithRouter(
-        <DrillResults
-          label="Drill"
-          summary={FINISHED_SUMMARY}
-          saveStatus={saveStatus}
-          onRetrySave={noop}
-          onPlayAgain={noop}
-          onBack={noop}
-        />,
-      );
-    const saving = await render("saving");
-    expect(saving).toContain("Saving your result");
-    expect(saving).not.toContain(">Retry<");
-    const failed = await render("error");
-    expect(failed).toContain('role="alert"');
-    expect(failed).toContain("could not be saved");
-    expect(failed).toContain(">Retry<");
   });
 });

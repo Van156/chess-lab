@@ -1,9 +1,13 @@
+import { useEffect } from "react";
+
 import { useBlindfoldStats } from "../hooks/use-blindfold-stats";
 import { useBlindfoldSummary } from "../hooks/use-blindfold-summary";
 import { useDrillPlayer } from "../hooks/use-drill-player";
 import { useSaveSession } from "../hooks/use-save-session";
 import type { DrillInfo } from "../lib/drill-catalog";
 import { sessionSummary } from "../lib/drill-session";
+import type { DrillKind } from "../lib/questions";
+import { buildReview } from "../lib/session-review";
 import { dayKey } from "../lib/practice-summary";
 import { suggestDrill, type DrillRecency } from "../lib/suggest-drill";
 import BlindfoldDrills, { DEFAULT_LEVEL } from "./blindfold-drills";
@@ -16,9 +20,29 @@ import DrillResults from "./drill-results";
  * Drills tab (container): the hero and picker with progress, the running drill, or its saved
  * results. The hero's suggestion is the drill played least recently.
  */
-export default function BlindfoldDrillsPanel({ drills }: { drills: readonly DrillInfo[] }) {
+/** A drill asked for from outside the panel (the guide's "Practise with" chips). */
+export type StartRequest = { kind: DrillKind; id: number };
+
+export default function BlindfoldDrillsPanel({
+  drills,
+  startRequest = null,
+  onStartRequestHandled,
+}: {
+  drills: readonly DrillInfo[];
+  startRequest?: StartRequest | null;
+  onStartRequestHandled?: () => void;
+}) {
   const saver = useSaveSession();
   const player = useDrillPlayer({ onFinish: saver.save });
+  const { start } = player;
+
+  useEffect(() => {
+    if (!startRequest) return;
+    start(startRequest.kind, DEFAULT_LEVEL);
+    onStartRequestHandled?.();
+    // Each request is a fresh object and is cleared once handled, so it starts exactly one session.
+  }, [startRequest]);
+
   const stats = useBlindfoldStats();
   const summary = useBlindfoldSummary();
   const { session } = player;
@@ -64,6 +88,9 @@ export default function BlindfoldDrillsPanel({ drills }: { drills: readonly Dril
         onRetrySave={saver.retry}
         onPlayAgain={() => player.start(session.kind, session.level)}
         onBack={player.quit}
+        previousBest={saver.previousBest}
+        results={session.results}
+        review={buildReview(session)}
       />
     );
   }

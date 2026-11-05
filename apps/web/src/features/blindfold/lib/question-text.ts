@@ -9,7 +9,7 @@ export function describeQuestion(question: Question): string {
       return "Type the name of the highlighted square.";
     case "diagonals": {
       const style = question.direction === "rising" ? "a1-h8" : "a8-h1";
-      return `List every square on the ${style} style diagonal through ${question.square}, ${question.square} included.`;
+      return `List every square on the ${style} style diagonal through ${question.square}, including it.`;
     }
     case "knight_distance":
       return `Fewest knight moves from ${question.from} to ${question.to}?`;

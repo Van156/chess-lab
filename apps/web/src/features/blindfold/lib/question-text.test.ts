@@ -24,10 +24,10 @@ describe("describeQuestion", () => {
       expected: ["a1", "b2", "c3"],
     };
     expect(describeQuestion(rising)).toBe(
-      "List every square on the a1-h8 style diagonal through c3, c3 included.",
+      "List every square on the a1-h8 style diagonal through c3, including it.",
     );
     expect(describeQuestion({ ...rising, direction: "falling" })).toBe(
-      "List every square on the a8-h1 style diagonal through c3, c3 included.",
+      "List every square on the a8-h1 style diagonal through c3, including it.",
     );
   });
 });
