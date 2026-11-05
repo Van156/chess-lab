@@ -16,12 +16,16 @@ async function run(query: () => PromiseLike<unknown>) {
 }
 
 describe("DRILL_KINDS", () => {
-  test("lists the four blindfold drills", () => {
+  test("lists the eight blindfold drills", () => {
     expect([...schema.DRILL_KINDS]).toEqual([
       "square_colour",
       "coordinates",
       "diagonals",
       "knight_distance",
+      "same_diagonal",
+      "check_detection",
+      "position_recall",
+      "mate_in_one",
     ]);
   });
 });
@@ -56,6 +60,14 @@ describe.skipIf(!reachable)("drill_session schema", () => {
     expect(row!.id).toBeString();
     expect(row!.createdAt).toBeInstanceOf(Date);
     expect(row!.correct).toBe(18);
+  });
+
+  test.each(schema.DRILL_KINDS.map((drill) => [drill]))("accepts the %s drill", async (drill) => {
+    const [row] = await handle.db
+      .insert(schema.drillSession)
+      .values({ ...valid, drill })
+      .returning();
+    expect(row!.drill).toBe(drill);
   });
 
   test("rejects an unknown drill kind", async () => {
