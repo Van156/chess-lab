@@ -9,13 +9,20 @@ const options = (kind: (typeof DRILL_KINDS)[number], level = 1, seed = 1) => ({
   seed,
 });
 
+/** The drills whose questions hang on one square (or a knight trip), so the level-1 pool shows. */
+const SQUARE_DRILLS = ["square_colour", "coordinates", "diagonals", "knight_distance"] as const;
+
 describe("generateQuestions", () => {
-  test("lists the four drill kinds", () => {
+  test("lists the drill kinds", () => {
     expect([...DRILL_KINDS]).toEqual([
       "square_colour",
       "coordinates",
       "diagonals",
       "knight_distance",
+      "same_diagonal",
+      "check_detection",
+      "position_recall",
+      "mate_in_one",
     ]);
   });
 
@@ -40,11 +47,13 @@ describe("generateQuestions", () => {
   });
 
   test("level 1 stays on the a-d half of the board; level 2 uses the whole board", () => {
-    const squaresOf = (question: Question) =>
-      question.kind === "knight_distance" ? [question.from, question.to] : [question.square];
+    const squaresOf = (question: Question): string[] => {
+      if (question.kind === "knight_distance") return [question.from, question.to];
+      return "square" in question ? [question.square] : [];
+    };
     const maxFile = (level: number) =>
       Math.max(
-        ...DRILL_KINDS.flatMap((kind) =>
+        ...SQUARE_DRILLS.flatMap((kind) =>
           generateQuestions({ ...options(kind, level, 5), count: 200 }).flatMap(squaresOf),
         ).map((square) => parseSquare(square)?.file ?? -1),
       );

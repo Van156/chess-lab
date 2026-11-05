@@ -21,5 +21,14 @@ export const PLAYED_STATS: DrillStat[] = [
 ];
 
 export const EMPTY_STATS: DrillStat[] = (
-  ["square_colour", "coordinates", "diagonals", "knight_distance"] as const
+  [
+    "square_colour",
+    "coordinates",
+    "diagonals",
+    "knight_distance",
+    "same_diagonal",
+    "check_detection",
+    "position_recall",
+    "mate_in_one",
+  ] as const
 ).map((drill) => ({ drill, sessions: 0, bestAccuracy: null, recent: [] }));

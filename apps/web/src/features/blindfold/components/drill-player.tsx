@@ -6,7 +6,9 @@ import { ChessBoard } from "@/shared/components/board";
 import { currentQuestion, type DrillSession } from "../lib/drill-session";
 import { formatDuration } from "../lib/format";
 import { describeExpected, describeQuestion } from "../lib/question-text";
-import type { Answer } from "../lib/questions";
+import type { ExtraQuestion } from "../lib/drills/types";
+import { EXTRA_DRILLS, type Answer } from "../lib/questions";
+import { ExtraDrillStimulus } from "./answers";
 import DrillAnswerInput from "./drill-answer-input";
 
 /** Any legal position works: the board hides its pieces, leaving the highlighted square. */
@@ -64,6 +66,13 @@ export default function DrillPlayer({
             label="Empty board with one highlighted square"
           />
         </div>
+      ) : null}
+
+      {question.kind in EXTRA_DRILLS ? (
+        <ExtraDrillStimulus
+          question={question as ExtraQuestion}
+          revealed={session.phase === "feedback"}
+        />
       ) : null}
 
       {session.phase === "feedback" && result !== undefined ? (

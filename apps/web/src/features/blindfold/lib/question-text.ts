@@ -1,4 +1,4 @@
-import type { Question } from "./questions";
+import { extraModule, type Question } from "./questions";
 
 /** The prompt shown above the answer controls. */
 export function describeQuestion(question: Question): string {
@@ -13,6 +13,8 @@ export function describeQuestion(question: Question): string {
     }
     case "knight_distance":
       return `Fewest knight moves from ${question.from} to ${question.to}?`;
+    default:
+      return extraModule(question).describe(question);
   }
 }
 
@@ -23,8 +25,11 @@ export function describeExpected(question: Question): string {
       return question.expected.join(" ");
     case "knight_distance":
       return String(question.expected);
-    default:
+    case "square_colour":
+    case "coordinates":
       return question.expected;
+    default:
+      return extraModule(question).expectedText(question);
   }
 }
 

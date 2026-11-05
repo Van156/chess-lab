@@ -1,3 +1,8 @@
+import { checkDetection } from "./drills/check-detection";
+import { mateInOne } from "./drills/mate-in-one";
+import { positionRecall } from "./drills/position-recall";
+import { sameDiagonal } from "./drills/same-diagonal";
+import type { Answer, DrillModule, ExtraQuestion } from "./drills/types";
 import { createRng, type Rng } from "./rng";
 import {
   ALL_SQUARES,
@@ -9,12 +14,16 @@ import {
   type SquareColour,
 } from "./squares";
 
-/** Mirrors `DrillKind` in `@b2c-template/db`; the API validates the same four values. */
+/** Mirrors `DrillKind` in `@b2c-template/db`; the API validates the same values. */
 export const DRILL_KINDS = [
   "square_colour",
   "coordinates",
   "diagonals",
   "knight_distance",
+  "same_diagonal",
+  "check_detection",
+  "position_recall",
+  "mate_in_one",
 ] as const;
 export type DrillKind = (typeof DRILL_KINDS)[number];
 
@@ -30,10 +39,29 @@ export type Question =
       /** Every square on the chosen diagonal through `square`, ordered by file. */
       expected: Square[];
     }
-  | { kind: "knight_distance"; from: Square; to: Square; expected: number };
+  | { kind: "knight_distance"; from: Square; to: Square; expected: number }
+  | ExtraQuestion;
 
-/** What the player gives back: a colour or square name, a set of squares, or a move count. */
-export type Answer = string | number | readonly string[];
+export type { Answer } from "./drills/types";
+
+/** The drills implemented in their own module, keyed by kind. */
+export const EXTRA_DRILLS: {
+  [K in ExtraQuestion["kind"]]: DrillModule<Extract<ExtraQuestion, { kind: K }>>;
+} = {
+  same_diagonal: sameDiagonal,
+  check_detection: checkDetection,
+  position_recall: positionRecall,
+  mate_in_one: mateInOne,
+};
+
+function isExtra(question: Question): question is ExtraQuestion {
+  return question.kind in EXTRA_DRILLS;
+}
+
+/** The module for an extra question, typed loosely so callers need no per-kind switch. */
+export function extraModule(question: ExtraQuestion): DrillModule<ExtraQuestion> {
+  return EXTRA_DRILLS[question.kind] as DrillModule<ExtraQuestion>;
+}
 
 export type GenerateOptions = {
   kind: DrillKind;
@@ -94,6 +122,8 @@ function generateOne(kind: DrillKind, pool: readonly Square[], level: number, rn
       const to = rng.pick(targets);
       return { kind, from, to, expected: knightDistance(from, to) };
     }
+    default:
+      return EXTRA_DRILLS[kind].generate({ pool, level, rng });
   }
 }
 
@@ -125,6 +155,7 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 
 /** Whether an answer is right for a question. Squares ignore case and whitespace; diagonals ignore order. */
 export function isCorrect(question: Question, answer: Answer): boolean {
+  if (isExtra(question)) return extraModule(question).isCorrect(question, answer);
   switch (question.kind) {
     case "square_colour":
       return typeof answer === "string" && answer.trim().toLowerCase() === question.expected;

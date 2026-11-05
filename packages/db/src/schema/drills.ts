@@ -9,6 +9,10 @@ export const DRILL_KINDS = [
   "coordinates",
   "diagonals",
   "knight_distance",
+  "same_diagonal",
+  "check_detection",
+  "position_recall",
+  "mate_in_one",
 ] as const;
 export type DrillKind = (typeof DRILL_KINDS)[number];
 

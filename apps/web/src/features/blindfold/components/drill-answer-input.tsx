@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { parseSquareList } from "../lib/question-text";
 import type { Answer, Question } from "../lib/questions";
+import { ExtraDrillAnswer } from "./answers";
 
 /** Largest knight distance between two squares of the board. */
 const MAX_KNIGHT_DISTANCE = 6;
@@ -41,6 +42,8 @@ export default function DrillAnswerInput({ question, onSubmit }: DrillAnswerInpu
           onSubmit={onSubmit}
         />
       );
+    default:
+      return <ExtraDrillAnswer question={question} onSubmit={onSubmit} />;
   }
 }
 
