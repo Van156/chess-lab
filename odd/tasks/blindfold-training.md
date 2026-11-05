@@ -92,3 +92,49 @@ Add a Blindfold section. It holds:
   - Not checked: a manual browser run (keyboard L/D and typed input).
 - **Review T5:** lineage `review-6917806d14bb646a`, range `cb3a570..f0edc29`. One lens approved it. The approval is acknowledged and its authority burned.
 - **Feature complete.** Next: try it in the browser with `blindfold` in `CHESSLAB_FEATURES`. Push and PR are the user's decision.
+
+## v2: more drills and a redesign (2026-11-05)
+
+- **Source:** user request 2026-11-05: "continue the feature, improve it and add more sessions; follow the best design that fits the app; review it until it looks high quality; use 8 subagents and commit".
+- **Interpretation:** "more sessions" = more drill kinds. Four were added (8 in total), and every screen was redesigned in the Midnight identity.
+- **Delivery:** a shared contract commit first (`94a879b`: `lib/drills/types.ts`, a `DrillModule` interface, stubs, catalog categories, answer and stimulus slots). Then eight agents worked in parallel on disjoint files. The coordinator committed each agent's slice as it landed, then integrated and reviewed.
+
+### New drills
+
+| Kind              | Label           | Category        | What it asks                                                                    |
+| ----------------- | --------------- | --------------- | ------------------------------------------------------------------------------- |
+| `same_diagonal`   | Shared diagonal | Board geometry  | Are two squares on one diagonal (yes/no, near misses from level 2)              |
+| `check_detection` | Check spotter   | Piece vision    | Is the king in check, from a piece list (blockers at level 2, pawns at level 3) |
+| `position_recall` | Move memory     | Position memory | After an opening's moves, what stands on a square (34 validated lines)          |
+| `mate_in_one`     | Mate in one     | Position memory | Find mate from a piece list (42 curated positions; any legal mate accepted)     |
+
+### Commits
+
+- `ff75b08`: DB migration widening the drill CHECK; `blindfold.stats` gains `lastPlayedAt`; new `blindfold.summary` (totals, UTC streak, 28-day practice days).
+- `5109ea0`: the user data export now includes `drill_session`. It was missing in v1, and the export meta-test caught it.
+- `8767f4c`, `3f76f36`: logic for the four drills (TDD).
+- `2f0aa93`: answer controls and reveals for the new drills.
+- `da5845c`: hub with a practice hero (suggested drill, streak, totals, 28-day strip), and the drill picker grouped by category with glyphs and level hints.
+- `b44243f`: player with a 20-pip track, streak chip, square chips, explanation boards, keyboard shortcuts, auto-advance on speed drills and a quit confirmation.
+- `5d56904`: results screen (accuracy ring, verdict, personal best, question review) and progress table (sparklines, last played).
+- `58f157d`: guide with a sticky contents list, takeaways, SVG diagrams, three new sections and a six-week plan.
+- `6d66107`, `15dacf5`, and the commit that adds this section: integration and review fixes.
+  - Results get the review and the previous best.
+  - Guide "Practise with" chips start a drill.
+  - Every reveal board uses one SVG board.
+  - A line name tripped the opening-book precache guard; it was renamed "Scotch Opening".
+
+### Checks
+
+- `bun test src/features/blindfold`: 245 pass.
+- `src/app`: 47 pass.
+- `packages/db` drill schema: 17 pass, against a local PG16.
+- `packages/api` blindfold router and export: 22 pass, against a local PG16.
+- `tsc --noEmit`, `vp build` and `check-precache`: OK.
+- oxlint and oxfmt: clean.
+- Visual review: Storybook screenshots at 1280 and 375 for the hub, player (all kinds), reveals, results, progress and guide.
+
+### Known limits
+
+- Mate in one has 12 to 16 positions per level, so a 20-question session repeats some.
+- Practice days are counted in UTC, so near midnight the strip can be a day off from local time.
