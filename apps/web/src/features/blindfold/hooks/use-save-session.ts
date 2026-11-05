@@ -21,7 +21,7 @@ export function useSaveSession() {
   const [previousBest, setPreviousBest] = useState<number | null | undefined>(undefined);
   const mutation = useMutation({
     ...orpc.blindfold.recordSession.mutationOptions(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.blindfold.stats.key() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.blindfold.key() }),
   });
 
   function save(session: DrillSession) {
