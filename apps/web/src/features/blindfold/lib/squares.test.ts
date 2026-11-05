@@ -5,6 +5,8 @@ import {
   diagonalsThrough,
   formatSquare,
   knightDistance,
+  knightPath,
+  fileAndRank,
   parseSquare,
   squareColour,
 } from "./squares";
@@ -123,5 +125,48 @@ describe("knightDistance", () => {
         expect(knightDistance(from, to) % 2 === 0).toBe(sameColour);
       }
     }
+  });
+});
+
+describe("knightPath", () => {
+  const isKnightHop = (a: string, b: string) => {
+    const from = parseSquare(a);
+    const to = parseSquare(b);
+    if (!from || !to) return false;
+    const df = Math.abs(from.file - to.file);
+    const dr = Math.abs(from.rank - to.rank);
+    return (df === 1 && dr === 2) || (df === 2 && dr === 1);
+  };
+
+  test("is just the square when start and target match", () => {
+    expect(knightPath("e4", "e4")).toEqual(["e4"]);
+  });
+
+  test("runs from start to target in knight hops, as short as the distance", () => {
+    for (const [from, to] of [
+      ["b1", "c3"],
+      ["a1", "h8"],
+      ["a1", "b2"],
+      ["g1", "e5"],
+      ["d4", "h1"],
+    ] as const) {
+      const path = knightPath(from, to);
+      expect(path[0]).toBe(from);
+      expect(path.at(-1)).toBe(to);
+      expect(path).toHaveLength(knightDistance(from, to) + 1);
+      for (let index = 1; index < path.length; index++) {
+        expect(isKnightHop(path[index - 1] ?? "", path[index] ?? "")).toBe(true);
+      }
+    }
+  });
+
+  test("is deterministic", () => {
+    expect(knightPath("a1", "h8")).toEqual(knightPath("a1", "h8"));
+  });
+});
+
+describe("fileAndRank", () => {
+  test("splits a square into its file letter and rank number", () => {
+    expect(fileAndRank("e4")).toEqual({ file: "e", fileNumber: 5, rank: 4 });
   });
 });

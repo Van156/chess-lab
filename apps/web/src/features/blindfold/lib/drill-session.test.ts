@@ -5,8 +5,10 @@ import {
   currentQuestion,
   elapsedMs,
   nextQuestion,
+  bestStreak,
   sessionSummary,
   startSession,
+  streak,
 } from "./drill-session";
 import { generateQuestions } from "./questions";
 
@@ -45,6 +47,21 @@ describe("answerQuestion", () => {
     const session = start();
     const wrong = currentQuestion(session).expected === "light" ? "dark" : "light";
     expect(answerQuestion(session, wrong).results).toEqual([false]);
+  });
+
+  test("records every answer and when it was given", () => {
+    let session = start();
+    const first = currentQuestion(session).expected as string;
+    session = nextQuestion(answerQuestion(session, first, 1_500), 1_600);
+    session = answerQuestion(session, "nonsense", 2_750);
+    expect(session.answers).toEqual([first, "nonsense"]);
+    expect(session.answeredAt).toEqual([1_500, 2_750]);
+    expect(session.results).toHaveLength(2);
+  });
+
+  test("starts with no answers recorded", () => {
+    expect(start().answers).toEqual([]);
+    expect(start().answeredAt).toEqual([]);
   });
 
   test("ignores a second answer while feedback is showing", () => {
@@ -91,5 +108,21 @@ describe("elapsedMs and sessionSummary", () => {
 
   test("refuses to summarise an unfinished session", () => {
     expect(() => sessionSummary(start())).toThrow(RangeError);
+  });
+});
+
+describe("streak and bestStreak", () => {
+  const withResults = (results: boolean[]) => ({ ...start(), results });
+
+  test("count the current run of correct answers", () => {
+    expect(streak(withResults([]))).toBe(0);
+    expect(streak(withResults([true, true, false, true, true, true]))).toBe(3);
+    expect(streak(withResults([true, false]))).toBe(0);
+  });
+
+  test("find the longest run of correct answers", () => {
+    expect(bestStreak(withResults([]))).toBe(0);
+    expect(bestStreak(withResults([true, true, true, false, true]))).toBe(3);
+    expect(bestStreak(withResults([false, true, true]))).toBe(2);
   });
 });

@@ -65,25 +65,45 @@ const KNIGHT_STEPS: readonly (readonly [number, number])[] = [
   [-1, 2],
 ];
 
-/** Fewest knight moves between two squares (breadth-first search); 0 for the same square, at most 6. */
-export function knightDistance(from: Square, to: Square): number {
+/**
+ * One shortest knight route between two squares (breadth-first search), start and target
+ * included: `["e4"]` for the same square, at most seven squares. Steps are tried in a fixed order,
+ * so the same pair always gives the same route.
+ */
+export function knightPath(from: Square, to: Square): Square[] {
   const start = coordinatesOf(from);
   const target = coordinatesOf(to);
   const key = ({ file, rank }: Coordinates) => file * SIZE + rank;
-  const distances = new Map<number, number>([[key(start), 0]]);
+  const parents = new Map<number, Coordinates | null>([[key(start), null]]);
   const queue: Coordinates[] = [start];
   for (let head = 0; head < queue.length; head++) {
     const current = queue[head];
     if (!current) break;
-    const steps = distances.get(key(current)) ?? 0;
-    if (current.file === target.file && current.rank === target.rank) return steps;
+    if (current.file === target.file && current.rank === target.rank) {
+      const path: Square[] = [];
+      for (let step: Coordinates | null = current; step; step = parents.get(key(step)) ?? null) {
+        path.unshift(formatSquare(step.file, step.rank));
+      }
+      return path;
+    }
     for (const [df, dr] of KNIGHT_STEPS) {
       const next = { file: current.file + df, rank: current.rank + dr };
       if (next.file < 0 || next.file >= SIZE || next.rank < 0 || next.rank >= SIZE) continue;
-      if (distances.has(key(next))) continue;
-      distances.set(key(next), steps + 1);
+      if (parents.has(key(next))) continue;
+      parents.set(key(next), current);
       queue.push(next);
     }
   }
   throw new Error(`Unreachable: ${from} -> ${to}`);
+}
+
+/** Fewest knight moves between two squares; 0 for the same square, at most 6. */
+export function knightDistance(from: Square, to: Square): number {
+  return knightPath(from, to).length - 1;
+}
+
+/** A square's file letter, that file's number (a = 1) and its rank, e.g. e4 -> e, 5, 4. */
+export function fileAndRank(square: Square): { file: string; fileNumber: number; rank: number } {
+  const { file, rank } = coordinatesOf(square);
+  return { file: FILE_LETTERS[file] ?? "", fileNumber: file + 1, rank: rank + 1 };
 }

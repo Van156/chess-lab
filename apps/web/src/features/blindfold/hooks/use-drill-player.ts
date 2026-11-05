@@ -36,7 +36,7 @@ export function useDrillPlayer({ onFinish }: { onFinish?: (session: DrillSession
         }),
       ),
     answer: (answer: Answer) =>
-      setSession((current) => (current ? answerQuestion(current, answer) : current)),
+      setSession((current) => (current ? answerQuestion(current, answer, Date.now()) : current)),
     next: () => {
       if (!session || advancedFrom.current === session) return;
       advancedFrom.current = session;

@@ -19,6 +19,10 @@ export type DrillSession = {
   phase: SessionPhase;
   /** One entry per answered question. */
   results: readonly boolean[];
+  /** Every answer given, aligned with `results`. */
+  answers: readonly Answer[];
+  /** Epoch milliseconds each answer was given, aligned with `results`. */
+  answeredAt: readonly number[];
   /** The answer just given, shown during feedback; null otherwise. */
   lastAnswer: Answer | null;
   startedAt: number;
@@ -44,6 +48,8 @@ export function startSession({ now, count, ...options }: StartOptions): DrillSes
     index: 0,
     phase: "asking",
     results: [],
+    answers: [],
+    answeredAt: [],
     lastAnswer: null,
     startedAt: now,
     finishedAt: null,
@@ -57,13 +63,22 @@ export function currentQuestion(session: DrillSession): Question {
   return question;
 }
 
-/** Grades an answer and shows feedback. A second answer to the same question is ignored. */
-export function answerQuestion(session: DrillSession, answer: Answer): DrillSession {
+/**
+ * Grades an answer and shows feedback. A second answer to the same question is ignored.
+ * `now` (epoch ms) is when it was answered; it defaults to the current time.
+ */
+export function answerQuestion(
+  session: DrillSession,
+  answer: Answer,
+  now: number = Date.now(),
+): DrillSession {
   if (session.phase !== "asking") return session;
   return {
     ...session,
     phase: "feedback",
     results: [...session.results, isCorrect(currentQuestion(session), answer)],
+    answers: [...session.answers, answer],
+    answeredAt: [...session.answeredAt, now],
     lastAnswer: answer,
   };
 }
@@ -87,4 +102,24 @@ export function elapsedMs(session: DrillSession, now: number): number {
 export function sessionSummary(session: DrillSession): SessionSummary {
   if (session.phase !== "finished") throw new RangeError("The session is not finished.");
   return summariseSession(session.results, elapsedMs(session, session.finishedAt ?? 0));
+}
+
+/** The current run of correct answers, counting back from the latest one. */
+export function streak(session: Pick<DrillSession, "results">): number {
+  let run = 0;
+  for (let index = session.results.length - 1; index >= 0 && session.results[index]; index--) {
+    run += 1;
+  }
+  return run;
+}
+
+/** The longest run of correct answers in the session so far. */
+export function bestStreak(session: Pick<DrillSession, "results">): number {
+  let best = 0;
+  let run = 0;
+  for (const result of session.results) {
+    run = result ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
 }
